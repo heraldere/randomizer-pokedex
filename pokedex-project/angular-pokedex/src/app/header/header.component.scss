@@ -1,0 +1,52 @@
+
+
+
+.pokeball-icon {
+    // background: 'url(../../assets/images/pokeball-logo.png)';
+    height: 24px;
+    width: 24px;
+    display: block;
+}
+
+.header-title {
+    display: inline-flex;
+    padding-inline-start: 10px;
+    padding-inline-end: 10px;
+    margin-bottom: 0px;
+}
+
+.header-text {
+    display: inline-flex;
+    padding-inline-start: 10px;
+    padding-inline-end: 10px;
+}
+
+.tabs {
+    border-bottom: 2px grey solid;
+
+    .tab {
+        background-color: rgb(231, 231, 231);
+    
+        display: inline-flex;
+        align-items: center;
+        padding: 8px 16px;
+        // border-radius: 2px;
+        font-size: 14px;
+        cursor: pointer;
+        color: rgba(36, 36, 36, 0.87);
+        border: none;
+        border-top-left-radius: 10px;
+        border-top-right-radius: 10px;
+        :hover {
+            background-color: darken($color: rgb(231, 231, 231), $amount: 10);
+            font-weight: 300;
+        }
+    }
+    .tab.selected {
+        background-color: rgb(156, 156, 156);
+        :hover {
+            background-color: darken($color: rgb(156, 156, 156), $amount: 20);
+        }
+    }
+}
+
