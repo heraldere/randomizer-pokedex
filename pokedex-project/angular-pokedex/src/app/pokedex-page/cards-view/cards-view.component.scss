@@ -1,0 +1,38 @@
+$selectedTabColor : rgb(156, 156, 156);
+$tabColor : rgb(231, 231, 231);
+$tabFontColor: rgb(44, 44, 44);
+
+.tabs {
+    border-bottom: 5px $selectedTabColor solid;
+    * {
+        margin-bottom: 0px;
+    }
+    color: $tabFontColor;
+    a.tab {
+        background-color: rgb(231, 231, 231);
+    
+        display: inline-flex;
+        align-items: center;
+        padding: 8px 16px;
+        // border-radius: 2px;
+        font-size: 14px;
+        cursor: pointer;
+        color: $tabFontColor;
+        border: none;
+        border-top-left-radius: 10px;
+        border-top-right-radius: 10px;
+        i.material-icons {
+            color: $tabFontColor;
+        }
+        &:hover {
+            background-color: darken($color: $tabColor, $amount: 10);
+            font-weight: 300;
+        }
+        &.selected {
+            background-color: $selectedTabColor;
+            &:hover {
+                background-color: darken($color: $selectedTabColor, $amount: 20);
+            }
+        }
+    }
+}

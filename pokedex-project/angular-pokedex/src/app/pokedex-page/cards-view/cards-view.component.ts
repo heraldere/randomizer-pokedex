@@ -7,6 +7,11 @@ import { Component, OnInit } from '@angular/core';
 })
 export class CardsViewComponent implements OnInit {
 
+  public showA: boolean = false;
+  public showB: boolean = true;
+  public showC: boolean = false;
+  public selectedTab: string = 'summaryTab';
+
   constructor() { }
 
   ngOnInit(): void {
