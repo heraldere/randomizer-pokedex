@@ -1,9 +1,11 @@
-import { Component, OnInit } from '@angular/core';
+import { Component, OnInit, ViewChild, TemplateRef } from '@angular/core';
 
 import { MatDialog } from '@angular/material/dialog';
 import { FilterDialogContentComponent } from './filter-dialog-content/filter-dialog-content.component';
+import { PokedexService } from '../../pokedex.service';
 
 import { Columns, Config, DefaultConfig } from 'ngx-easy-table';
+import { API, APIDefinition } from 'ngx-easy-table';
 
 @Component({
   selector: 'app-table-view',
@@ -11,40 +13,37 @@ import { Columns, Config, DefaultConfig } from 'ngx-easy-table';
   styleUrls: ['./table-view.component.scss']
 })
 export class TableViewComponent implements OnInit {
+
+  @ViewChild('tableTemplate', { static: true }) tableTemplate: APIDefinition | undefined;
+
   public configuration: Config;
   public columns: Columns[];
   private dialogResult: any;
   public dialogOpen = false;
 
-  public data = [{
-    phone: '+1 (934) 551-2224',
-    age: 20,
-    address: { street: 'North street', number: 12 },
-    company: 'ZILLANET',
-    name: 'Valentine Webb',
-    isActive: false,
-  }, {
-    phone: '+1 (948) 460-3627',
-    age: 31,
-    address: { street: 'South street', number: 12 },
-    company: 'KNOWLYSIS',
-    name: 'Heidi Duncan',
-    isActive: true,
-    }];
+  public data = [];
   
-    
-  
-  constructor(public dialog : MatDialog) { 
+
+  constructor(public pokedexService: PokedexService, public dialog : MatDialog) { 
     this.configuration = { ...DefaultConfig };
-    this.configuration.searchEnabled = true;
+    // this.configuration.searchEnabled = true;
+    // this.hpTemplate 
     // ... etc.
+    let statWidth = '10%';
     this.columns = [
-      { key: 'phone', title: 'Phone' },
-      { key: 'age', title: 'Age' },
-      { key: 'company', title: 'Company' },
       { key: 'name', title: 'Name' },
-      { key: 'isActive', title: 'STATUS' },
+      { key: 'long_id', title: 'Id' },
+      { key: 'type1', title: 'Type 1' },
+      { key: 'type2', title: 'Type 2'},
+      { key: 'stat_total', title: 'Total' },
+      { key: 'hp', title: 'HP', width: statWidth},
+      { key: 'attack', title: 'Attack', width: statWidth},
+      { key: 'defense', title: 'Defense', width: statWidth},
+      { key: 'sp_attack', title: 'Special Attack', width: statWidth},
+      { key: 'sp_defense', title: 'Special Defense', width: statWidth},
+      { key: 'speed', title: 'Speed', width: statWidth},
     ];
+    this.data = Object.values(pokedexService.pokedex);
   }
 
   ngOnInit(): void {

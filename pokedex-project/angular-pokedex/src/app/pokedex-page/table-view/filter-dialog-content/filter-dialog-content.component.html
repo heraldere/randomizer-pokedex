@@ -1,6 +1,16 @@
 <h1 mat-dialog-title>Hi</h1>
 <div mat-dialog-content>
-    <query-builder [data]="query" [config]="config"></query-builder>
+    <query-builder [(ngModel)]="query" [config]="config">
+        <!-- <ng-container *queryInput="let rule; let field=field; let options=options; type: 'category'">
+            <mat-form-field>
+              <mat-select [(ngModel)]="rule.value" [placeholder]="field.name">
+                <mat-option *ngFor="let opt of options" [value]="opt.value">
+                  {{ opt.name }}
+                </mat-option>
+              </mat-select>
+            </mat-form-field>
+          </ng-container> -->
+    </query-builder>
     <textarea class="output">{{query | json}}</textarea>
 </div>
 <div mat-dialog-actions>

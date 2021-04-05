@@ -1,6 +1,38 @@
 <p>table-view works!</p>
 <button class='filterButton openDialogButton' (click)="openFilterTreeDialog()"></button>
-<ngx-table [configuration]="configuration"
-           [data]="data"
-           [columns]="columns">
+<ngx-table [configuration]="configuration" [data]="data" [columns]="columns" #tableTemplate>
+    <ng-template let-row let-index="index">
+        <td>
+            <h2>{{ row.name }}</h2>
+        </td>
+        <td>
+            <h3>{{ row.long_id }}</h3>
+        </td>
+        <td>
+            <span>{{row.type1}}</span>
+        </td>
+        <td>
+            <span>{{row.type2}}</span>
+        </td>
+        <td>
+            <span>Total: {{ row.stat_total }}</span>
+        </td>
+        <td *ngFor="let stat of ['hp', 'attack', 'defense', 'sp_attack', 'sp_defense', 'speed']">
+            <div class="statsBar">
+                <span class="statsBarFill total" [class]="[stat]" [style.width]="row[stat]/2.55+ '%'" aria-valuenow="row[stat]"
+                aria-valuemin="0" aria-valuemax="255">
+                </span>
+                <div class='overlayLabel'>
+                    <span>
+                        {{row[stat]}}
+                    </span>
+                </div>
+            </div>
+        </td>
+    </ng-template>
 </ngx-table>
+<!-- <ng-template #hpTpl let-row let-rowIndex="rowIndex" let-column="column">
+    <div>rowIndex: {{ rowIndex }}</div>
+</ng-template> -->
+  
+  

@@ -1,9 +1,9 @@
 import { NgModule } from '@angular/core';
 import { BrowserModule } from '@angular/platform-browser';
 
-import {
-  MatDialogModule
-} from '@angular/material/dialog';
+import { FormsModule, ReactiveFormsModule } from '@angular/forms';
+import { MatDialogModule } from '@angular/material/dialog';
+import { MatSelectModule } from '@angular/material/select';
 import { MatButtonModule } from '@angular/material/button';
 
 import { AppRoutingModule } from './app-routing.module';
@@ -22,8 +22,6 @@ import {BrowserAnimationsModule} from '@angular/platform-browser/animations';
 
 @NgModule({
   exports: [
-    MatDialogModule,
-    MatButtonModule,
     QueryBuilderModule
   ],
   declarations: [
@@ -38,10 +36,12 @@ import {BrowserAnimationsModule} from '@angular/platform-browser/animations';
   imports: [
     BrowserModule,
     AppRoutingModule,
+    FormsModule, // Need for [(ngModel)] stuff to work
     TableModule,
     MatDialogModule,
     BrowserAnimationsModule,
-    QueryBuilderModule
+    QueryBuilderModule,
+    MatSelectModule
   ],
   entryComponents: [
     FilterDialogContentComponent
