@@ -20,6 +20,10 @@ import { FilterDialogContentComponent } from './pokedex-page/table-view/filter-d
 import { QueryBuilderModule } from "angular2-query-builder";
 
 import {BrowserAnimationsModule} from '@angular/platform-browser/animations';
+import { IndividualSummaryComponent } from './pokedex-page/cards-view/individual-summary/individual-summary.component';
+import { TeamBuilderComponent } from './pokedex-page/cards-view/team-builder/team-builder.component';
+import { VsSummaryComponent } from './pokedex-page/cards-view/vs-summary/vs-summary.component';
+import { CardComponent } from './pokedex-page/cards-view/card/card.component';
 
 @NgModule({
   exports: [
@@ -34,7 +38,11 @@ import {BrowserAnimationsModule} from '@angular/platform-browser/animations';
     PokedexPageComponent,
     TableViewComponent,
     CardsViewComponent,
-    FilterDialogContentComponent
+    FilterDialogContentComponent,
+    IndividualSummaryComponent,
+    TeamBuilderComponent,
+    VsSummaryComponent,
+    CardComponent
   ],
   imports: [
     BrowserModule,
