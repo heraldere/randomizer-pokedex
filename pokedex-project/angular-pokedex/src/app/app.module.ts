@@ -5,6 +5,7 @@ import { FormsModule, ReactiveFormsModule } from '@angular/forms';
 import { MatDialogModule } from '@angular/material/dialog';
 import { MatSelectModule } from '@angular/material/select';
 import { MatButtonModule } from '@angular/material/button';
+import { MatTabsModule } from '@angular/material/tabs';
 
 import { AppRoutingModule } from './app-routing.module';
 import { AppComponent } from './app.component';
@@ -19,6 +20,10 @@ import { FilterDialogContentComponent } from './pokedex-page/table-view/filter-d
 import { QueryBuilderModule } from "angular2-query-builder";
 
 import {BrowserAnimationsModule} from '@angular/platform-browser/animations';
+import { IndividualSummaryComponent } from './pokedex-page/cards-view/individual-summary/individual-summary.component';
+import { TeamBuilderComponent } from './pokedex-page/cards-view/team-builder/team-builder.component';
+import { VsSummaryComponent } from './pokedex-page/cards-view/vs-summary/vs-summary.component';
+import { CardComponent } from './pokedex-page/cards-view/card/card.component';
 
 @NgModule({
   exports: [
@@ -31,7 +36,11 @@ import {BrowserAnimationsModule} from '@angular/platform-browser/animations';
     PokedexPageComponent,
     TableViewComponent,
     CardsViewComponent,
-    FilterDialogContentComponent
+    FilterDialogContentComponent,
+    IndividualSummaryComponent,
+    TeamBuilderComponent,
+    VsSummaryComponent,
+    CardComponent
   ],
   imports: [
     BrowserModule,
@@ -39,6 +48,7 @@ import {BrowserAnimationsModule} from '@angular/platform-browser/animations';
     FormsModule, // Need for [(ngModel)] stuff to work
     TableModule,
     MatDialogModule,
+    MatTabsModule,
     BrowserAnimationsModule,
     QueryBuilderModule,
     MatSelectModule
