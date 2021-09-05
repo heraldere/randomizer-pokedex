@@ -1,6 +1,7 @@
 import { Component, OnInit, Inject } from '@angular/core';
 import { MatDialog, MatDialogRef, MAT_DIALOG_DATA } from '@angular/material/dialog';
 import { QueryBuilderClassNames, QueryBuilderConfig } from 'angular2-query-builder';
+import { IPokeQuery } from '../queryUtility';
 
 @Component({
   selector: 'app-filter-dialog-content',
@@ -8,19 +9,6 @@ import { QueryBuilderClassNames, QueryBuilderConfig } from 'angular2-query-build
   styleUrls: ['./filter-dialog-content.component.scss']
 })
 export class FilterDialogContentComponent implements OnInit {
-  public query = {
-    condition: 'and',
-    rules: [
-      { field: 'hp', operator: '>=', value: '32' },
-      {
-        condition: 'or',
-        rules: [
-          {field: 'type', operator: '=', value: 'fire'},
-          {field: 'type', operator: '=', value: 'grass'},
-        ]
-      }
-    ]
-  };
 
   public config: QueryBuilderConfig = {
     fields: {
@@ -29,7 +17,7 @@ export class FilterDialogContentComponent implements OnInit {
       sp_attack: {name: 'Special Attack', type: 'number'},
       defense: {name: 'Defense', type: 'number'},
       sp_defense: {name: 'Special Defense', type: 'number'},
-      total: { name: 'Total Stats', type: 'number' },
+      stat_total: { name: 'Total Stats', type: 'number' },
       type: {
         name: 'Type',
         type: 'category',
@@ -59,9 +47,8 @@ export class FilterDialogContentComponent implements OnInit {
 
   constructor(
     public dialogRef: MatDialogRef<FilterDialogContentComponent>,
-    @Inject(MAT_DIALOG_DATA) public data: any) { 
-    
-    console.log(this.data);
+    @Inject(MAT_DIALOG_DATA) public data: IPokeQuery) { 
+      console.log("dialog data", this.data);
     }
 
   ngOnInit(): void {
@@ -69,7 +56,7 @@ export class FilterDialogContentComponent implements OnInit {
 
   onNoClick(): void {
     console.log(this.data);
-    this.dialogRef.close(this.data);
+    this.dialogRef.close();
   }
 
 }

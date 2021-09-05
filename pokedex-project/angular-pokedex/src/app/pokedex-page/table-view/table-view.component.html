@@ -1,12 +1,11 @@
-<p>table-view works!</p>
-<button class='filterButton openDialogButton' (click)="openFilterTreeDialog()"></button>
-<ngx-table [configuration]="configuration" [data]="data" [columns]="columns" #tableTemplate>
+<button class='filterButton openDialogButton' (click)="openFilterTreeDialog()">Filter</button>
+<ngx-table [configuration]="configuration" [data]="filteredData" [columns]="columns" #tableTemplate>
     <ng-template let-row let-index="index">
         <td>
             <h2>{{ row.name }}</h2>
         </td>
-        <td>
-            <h3>{{ row.long_id }}</h3>
+        <td style="width:2%">
+            <h3>{{ row.uid }}</h3>
         </td>
         <td>
             <span>{{row.type1}}</span>
