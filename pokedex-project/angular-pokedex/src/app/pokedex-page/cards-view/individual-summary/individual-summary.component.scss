@@ -1,0 +1,57 @@
+
+#background {
+    background-color: rgb(92, 92, 207);
+    border: solid;
+    border-radius: 10px;
+    width: 100%;
+    min-width: 600px;
+    overflow: auto;
+    // *{
+    //     overflow: auto;
+    // }
+} 
+// #backgound:after {
+//     clear: both;
+// }
+
+.left {
+    width: 50%;
+    float: left;
+    border: 2px solid green;
+    &.sprite {
+        width: 40%;
+        position: relative;
+    }
+}
+
+.right {
+    width:50%;
+    float: right;
+    border: 2px solid red;
+
+    &.stat-graph{
+        width: 60%;
+    }
+}
+
+.sprite-background {
+    margin-top: 6px;
+    margin-left: auto;
+    margin-right: auto;
+    display: block;
+    width: 150px;
+    height: 150px;
+    // padding-top: 50px;
+    border-radius: 75px 25px 50px 10px;
+    background-color: darkcyan;
+    // position: relative;
+    // overflow:
+}
+
+.dirt {
+    font: 10vw bold;
+    // position: absolute;
+    // top: 2%;
+    width: 100%;
+    // right: auto;
+}

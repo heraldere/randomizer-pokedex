@@ -8,12 +8,11 @@
     </div>
 </div>
 <div *ngIf="selectedTab==='summaryTab'">
-    Replace this text with the individual view tag
+    <individual-card></individual-card>
 </div>
 <div *ngIf="selectedTab==='teamTab'">
-    Replace this text with the team view tag
+    <team-builder></team-builder>
 </div>
 <div *ngIf="selectedTab==='vsTab'">
-    Replace this text with the vs vieew tag
+    <vs-summary></vs-summary>
 </div>
-<p>cards-view works!</p>
