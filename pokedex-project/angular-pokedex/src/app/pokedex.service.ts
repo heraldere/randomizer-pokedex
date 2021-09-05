@@ -55,14 +55,17 @@ export interface Pokemon {
   sp_attack: number,
   sp_defense: number,
   speed: number,
+  special?: number,
 
   type1: PokeType,
   type2: PokeType,
 
-  ev_from: string[],
-  ev_to: string[],
+  ev_from: Pokemon[],
+  ev_to: Pokemon[],
   is_base: boolean,
   is_final: boolean,
   evo_family: string[]
+
+  forms: Pokemon[]
 
 }
