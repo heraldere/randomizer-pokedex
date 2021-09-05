@@ -1,6 +1,6 @@
-<h1 mat-dialog-title>Hi</h1>
+<!-- <h1 mat-dialog-title>Hi</h1> -->
 <div mat-dialog-content>
-    <query-builder [(ngModel)]="query" [config]="config">
+    <query-builder [(ngModel)]="data" [config]="config">
         <!-- <ng-container *queryInput="let rule; let field=field; let options=options; type: 'category'">
             <mat-form-field>
               <mat-select [(ngModel)]="rule.value" [placeholder]="field.name">
@@ -11,7 +11,7 @@
             </mat-form-field>
           </ng-container> -->
     </query-builder>
-    <textarea class="output">{{query | json}}</textarea>
+    <textarea class="output">{{data | json}}</textarea>
 </div>
 <div mat-dialog-actions>
   <button mat-button (click)="onNoClick()">Cancel</button>

@@ -2,10 +2,13 @@ import { Component, OnInit, ViewChild, TemplateRef } from '@angular/core';
 
 import { MatDialog } from '@angular/material/dialog';
 import { FilterDialogContentComponent } from './filter-dialog-content/filter-dialog-content.component';
-import { PokedexService } from '../../pokedex.service';
+import { PokedexService, Pokemon, PokeType } from '../../pokedex.service';
 
 import { Columns, Config, DefaultConfig } from 'ngx-easy-table';
 import { API, APIDefinition } from 'ngx-easy-table';
+import { CategoryOperators, filterDataByQueryTree, IPokeQuery, NumberOperators } from './queryUtility';
+
+
 
 @Component({
   selector: 'app-table-view',
@@ -18,11 +21,24 @@ export class TableViewComponent implements OnInit {
 
   public configuration: Config;
   public columns: Columns[];
-  private dialogResult: any;
   public dialogOpen = false;
 
-  public data = [];
+  public filteredData: Pokemon[] = [];
+  private _pokedexService: PokedexService;
   
+  public _query: IPokeQuery = {
+    condition: 'and',
+    rules: [
+      { field: 'hp', operator: NumberOperators.leq, value: '32' },
+      {
+        condition: 'or',
+        rules: [
+          {field: 'type', operator: NumberOperators.eq, value: PokeType.Fire},
+          {field: 'type', operator: CategoryOperators.in, value: [PokeType.Grass, PokeType.Bug]},
+        ]
+      }
+    ]
+  };
 
   constructor(public pokedexService: PokedexService, public dialog : MatDialog) { 
     this.configuration = { ...DefaultConfig };
@@ -43,7 +59,8 @@ export class TableViewComponent implements OnInit {
       { key: 'sp_defense', title: 'Special Defense', width: statWidth},
       { key: 'speed', title: 'Speed', width: statWidth},
     ];
-    this.data = Object.values(pokedexService.pokedex);
+    this._pokedexService = pokedexService;
+    this.filteredData = this._pokedexService.pokedex;
   }
 
   ngOnInit(): void {
@@ -55,15 +72,32 @@ export class TableViewComponent implements OnInit {
       this.dialogOpen = true;
       let dialogRef = this.dialog.open(FilterDialogContentComponent, {
         width: '550px',
-        data: { name: "name", animal: "cow" }
+        data: this.query,
+        disableClose: false,
+        hasBackdrop: true,
       });
       dialogRef.afterClosed().subscribe(result => {
         this.dialogOpen = false;
-        this.dialogResult = result;
-        console.log(this.dialogResult);
+        this.query = result;
+        console.log("after close", this.query);
       });
     }
 
   }
+
+  private set query(result: IPokeQuery) {
+    // TODO any protection or adjustments needed?
+    if (result) {
+      this._query = result;
+      this.filteredData = filterDataByQueryTree(this._pokedexService.pokedex, this.query);
+    }
+    
+  }
+
+  private get query(): IPokeQuery {
+    return this._query;
+  }
+
+  
 
 }
