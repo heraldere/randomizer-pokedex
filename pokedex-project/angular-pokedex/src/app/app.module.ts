@@ -5,6 +5,9 @@ import { FormsModule, ReactiveFormsModule } from '@angular/forms';
 import { MatDialogModule } from '@angular/material/dialog';
 import { MatSelectModule } from '@angular/material/select';
 import { MatButtonModule } from '@angular/material/button';
+import { MatAutocompleteModule } from '@angular/material/autocomplete';
+import { MatInputModule } from '@angular/material/input';
+import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatTabsModule } from '@angular/material/tabs';
 
 import { AppRoutingModule } from './app-routing.module';
@@ -46,12 +49,16 @@ import { CardComponent } from './pokedex-page/cards-view/card/card.component';
     BrowserModule,
     AppRoutingModule,
     FormsModule, // Need for [(ngModel)] stuff to work
+    ReactiveFormsModule,
     TableModule,
     MatDialogModule,
     MatTabsModule,
     BrowserAnimationsModule,
     QueryBuilderModule,
-    MatSelectModule
+    MatSelectModule,
+    MatAutocompleteModule,
+    MatInputModule,
+    MatFormFieldModule
   ],
   entryComponents: [
     FilterDialogContentComponent

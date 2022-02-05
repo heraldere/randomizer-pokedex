@@ -1,18 +1,57 @@
 <div id="background">
-    <div style="overflow: auto">
+    <div id="search_container" class="wireframe">
+
+        <form>
+            <mat-form-field class="search-box" >
+                <input #searchInput type="text" placeholder="Search For Pokemon" aria-label="Number" matInput [formControl]="ctrl"
+                    [matAutocomplete]="mm">
+                <mat-autocomplete autoActiveFirstOption #mm="matAutocomplete" >
+                    <mat-option *ngFor="let poke of pokes_filtered_by_text | async" [value]="poke">
+                        {{ poke }}
+                    </mat-option>
+                </mat-autocomplete>
+            </mat-form-field>
+        </form>
+
+    </div>
+    <div style="overflow: auto" >
         <div class="left sprite">
-            
+
             <div class="sprite-background">
-                
-            <div class="dirt">F</div>
+                <img *ngIf="mon_selected" src="https://www.serebii.net/swordshield/pokemon/{{current_mon!.uid}}.png">
+            </div>
+            <div id="type-container" *ngIf="mon_selected">
+                <img class="type-box"  src="https://serebii.net/pokedex-bw/type/{{current_mon!.get_type1()}}.gif">
+                <img class="type-box" *ngIf="(current_mon!.get_type2() != 'none')" src="https://serebii.net/pokedex-bw/type/{{current_mon!.get_type2()}}.gif">
+            </div>
+            <div class="reveal-button" *ngIf="mon_selected">
+                <button id="type-reveal" (click)="toggleTypeRevealButton()">{{current_mon!.type_revealed ? "Hide Type" : "Show Type"}}</button>
             </div>
         </div>
-        <div class="right stat-graph">g</div>
+        <div class="right stat-graph">
+            <!-- TODO: Add BST display, then Save! -->
+            <canvas id="stat-chart" #statChart width="200px" height="100px">
+
+            </canvas>
+            <div class="reveal-button" *ngIf="mon_selected">
+                <button id="stat-reveal" (click)="toggleStatRevealButton()">{{current_mon!.stats_revealed ? "Hide Stats" : "Show Stats"}}</button>
+            </div>
+        </div>
     </div>
-    <div class="left">f</div>
-    <div class="right">g</div>
-    <div class="left">f</div>
-    <div class="right">g</div>
+    <div id="ability-parent" class="left">
+        <div>Abilities:</div>
+        <div class="ability-collection" *ngIf="mon_selected">
+            <div class="ability-panel" *ngFor="let ability of current_mon!.getAbilitiesIfRevealed()"> {{ability}}</div>
+        </div>
+        <div class="reveal-button" *ngIf="mon_selected">
+            <button id="ability-reveal" (click)="toggleAbilityRevealButton()">{{current_mon!.abilities_revealed ? "Hide Abilities" : "Show Abilities"}}</button>
+        </div>
+    </div>
+    <div id="notes-parent" class="right">
+        <div>Notes:</div>
+        <textarea rows=12 cols=40 class="notes-section" *ngIf="mon_selected" [(ngModel)]="current_mon!.notes"></textarea>
+    </div>
+    <div class="left"></div>
+    <div class="right"></div>
 </div>
 
-<p>individual-summary works!</p>

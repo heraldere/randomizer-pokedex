@@ -2,7 +2,8 @@ import { Component, OnInit, ViewChild, TemplateRef } from '@angular/core';
 
 import { MatDialog } from '@angular/material/dialog';
 import { FilterDialogContentComponent } from './filter-dialog-content/filter-dialog-content.component';
-import { PokedexService, Pokemon, PokeType } from '../../pokedex.service';
+import { PokedexService,  } from '../../pokedex.service';
+import { Pokemon, PokeType } from "../../Pokemon";
 
 import { Columns, Config, DefaultConfig } from 'ngx-easy-table';
 import { API, APIDefinition } from 'ngx-easy-table';

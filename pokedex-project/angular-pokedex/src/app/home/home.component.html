@@ -1,1 +1,6 @@
-<p>home works!</p>
+<input type="file" class="file-input" (change)="onFileSelected($event)" #fileUpload>
+<a #downloadButton *ngIf="validFileUploaded" download="mons.pkdx" >
+    <button (click)="save()" title="Save notes and revealed status of Pokemon">Save Dex</button>
+</a>
+<button *ngIf="validFileUploaded" (click)="spoilButtonClicked()" title="Fully Reveal the pokedex">Spoil Me!</button>
+<individual-card *ngIf="validFileUploaded"></individual-card>

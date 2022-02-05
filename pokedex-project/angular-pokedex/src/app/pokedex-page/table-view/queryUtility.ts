@@ -1,4 +1,5 @@
-import { Pokemon, PokeType } from "src/app/pokedex.service";
+// import {  } from "src/app/pokedex.service";
+import { Pokemon, PokeType } from "src/app/Pokemon";
 
 export enum NumberOperators {
     eq = '=',
@@ -46,14 +47,17 @@ function recursiveRuleCheck(pokemon: Pokemon, querytree: IPokeQuery|IPokeRule): 
 
     return true;
 }
+
+// TODO: This function will need to be reworked to use Pokemon functions (for spoilers)
 function getValueFromPokemon(field: string, pokemon: Pokemon) {
     if (field == 'type') {
         return pokemon.type2 ? [pokemon.type1, pokemon.type2] : [pokemon.type1];
     }
     
-
+    // Cute, but we'll need a more robust (read: tedious) accessor.
     return (pokemon as any)[field];
 }
+
 function ruleCheck(pokemon: Pokemon, rule: IPokeRule) {
     const value = getValueFromPokemon(rule.field, pokemon);
     switch (rule.operator) {
