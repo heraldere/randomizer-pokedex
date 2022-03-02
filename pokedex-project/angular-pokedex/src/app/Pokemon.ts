@@ -1,41 +1,62 @@
 import { resolveSanitizationFn } from '@angular/compiler/src/render3/view/template';
 
 export enum PokeType {
-    Normal = "normal",
-    Fire = "fire",
-    Fighting = "fighting",
-    Water = "water",
-    Flying = "flying",
-    Grass = "grass",
-    Poison = "poison",
-    Electric = "electric",
-    Ground = "ground",
-    Psychic = "psychic",
-    Rock = "rock",
-    Ice = "ice",
-    Bug = "bug",
-    Dragon = "dragon",
-    Ghost = "ghost",
-    Dark = "dark",
-    Steel = "steel",
-    Fairy = "fairy",
-    None = "none",
-    Unknown = "curse"
-  }
-  
-  export interface learned_move {
-    level: number,
-    move: string
-  }
-  
-  export interface tm_move {
-    tm: number,
-    move: string
-  }
+  Normal = "normal",
+  Fire = "fire",
+  Fighting = "fighting",
+  Water = "water",
+  Flying = "flying",
+  Grass = "grass",
+  Poison = "poison",
+  Electric = "electric",
+  Ground = "ground",
+  Psychic = "psychic",
+  Rock = "rock",
+  Ice = "ice",
+  Bug = "bug",
+  Dragon = "dragon",
+  Ghost = "ghost",
+  Dark = "dark",
+  Steel = "steel",
+  Fairy = "fairy",
+  None = "none",
+  Unknown = "curse"
+}
+
+export const TypeColors = {
+  "fire": ["#ff6966", "#9b1414"],
+  "water": ["#6765ff", "#3b3e9b"],
+  "grass": ["#84d472", "#359b21"],
+  "bug": ["#83ff78", "#4fb525"],
+  "ground": ["#ffae35", "#9b772f"],
+  "rock": ["#ff6f40", "#9b6145"],
+  "steel": ["#c0b4b6", "#726a6a"],
+  "fairy": ["#ffadc7", "#9b1e44"],
+  "dark": ["#686766", "#3e3b39"],
+  "psychic": ["#ffbde0", "#9b4e90"],
+  "ghost": ["#e486ff", "#8d689b"],
+  "poison": ["#bf68bb", "#755671"],
+  "dragon": ["#9782ff", "#71669b"],
+  "ice": ["#bafff6", "#647c9b"],
+  "flying": ["#aaa5ff", "#668d9b"],
+  "normal": ["#f2ffb8", "#9b996d"],
+  "fighting": ["#ff9a78", "#9b532f"],
+  "electric": ["#ffffa3", "#c8c24a"],
+  "missing": ["#505050", "#0c0c0c"]
+};
+
+export interface learned_move {
+  level: number,
+  move: string
+};
+
+export interface tm_move {
+  tm: number,
+  move: string
+};
 
 
 export class Pokemon {
-
   name: string;
   pokedex_num: number;
   uid: string;
@@ -82,8 +103,11 @@ export class Pokemon {
 
   notes: string;
 
-
+  // We may be able to make this private and only access Pokemon w/ factories
   constructor() {
+    // a new Pokemon should be fully defined, but all values should be
+    // empty/zeroed defaults
+
     this.name = "";
     this.pokedex_num = 0;
     this.uid = "000";
@@ -98,7 +122,6 @@ export class Pokemon {
     this.type1 = "unknown" as PokeType;
     this.type2 = "none" as PokeType;
 
-    // Initialize other stats
     this.ev_from = [];
     this.ev_to = [];
     this.is_base = true;
@@ -158,44 +181,47 @@ export class Pokemon {
     }
   }
 
-  //TODO: Make Factory 'a'
   static loadFromJson(json_data: any): Pokemon {
-      if (
-          json_data.name === undefined ||
-          json_data.pokedex_num === undefined ||
-          json_data.uid === undefined ||
-          json_data.hp === undefined ||
-          json_data.attack === undefined ||
-          json_data.defense === undefined ||
-          json_data.sp_attack === undefined ||
-          json_data.sp_defense === undefined ||
-          json_data.speed === undefined ||
-          json_data.stat_total === undefined ||
-          json_data.type1 === undefined ||
-          json_data.type2 === undefined ||
-          json_data.ev_from === undefined ||
-          json_data.ev_to === undefined ||
-          json_data.is_base === undefined ||
-          json_data.is_final === undefined ||
-          json_data.evo_family === undefined ||
-          json_data.forms === undefined ||
-          json_data.form_num === undefined ||
-          json_data.learned_moves === undefined ||
-          json_data.learn_levels === undefined ||
-          json_data.tms === undefined ||
-          json_data.tm_moves === undefined ||
-          json_data.type_revealed === undefined ||
-          json_data.stats_revealed === undefined ||
-          json_data.abilities_revealed === undefined ||
-          json_data.ev_from_revealed === undefined ||
-          json_data.ev_to_revealed === undefined ||
-          json_data.learned_moves_revealed_idx === undefined ||
-          json_data.tm_indexes_learned === undefined ||
-          json_data.fully_revealed === undefined ||
-          json_data.notes === undefined
-          ) {
-        throw new Error("Not A Real Boy");
-      }
+    // Verify that this object contains all necessary fields
+    if (
+      json_data.name === undefined ||
+      json_data.pokedex_num === undefined ||
+      json_data.uid === undefined ||
+      json_data.hp === undefined ||
+      json_data.attack === undefined ||
+      json_data.defense === undefined ||
+      json_data.sp_attack === undefined ||
+      json_data.sp_defense === undefined ||
+      json_data.speed === undefined ||
+      json_data.stat_total === undefined ||
+      json_data.type1 === undefined ||
+      json_data.type2 === undefined ||
+      json_data.ev_from === undefined ||
+      json_data.ev_to === undefined ||
+      json_data.is_base === undefined ||
+      json_data.is_final === undefined ||
+      json_data.evo_family === undefined ||
+      json_data.forms === undefined ||
+      json_data.form_num === undefined ||
+      json_data.learned_moves === undefined ||
+      json_data.learn_levels === undefined ||
+      json_data.tms === undefined ||
+      json_data.tm_moves === undefined ||
+      json_data.type_revealed === undefined ||
+      json_data.stats_revealed === undefined ||
+      json_data.abilities_revealed === undefined ||
+      json_data.ev_from_revealed === undefined ||
+      json_data.ev_to_revealed === undefined ||
+      json_data.learned_moves_revealed_idx === undefined ||
+      json_data.tm_indexes_learned === undefined ||
+      json_data.fully_revealed === undefined ||
+      json_data.notes === undefined 
+      // json_data.ability1 === undefined ||
+      // json_data.ability2 === undefined
+    ) {
+      // if not, we shouldn't continue
+      throw new Error("Not A Real Boy");
+    }
     let mon = new Pokemon();
     mon.name = json_data.name;
     mon.pokedex_num = json_data.pokedex_num;
@@ -207,10 +233,10 @@ export class Pokemon {
     mon.sp_defense = json_data.sp_defense;
     mon.speed = json_data.speed;
     mon.stat_total = json_data.stat_total;
-    
+
     mon.type1 = json_data.type1;
     mon.type2 = json_data.type2;
-    
+
     // Initialize other stats
     mon.ev_from = json_data.ev_from;
     mon.ev_to = json_data.ev_to;
@@ -237,6 +263,9 @@ export class Pokemon {
     mon.fully_revealed = json_data.fully_revealed;
 
     mon.notes = json_data.notes;
+
+    mon.ability1 = json_data.ability1;
+    mon.ability2 = json_data.ability2;
 
     return mon;
   }
@@ -315,19 +344,19 @@ export class Pokemon {
   }
 
   /**
-   * Gets a list of Evolutions from this pokemon.
-   * This is affected by whether or not those evolutions are revealed.
-   * @returns a list of Pokemon Names
-   */
+  * Gets a list of Evolutions from this pokemon.
+  * This is affected by whether or not those evolutions are revealed.
+  * @returns a list of Pokemon Names
+  */
   get_evos_from(): string[] {
     return this.ev_from.map((e, i) => this.ev_from_revealed.indexOf(i) >= 0 ? e : "???");
   }
 
   /**
-   * Gets a list of evolutions to this pokemon.
-   * This is affected by whether or not the evolutions are revealed
-   * @returns a list of Pokemon Names
-   */
+  * Gets a list of evolutions to this pokemon.
+  * This is affected by whether or not the evolutions are revealed
+  * @returns a list of Pokemon Names
+  */
   get_evos_to(): string[] {
     return this.ev_to.map((e, i) => this.ev_to_revealed.indexOf(i) >= 0 ? e : "???");
   }
@@ -356,6 +385,8 @@ export class Pokemon {
       if (this.hiddenAbility) {
         res.push(this.hiddenAbility + "(hidden)");
       }
+    } else if (this.ability1) {
+      res.push("???");
     }
     return res;
   }

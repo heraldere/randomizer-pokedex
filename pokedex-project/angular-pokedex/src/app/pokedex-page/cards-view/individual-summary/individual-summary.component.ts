@@ -38,32 +38,10 @@ export class IndividualSummaryComponent implements OnInit, AfterViewInit{
       map(search_text => this.searchMons(search_text))
     )
   }
-
-
-
    
   searchMons(search_text: string): string[] {
     return this.dex.pokedex.map(mon => mon.name).filter(name => name.toLowerCase().indexOf(search_text.toLowerCase()) !== -1)
   }
-
-  // beef(ev: MatAutocompleteSelectedEvent): void {
-  //   let selected = ev.option.value as string;
-  //   console.log(ev.option.value + '2');
-  //   this.current_mon = this.dex.pokedex.find(mon => mon.name.toLowerCase() == selected.toLowerCase());
-  //   if(this.current_mon) {
-  //     this.triggerUpdate();
-  //     //return this.current_mon
-  //   }
-  // }
-
-  // triggerUpdate() {
-  //   if(this.current_mon) {
-  //     this.mon_selected = true;
-  //     let mon = this.current_mon
-  //     console.log(mon);
-  //     //  this.chart.update();
-  //   }
-  // }
 
   toggleTypeRevealButton() {
     if(this.current_mon) {
@@ -94,8 +72,6 @@ export class IndividualSummaryComponent implements OnInit, AfterViewInit{
   // "https://www.serebii.net/games/type/poison.gif"
 
   ngAfterViewInit(): void {
-    
-    // CONTEXT: This chart is broken. 'linear is not registered'?
     this.chart = new Chart(this.chartRef.nativeElement, {
       type: 'bar',
       data: {
@@ -183,12 +159,5 @@ export class IndividualSummaryComponent implements OnInit, AfterViewInit{
         }
       }
     )
-
-
   }
-  
-
-
-
-
 }

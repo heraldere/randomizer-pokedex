@@ -27,6 +27,7 @@ import { IndividualSummaryComponent } from './pokedex-page/cards-view/individual
 import { TeamBuilderComponent } from './pokedex-page/cards-view/team-builder/team-builder.component';
 import { VsSummaryComponent } from './pokedex-page/cards-view/vs-summary/vs-summary.component';
 import { CardComponent } from './pokedex-page/cards-view/card/card.component';
+import { AboutPageComponent } from './about-page/about-page.component';
 
 @NgModule({
   exports: [
@@ -43,7 +44,8 @@ import { CardComponent } from './pokedex-page/cards-view/card/card.component';
     IndividualSummaryComponent,
     TeamBuilderComponent,
     VsSummaryComponent,
-    CardComponent
+    CardComponent,
+    AboutPageComponent
   ],
   imports: [
     BrowserModule,

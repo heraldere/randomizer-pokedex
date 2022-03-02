@@ -13,15 +13,23 @@ export class PokedexService {
 
   public pokedex: Pokemon[] = [];
   public pokedexByName = new Map<string, Pokemon>();
+  public validDexUploaded = false;
   private dexChanges = new Subject<any>();
   private selectedChanges = new Subject<any>();
   private v = 3;
 
   constructor() {
     this.getPokemonList();
+
+    //TODO: THIS MUST BE COMMENTED OUT BEFORE PRODUCTION
+    (window as any).dex_service = this;
   }
 
-
+  /**
+   * Gets the default pokemon list loaded into the service.
+   * TODO: Deprecate this and either start with a) no list or b) a list of
+   * actual pokemon objects
+   */
   private getPokemonList() {
     this.pokedex = Object.values(SampleJson).map((pokeJson) => {
       return {
@@ -46,9 +54,9 @@ export class PokedexService {
         is_final: pokeJson.is_full_ev == "1",
         // evo_family: JSON.parse(pokeJson.evo_family.replace(/'/g, '"')) as string[]
       } as Pokemon
+      // This does not actually produce a pokemon object
     });
     this.pokedex.sort((a, b) => a.pokedex_num - b.pokedex_num);
-    console.log(this.pokedex);
   }
 
   public readSelectedFile(inputFile: File) {
@@ -61,21 +69,9 @@ export class PokedexService {
       console.log(reader.error)
     }
     reader.readAsText(inputFile)
-
-    
-    //this.parseFile;
-
-    // if (output.startsWith("Randomizer Version")) {
-    //   res = this.parseLogFile(output)
-    // } else{
-    //   res = this.parseSaveFile(output)
-    // }
-    // this.updatePokemonList(res);
   }
 
   private parseFile(fileString: string) {
-    console.log("yes2, ", this.v);
-    // let s = (event.target) && event.target.result;
     if(fileString.startsWith('Randomizer Version:')) {
       this.parseLogFile(fileString)
     } else {
@@ -83,24 +79,26 @@ export class PokedexService {
     }
   }
 
+  /**
+   * Parse a log file from the Universal Pokemon Randomizer.
+   * TODO: add location/move information and create a factory method in the 
+   * Pokemon list
+   * @param log 
+   * @returns 
+   */
   private parseLogFile(log: string){
-    console.log(log);
     const blocks = log.split('\r\n\r\n');
-    // console.log(blocks);
 
     let pokeStrings: string[] = [];
     let evoStrings: string[] = [];
     let tmStrings: string[] = [];
     let moveStrings: string[] = [];
     let tmCompStrings: string[] = [];
-    // let locationStrings: string[];
-    // let trainerStrings: string[];
 
     for(const block of blocks) {
       const lines = block.split('\r\n');
       const firstLine = lines[0];
       const label = firstLine.startsWith('-')?firstLine.split('--')[1]:firstLine.split(':')[0];
-      console.log(label)
       switch(label) {
         case 'Randomized Evolutions':
           evoStrings = lines.slice(1);
@@ -118,20 +116,20 @@ export class PokedexService {
           tmCompStrings = lines.slice(1);
           break;
         default:
-          if(firstLine.match(/\d{3}/)) {
+          if(firstLine.match(/\d{3}/) && !firstLine.startsWith('Set')) {
             moveStrings.push(block)
           }
           break;
       }
     }
 
-    console.log(pokeStrings[20]);
-
+    // Potentially let this become the factory method (returns a list
+    // of Pokemon objects fully formed from the component string arrays)
     this.buildDex(pokeStrings, evoStrings, tmStrings, moveStrings)
-    console.log(this.pokedex)
     return;
   }
 
+  // TODO: Potentially move to Pokemon.ts as a static method
   buildDex(pokeStrings: string[], evoStrings: string[], tmStrings: string[], moveStrings: string[]){
     let res: Pokemon[] = [];
     const labels = pokeStrings[0];
@@ -157,6 +155,30 @@ export class PokedexService {
         this.pokedexByName.get(name)?.addEvolution(evString);
       }
     }
+
+    for(let moveString of moveStrings) {
+      let mon_name = moveString.split(' ')[1];
+      let mon = this.pokedexByName.get(mon_name);
+      if(mon) {
+        for(let level_line of moveString.split('\r\n')) {
+          if (level_line.match(/Level[ \da-zA-Z:]*/)) {
+            let level = level_line.split(/[ :]/)[1].trim();
+            let move_name = level_line.split(':')[1].trim();
+            let move = { level: +level, move: move_name } as learned_move;
+            mon.learn_levels.push(move.level);
+            mon.learned_moves.push(move.move);
+          }
+          
+        }
+        mon.notes = "Learns Moves at: \r\n" + mon.learn_levels.filter(v => v > 1).toString();
+      }
+    }
+
+    console.log(this.pokedex)
+    console.log('a')
+    // console.log(moveStrings.map(s => s.trim()));
+    console.log('b')
+    console.log(tmStrings);
   }
 
   private parseSaveFile(save_data: string){
@@ -165,10 +187,11 @@ export class PokedexService {
         (mon_data: any) => Pokemon.loadFromJson(mon_data)
       )
     } catch {
-      alert("Bad File Uploaded (have you checked your pkdx?)")
+      alert("Bad File Uploaded (have you checked your .pkdx?)")
     }
   }
 
+  // This may be useful when integrating all the views w/ this service
   private updatePokemonList(newList: Pokemon[]) {
     if(newList.length) {
       this.pokedex = newList;
@@ -177,30 +200,17 @@ export class PokedexService {
     }
   }
 
+  public revealAll() {
+    for(let mon of this.pokedex) {
+      mon.fully_revealed = true;
+      this.dexChanges.next();
+    }
+  }
   
-
+  public hideAll() {
+    for(let mon of this.pokedex) {
+      mon.fully_revealed = false;
+      this.dexChanges.next();
+    }
+  }
 }
-
-export const TypeColors = {
-    "fire" : ["#ff6966","#9b1414"],
-    "water" : ["#6765ff","#3b3e9b"],
-    "grass" : ["#84d472","#359b21"],
-    "bug" : ["#83ff78","#4fb525"],
-    "ground" : ["#ffae35","#9b772f"],
-    "rock" : ["#ff6f40","#9b6145"],
-    "steel" : ["#c0b4b6","#726a6a"],
-    "fairy" : ["#ffadc7","#9b1e44"],
-    "dark" : ["#686766","#3e3b39"],
-    "psychic" : ["#ffbde0","#9b4e90"],
-    "ghost" : ["#e486ff","#8d689b"],
-    "poison" : ["#bf68bb","#755671"],
-    "dragon" : ["#9782ff","#71669b"],
-    "ice" : ["#bafff6","#647c9b"],
-    "flying" : ["#aaa5ff","#668d9b"],
-    "normal" : ["#f2ffb8","#9b996d"],
-    "fighting" : ["#ff9a78","#9b532f"],
-    "electric" : ["#ffffa3","#c8c24a"],
-    "missing" : ["#505050", "#0c0c0c"]
-};
-
-

@@ -16,7 +16,7 @@
     </div>
     <div style="overflow: auto" >
         <div class="left sprite">
-
+            <div id="name-box">{{current_mon?current_mon.name:"N/A"}}</div>
             <div class="sprite-background">
                 <img *ngIf="mon_selected" src="https://www.serebii.net/swordshield/pokemon/{{current_mon!.uid}}.png">
             </div>
@@ -29,7 +29,7 @@
             </div>
         </div>
         <div class="right stat-graph">
-            <!-- TODO: Add BST display, then Save! -->
+            
             <canvas id="stat-chart" #statChart width="200px" height="100px">
 
             </canvas>
@@ -47,11 +47,12 @@
             <button id="ability-reveal" (click)="toggleAbilityRevealButton()">{{current_mon!.abilities_revealed ? "Hide Abilities" : "Show Abilities"}}</button>
         </div>
     </div>
-    <div id="notes-parent" class="right">
-        <div>Notes:</div>
-        <textarea rows=12 cols=40 class="notes-section" *ngIf="mon_selected" [(ngModel)]="current_mon!.notes"></textarea>
+    <div class="right row">
+        <div id="notes-parent">
+            <div>Notes:</div>
+            <textarea rows=12 cols=40 class="notes-section" *ngIf="mon_selected" [(ngModel)]="current_mon!.notes"></textarea>
+        </div>
+        <div class="column"></div>
     </div>
-    <div class="left"></div>
-    <div class="right"></div>
 </div>
 
