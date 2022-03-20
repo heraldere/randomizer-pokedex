@@ -52,9 +52,10 @@ export class IndividualSummaryComponent implements OnInit, AfterViewInit{
   toggleStatRevealButton() {
     if(this.current_mon) {
       this.current_mon.stats_revealed = !this.current_mon.stats_revealed;
-      this.chart.data.datasets[0].data = this.current_mon.getStatsIfRevealed();
-      this.chart.options.plugins!.title!.text = "BST : " + (this.current_mon && this.current_mon.stats_revealed? this.current_mon.bst(): "???");
-      this.chart.update();
+      this.dex.individualChanges.next(this.current_mon);
+      // this.chart.data.datasets[0].data = this.current_mon.getStatsIfRevealed();
+      // this.chart.options.plugins!.title!.text = "BST : " + (this.current_mon && this.current_mon.stats_revealed? this.current_mon.bst(): "???");
+      // this.chart.update();
     }
   }
 
@@ -150,14 +151,40 @@ export class IndividualSummaryComponent implements OnInit, AfterViewInit{
           this.mon_selected = true;
           this.current_mon = mon;
           // Also maybe split this into a method as well
-          this.chart.data.datasets[0].data = this.current_mon.getStatsIfRevealed();
-          this.chart.options.plugins!.title!.text = "BST : " + (this.current_mon && this.current_mon.stats_revealed? this.current_mon.bst(): "???");
-          this.chart.update();
+          this.refreshChart();
           //
           this.search_box.value='';
           this.ctrl.setValue('');
         }
       }
+    );
+
+    this.dex.individualChanges.subscribe(
+      mon => {
+        console.log("ichange");
+        if(this.current_mon && this.current_mon.name.toLowerCase() == mon.name.toLowerCase()) {
+          this.refreshChart();
+        }
+      }
+    );
+
+    this.dex.dexChanges.subscribe(
+      () => {
+        console.log("wechange");
+        this.ctrl.setValue('');
+        if(this.current_mon) {
+          
+          this.refreshChart();
+        }
+      }
     )
+  }
+
+  private refreshChart() {
+    if(this.current_mon) {
+      this.chart.data.datasets[0].data = this.current_mon.getStatsIfRevealed();
+      this.chart.options.plugins!.title!.text = "BST : " + (this.current_mon && (this.current_mon.stats_revealed || this.current_mon.fully_revealed)? this.current_mon.bst() : "???");
+      this.chart.update();
+    }
   }
 }

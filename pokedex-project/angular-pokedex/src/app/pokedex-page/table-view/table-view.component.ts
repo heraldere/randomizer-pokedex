@@ -1,4 +1,4 @@
-import { Component, OnInit, ViewChild, TemplateRef } from '@angular/core';
+import { Component, OnInit, ViewChild, TemplateRef, AfterViewInit } from '@angular/core';
 
 import { MatDialog } from '@angular/material/dialog';
 import { FilterDialogContentComponent } from './filter-dialog-content/filter-dialog-content.component';
@@ -16,7 +16,7 @@ import { CategoryOperators, filterDataByQueryTree, IPokeQuery, NumberOperators }
   templateUrl: './table-view.component.html',
   styleUrls: ['./table-view.component.scss']
 })
-export class TableViewComponent implements OnInit {
+export class TableViewComponent implements OnInit, AfterViewInit{
 
   @ViewChild('tableTemplate', { static: true }) tableTemplate: APIDefinition | undefined;
 
@@ -100,5 +100,10 @@ export class TableViewComponent implements OnInit {
   }
 
   
+  ngAfterViewInit(): void {
+    //TODO: Subscribe to the dex service (specifically dex changed subject)
+
+    //TODO: Subscribe to individual revelation
+  }
 
 }

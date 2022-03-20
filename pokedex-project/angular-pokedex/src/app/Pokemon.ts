@@ -349,7 +349,7 @@ export class Pokemon {
   * @returns a list of Pokemon Names
   */
   get_evos_from(): string[] {
-    return this.ev_from.map((e, i) => this.ev_from_revealed.indexOf(i) >= 0 ? e : "???");
+    return this.ev_from.map((e, i) => (this.ev_from_revealed.indexOf(i) || this.fully_revealed) >= 0 ? e : "???");
   }
 
   /**
@@ -358,7 +358,7 @@ export class Pokemon {
   * @returns a list of Pokemon Names
   */
   get_evos_to(): string[] {
-    return this.ev_to.map((e, i) => this.ev_to_revealed.indexOf(i) >= 0 ? e : "???");
+    return this.ev_to.map((e, i) => (this.ev_to_revealed.indexOf(i) || this.fully_revealed) >= 0 ? e : "???");
   }
 
   bst(): number {
@@ -375,7 +375,7 @@ export class Pokemon {
 
   getAbilitiesIfRevealed(): string[] {
     let res: string[] = [];
-    if (this.abilities_revealed) {
+    if (this.abilities_revealed || this.fully_revealed) {
       if (this.ability1) {
         res.push(this.ability1);
       }

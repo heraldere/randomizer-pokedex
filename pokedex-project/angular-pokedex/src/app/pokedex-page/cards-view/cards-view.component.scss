@@ -1,6 +1,7 @@
 $selectedTabColor : rgb(156, 156, 156);
 $tabColor : rgb(231, 231, 231);
 $tabFontColor: rgb(44, 44, 44);
+$buttonColor : rgb(37, 167, 37);
 
 .tabs {
     border-bottom: 5px $selectedTabColor solid;
@@ -8,6 +9,9 @@ $tabFontColor: rgb(44, 44, 44);
         margin-bottom: 0px;
     }
     color: $tabFontColor;
+    display: flex;
+    flex-direction:row;
+    align-items: center;
     a.tab {
         background-color: rgb(231, 231, 231);
     
@@ -34,6 +38,35 @@ $tabFontColor: rgb(44, 44, 44);
                 background-color: darken($color: $selectedTabColor, $amount: 20);
             }
         }
+        &.disabled {
+            pointer-events: none;
+            cursor: default;
+        }
+    }
+    span {
+        margin-left: 5px;
+    }
+
+    .tab-file-input {
+        height: 0;
+        width: 0;
+    }
+
+    .tab-button {
+        font-family: "Roboto", Arial, sans-serif;
+        color: #cfcfcf;
+        background-color: $buttonColor;
+        border-radius: 10px;
+        display: inline-flex;
+        align-items: center;
+        padding: 8px 16px;
+        font-size: 12px;
+        font-weight: bold;
+        &:hover {
+            background-color: darken($color: $buttonColor, $amount: 10);
+            // font-weight: 300;
+        }
     }
 }
+
 

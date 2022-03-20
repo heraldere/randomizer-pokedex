@@ -5,6 +5,7 @@ import { PokedexService } from '../pokedex.service';
 import { Observable } from 'rxjs';
 import {startWith} from 'rxjs/operators';
 import {map} from 'rxjs/operators';
+import { Router } from '@angular/router';
 
 @Component({
   selector: 'app-home',
@@ -18,9 +19,11 @@ export class HomeComponent implements OnInit {
   validFileUploaded = false;
   @ViewChild('downloadButton')
   downloadRef!: ElementRef;
+  router: Router;
 
-  constructor(dex: PokedexService) { 
+  constructor(dex: PokedexService, router: Router) { 
     this.dex = dex;
+    this.router = router;
   }
 
   ngOnInit(): void {
@@ -36,6 +39,7 @@ export class HomeComponent implements OnInit {
       this.validFileUploaded=false;
       this.dex.readSelectedFile(file);
       this.validFileUploaded=true;
+      this.router.navigate(['/', 'pokedex']);
     }
   }
 

@@ -14,9 +14,11 @@ export class PokedexService {
   public pokedex: Pokemon[] = [];
   public pokedexByName = new Map<string, Pokemon>();
   public validDexUploaded = false;
-  private dexChanges = new Subject<any>();
-  private selectedChanges = new Subject<any>();
+  public dexChanges = new Subject<any>();
+  public individualChanges = new Subject<Pokemon>();
   private v = 3;
+  loadedFile: string = '';
+  isFullyRevealed = false;
 
   constructor() {
     this.getPokemonList();
@@ -64,19 +66,33 @@ export class PokedexService {
     this.v=4;
     reader.onload = (e) => {
       this.parseFile(reader.result ? reader.result.toString() : '')
+      this.loadedFile = inputFile.name;
     }
     reader.onerror = (e) => {
+      alert('There was a problem reading the file you selected. You may need to refresh the page.')
       console.log(reader.error)
     }
     reader.readAsText(inputFile)
   }
 
   private parseFile(fileString: string) {
-    if(fileString.startsWith('Randomizer Version:')) {
-      this.parseLogFile(fileString)
+    if(fileString.length) {
+      try {
+        if(fileString.startsWith('Randomizer Version:')) {
+          this.parseLogFile(fileString)
+        } else {
+          this.parseSaveFile(fileString)
+        }
+        this.validDexUploaded = true;
+        this.dexChanges.next();
+      } catch (err) {
+        alert("There was a problem reading the file you uploaded:" + err);
+      }
     } else {
-      this.parseSaveFile(fileString)
+      this.validDexUploaded=false;
+      alert("The file didn't load properly")
     }
+    
   }
 
   /**
@@ -203,14 +219,20 @@ export class PokedexService {
   public revealAll() {
     for(let mon of this.pokedex) {
       mon.fully_revealed = true;
-      this.dexChanges.next();
     }
+    this.isFullyRevealed=true;
+    this.dexChanges.next();
   }
   
   public hideAll() {
     for(let mon of this.pokedex) {
       mon.fully_revealed = false;
-      this.dexChanges.next();
     }
+    this.isFullyRevealed=false;
+    this.dexChanges.next();
+  }
+
+  public updatePokemon(mon: Pokemon) {
+    this.individualChanges.next(mon);
   }
 }

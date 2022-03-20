@@ -1,4 +1,5 @@
 import { Component, OnInit } from '@angular/core';
+import { PokedexService } from '../pokedex.service';
 
 @Component({
   selector: 'app-header',
@@ -6,8 +7,11 @@ import { Component, OnInit } from '@angular/core';
   styleUrls: ['./header.component.scss']
 })
 export class HeaderComponent implements OnInit {
+  private dexService: PokedexService;
 
-  constructor() { }
+  constructor(dexService: PokedexService) {
+    this.dexService = dexService;
+  }
 
   ngOnInit(): void {
   }
