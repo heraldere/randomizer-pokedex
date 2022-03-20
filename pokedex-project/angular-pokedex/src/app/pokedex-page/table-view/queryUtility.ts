@@ -31,6 +31,7 @@ export type IPokeQuery = {
 
 export function filterDataByQueryTree(data: Pokemon[], querytree: IPokeQuery): any[] {
 
+    //TODO: This We should filter on whether or not stats are revealed
     return data.filter(p => recursiveRuleCheck(p, querytree));
 }
 

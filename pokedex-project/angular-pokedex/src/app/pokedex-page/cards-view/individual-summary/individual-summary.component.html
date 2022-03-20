@@ -33,6 +33,7 @@
             <canvas id="stat-chart" #statChart width="200px" height="100px">
 
             </canvas>
+            <!-- TODO: Hide buttons if dex is spoiled (also edit layout so hiding buttons doesn't shift things) -->
             <div class="reveal-button" *ngIf="mon_selected">
                 <button id="stat-reveal" (click)="toggleStatRevealButton()">{{current_mon!.stats_revealed ? "Hide Stats" : "Show Stats"}}</button>
             </div>
