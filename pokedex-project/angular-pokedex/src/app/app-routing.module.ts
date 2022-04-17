@@ -6,10 +6,10 @@ import { AboutPageComponent } from './about-page/about-page.component'
 
 
 const routes: Routes = [
-  // { path: '', redirectTo:'/home'},
   { path: 'home', component: HomeComponent },
   { path: 'pokedex', component: PokedexPageComponent},
-  { path: 'about', component: AboutPageComponent}
+  { path: 'about', component: AboutPageComponent},
+  { path: '', redirectTo:'/home', pathMatch: 'full'},
 ];
 
 @NgModule({
