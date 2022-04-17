@@ -33,8 +33,12 @@ export class CardsViewComponent implements OnInit {
   }
 
   //Kinda cheeky, but the anchor element's click event will occur after the button's so the download begins immediately after we set the href
+  // Is this a race? beats me :)
   save() {
-    let dexString = JSON.stringify(this.dex.pokedex);
+    let dexString = JSON.stringify(
+      {
+        pokedex: this.dex.pokedex
+      });
     this.downloadRef.nativeElement.href='data:text/plain;charset=utf-8,' + encodeURIComponent(dexString);
   }
 
@@ -43,6 +47,30 @@ export class CardsViewComponent implements OnInit {
       this.dex.hideAll();
     } else {
       this.dex.revealAll();
+    }
+  }
+
+  spoilBSTs() {
+    if(this.dex.allBSTRevealed) {
+      this.dex.hideBSTs();
+    } else {
+      this.dex.revealBSTs();
+    }
+  }
+
+  spoilTypes() {
+    if(this.dex.allTypesRevealed) {
+      this.dex.hideTypes();
+    } else {
+      this.dex.revealTypes();
+    }
+  }
+
+  spoilAbilities() {
+    if(this.dex.allAbilitiesRevealed) {
+      this.dex.hideAbilities();
+    } else {
+      this.dex.revealAbilities();
     }
   }
 

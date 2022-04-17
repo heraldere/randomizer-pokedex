@@ -4,6 +4,50 @@
     margin: 5px;
 }
 
-button {
-    margin: 5px;
+.home-button {
+    margin-left: auto;
+    margin-right: auto;
+    margin-top: 5px;
+    margin-bottom: 5px;
+    max-width: 400px;
+    width: 80%;
+    padding: 10px;
+    font-size: 14px;
+    font-family: "Roboto", Arial, sans-serif;
+    font-weight: bold;
+    color: #cfcfcf;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 8px 16px;
+    border-radius: 10px;
+    background-color: rgb(37, 167, 37);
+    &:hover {
+        background-color: darken($color: rgb(37, 167, 37), $amount: 10);
+        // font-weight: 300;
+    }
+}
+
+.home-file-input {
+    height: 0;
+    width: 0;
+}
+
+#home-box {
+    margin: auto;
+    border: solid 1px rgb(156, 156, 156);
+    max-width: 500px;
+    // width: 80%;
+}
+
+#button-stack {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 5px;
+}
+
+#home-background {
+    width: 70%;
+    margin: auto;
 }

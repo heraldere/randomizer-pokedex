@@ -46,6 +46,7 @@ export class IndividualSummaryComponent implements OnInit, AfterViewInit{
   toggleTypeRevealButton() {
     if(this.current_mon) {
       this.current_mon.type_revealed = !this.current_mon.type_revealed;
+      this.dex.individualChanges.next(this.current_mon)
     }
   }
 
@@ -62,6 +63,7 @@ export class IndividualSummaryComponent implements OnInit, AfterViewInit{
   toggleAbilityRevealButton() {
     if(this.current_mon) {
       this.current_mon.abilities_revealed = !this.current_mon.abilities_revealed;
+      this.dex.individualChanges.next(this.current_mon)
     }
   }
 
@@ -183,7 +185,7 @@ export class IndividualSummaryComponent implements OnInit, AfterViewInit{
   private refreshChart() {
     if(this.current_mon) {
       this.chart.data.datasets[0].data = this.current_mon.getStatsIfRevealed();
-      this.chart.options.plugins!.title!.text = "BST : " + (this.current_mon && (this.current_mon.stats_revealed || this.current_mon.fully_revealed)? this.current_mon.bst() : "???");
+      this.chart.options.plugins!.title!.text = "BST : " + (this.current_mon && (this.current_mon.bst_revealed || this.current_mon.stats_revealed || this.current_mon.fully_revealed)? this.current_mon.bst() : "???");
       this.chart.update();
     }
   }

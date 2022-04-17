@@ -52,6 +52,23 @@ $buttonColor : rgb(37, 167, 37);
         width: 0;
     }
 
+    #spoil-button {
+        border-radius: 10px 0px 0px 10px;
+    }
+
+    #power-options {
+        border-radius: 0px 10px 10px 0px;
+        border-left: solid 1px green;
+        width: 25px;
+        height: 30px;
+        padding: 0px;
+        margin-left: 0px;
+    }
+
+
+
+
+
     .tab-button {
         font-family: "Roboto", Arial, sans-serif;
         color: #cfcfcf;
@@ -62,6 +79,7 @@ $buttonColor : rgb(37, 167, 37);
         padding: 8px 16px;
         font-size: 12px;
         font-weight: bold;
+        margin-left: 5px;
         &:hover {
             background-color: darken($color: $buttonColor, $amount: 10);
             // font-weight: 300;

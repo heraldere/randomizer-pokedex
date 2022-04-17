@@ -1,8 +1,38 @@
 
-<input type="file" class="file-input" id="hh" (change)="onFileSelected($event)" #fileUpload>
-<label for="hh">hi</label>
+<!-- <input type="file" class="file-input" id="hh" (change)="onFileSelected($event)" #fileUpload> -->
+<!-- <label for="hh">hi</label> -->
 <!-- <a #downloadButton *ngIf="validFileUploaded" download="mons.pkdx" >
     <button (click)="save()" title="Save notes and revealed status of Pokemon">Save Dex</button>
 </a> -->
-<button *ngIf="validFileUploaded" (click)="spoilButtonClicked()" title="Fully Reveal the pokedex">Spoil Me!</button>
+<!-- <button *ngIf="validFileUploaded" (click)="spoilButtonClicked()" title="Fully Reveal the pokedex">Spoil Me!</button> -->
 <!-- <individual-card *ngIf="validFileUploaded"></individual-card> -->
+<div id="home-background">
+    <h2>Howdy!</h2> 
+    <div>
+        <p>
+            This is a tool created to help out with randomized Pokemon adventures/challenges.
+        </p>
+        <p>
+            Part of the fun of randomized runs is exploring a world filled with "brand-new" Pokemon.
+            This "Pokédex" can help you keep notes on all of your discoveries, including stats, typing, and abilities (with plans for more).
+        </p>
+        <p>
+            You can "spoil" as much or as little as you want, so you can have the experience most suited to your style. Or, if you just want to see what Pokemon were generated, this is a great way to do it without having to sift through a giant log file.
+        </p>
+    </div>
+    <div id="home-box">
+        <div id="button-stack">
+            <h2 style="margin-block-start: 5px;">Get Started</h2>
+            <input class="home-file-input" id="home-file-input1" type="file" (change)="onFileSelected($event)" accept=".log">
+            <label class="home-button" for="home-file-input1">Upload Randomized Log File</label>
+            <!-- <button>Upload Randomized Log File</button> -->
+            <input class="home-file-input" id="home-file-input2" type="file" (change)="onFileSelected($event)" accept=".pkdx">
+            <label class="home-button" for="home-file-input2">Upload Saved Pokedex File</label>
+            <!-- <button>Upload Saved Pokedex File</button> -->
+            <button class="home-button" (click)="detailButtonClicked()">More Details and Credits</button>
+            <a style="width:100%;" href="https://github.com/Ajarmar/universal-pokemon-randomizer-zx/releases" target="_blank" rel="noopener noreferrer">
+                <button class="home-button">Check Out The Universal Pokemon Randomizer</button>
+            </a>
+        </div>
+    </div>
+</div>

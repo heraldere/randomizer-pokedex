@@ -4,6 +4,7 @@ import { BrowserModule } from '@angular/platform-browser';
 import { FormsModule, ReactiveFormsModule } from '@angular/forms';
 import { MatDialogModule } from '@angular/material/dialog';
 import { MatSelectModule } from '@angular/material/select';
+import {MatMenuModule} from '@angular/material/menu';
 import { MatButtonModule } from '@angular/material/button';
 import { MatAutocompleteModule } from '@angular/material/autocomplete';
 import { MatInputModule } from '@angular/material/input';
@@ -30,42 +31,40 @@ import { CardComponent } from './pokedex-page/cards-view/card/card.component';
 import { AboutPageComponent } from './about-page/about-page.component';
 
 @NgModule({
-  exports: [
-    QueryBuilderModule
-  ],
-  declarations: [
-    AppComponent,
-    HeaderComponent,
-    HomeComponent,
-    PokedexPageComponent,
-    TableViewComponent,
-    CardsViewComponent,
-    FilterDialogContentComponent,
-    IndividualSummaryComponent,
-    TeamBuilderComponent,
-    VsSummaryComponent,
-    CardComponent,
-    AboutPageComponent
-  ],
-  imports: [
-    BrowserModule,
-    AppRoutingModule,
-    FormsModule, // Need for [(ngModel)] stuff to work
-    ReactiveFormsModule,
-    TableModule,
-    MatDialogModule,
-    MatTabsModule,
-    BrowserAnimationsModule,
-    QueryBuilderModule,
-    MatSelectModule,
-    MatAutocompleteModule,
-    MatInputModule,
-    MatFormFieldModule
-  ],
-  entryComponents: [
-    FilterDialogContentComponent
-  ],
-  providers: [],
-  bootstrap: [AppComponent]
+    exports: [
+        QueryBuilderModule
+    ],
+    declarations: [
+        AppComponent,
+        HeaderComponent,
+        HomeComponent,
+        PokedexPageComponent,
+        TableViewComponent,
+        CardsViewComponent,
+        FilterDialogContentComponent,
+        IndividualSummaryComponent,
+        TeamBuilderComponent,
+        VsSummaryComponent,
+        CardComponent,
+        AboutPageComponent
+    ],
+    imports: [
+        BrowserModule,
+        AppRoutingModule,
+        FormsModule,
+        ReactiveFormsModule,
+        TableModule,
+        MatDialogModule,
+        MatTabsModule,
+        BrowserAnimationsModule,
+        QueryBuilderModule,
+        MatSelectModule,
+        MatAutocompleteModule,
+        MatInputModule,
+        MatFormFieldModule,
+        MatMenuModule
+    ],
+    providers: [],
+    bootstrap: [AppComponent]
 })
 export class AppModule { }

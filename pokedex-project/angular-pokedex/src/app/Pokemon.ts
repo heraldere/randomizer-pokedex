@@ -1,5 +1,3 @@
-import { resolveSanitizationFn } from '@angular/compiler/src/render3/view/template';
-
 export enum PokeType {
   Normal = "normal",
   Fire = "fire",
@@ -57,10 +55,11 @@ export interface tm_move {
 
 
 export class Pokemon {
+
   name: string;
   pokedex_num: number;
   uid: string;
-
+  
   stat_total: number;
   hp: number;
   attack: number;
@@ -69,20 +68,20 @@ export class Pokemon {
   sp_defense: number;
   speed: number;
   special?: number;
-
+  
   type1: PokeType;
   type2: PokeType;
-
+  
   ability1?: string;
   ability2?: string;
   hiddenAbility?: string;
-
-  ev_from: string[];
-  ev_to: string[];
+  
+  next_evos: string[];
+  prev_evos: string[];
   is_base: boolean;
   is_final: boolean;
   evo_family: string[];
-
+  
   forms: string[];
   form_num: number;
 
@@ -95,14 +94,15 @@ export class Pokemon {
   type_revealed: boolean;
   stats_revealed: boolean;
   abilities_revealed: boolean;
-  ev_from_revealed: number[];
-  ev_to_revealed: number[];
+  next_evos_revealed: number[];
+  prev_evos_revealed: number[];
   learned_moves_revealed_idx: number;
   tm_indexes_learned: number[];
   fully_revealed: boolean;
 
   notes: string;
-
+  bst_revealed: boolean;
+  
   // We may be able to make this private and only access Pokemon w/ factories
   constructor() {
     // a new Pokemon should be fully defined, but all values should be
@@ -122,8 +122,8 @@ export class Pokemon {
     this.type1 = "unknown" as PokeType;
     this.type2 = "none" as PokeType;
 
-    this.ev_from = [];
-    this.ev_to = [];
+    this.next_evos = [];
+    this.prev_evos = [];
     this.is_base = true;
     this.is_final = true;
     this.evo_family = [];
@@ -138,9 +138,10 @@ export class Pokemon {
 
     this.type_revealed = false;
     this.stats_revealed = false;
+    this.bst_revealed = false;
     this.abilities_revealed = false;
-    this.ev_from_revealed = [];
-    this.ev_to_revealed = [];
+    this.next_evos_revealed = [];
+    this.prev_evos_revealed = [];
     this.learned_moves_revealed_idx = 0;
     this.tm_indexes_learned = [];
 
@@ -162,8 +163,8 @@ export class Pokemon {
     this.defense = parseInt(tokens[labels.indexOf('DEF')]);
     this.sp_attack = parseInt(tokens[labels.indexOf('SATK')]);
     this.sp_defense = parseInt(tokens[labels.indexOf('SDEF')]);
-    this.speed = parseInt(tokens[labels.indexOf('SPD')]);
-    this.special = labels.indexOf('SPE') >= 0 ? parseInt(tokens[labels.indexOf('SPE')]) : undefined;
+    this.speed = labels.indexOf('SPEC') >= 0 ? labels.indexOf('SPE') : parseInt(tokens[labels.indexOf('SPD')]);
+    this.special = labels.indexOf('SPEC') >= 0 ? parseInt(tokens[labels.indexOf('SPE')]) : undefined;
     this.stat_total = this.bst();
 
     const typeString = tokens[labels.indexOf('TYPE')];
@@ -196,8 +197,8 @@ export class Pokemon {
       json_data.stat_total === undefined ||
       json_data.type1 === undefined ||
       json_data.type2 === undefined ||
-      json_data.ev_from === undefined ||
-      json_data.ev_to === undefined ||
+      json_data.next_evos === undefined ||
+      json_data.prev_evos === undefined ||
       json_data.is_base === undefined ||
       json_data.is_final === undefined ||
       json_data.evo_family === undefined ||
@@ -210,8 +211,8 @@ export class Pokemon {
       json_data.type_revealed === undefined ||
       json_data.stats_revealed === undefined ||
       json_data.abilities_revealed === undefined ||
-      json_data.ev_from_revealed === undefined ||
-      json_data.ev_to_revealed === undefined ||
+      json_data.next_evos_revealed === undefined ||
+      json_data.prev_evos_revealed === undefined ||
       json_data.learned_moves_revealed_idx === undefined ||
       json_data.tm_indexes_learned === undefined ||
       json_data.fully_revealed === undefined ||
@@ -220,7 +221,7 @@ export class Pokemon {
       // json_data.ability2 === undefined
     ) {
       // if not, we shouldn't continue
-      throw new Error("Not A Real Boy");
+      throw new Error("Trouble Parsing Pokemon");
     }
     let mon = new Pokemon();
     mon.name = json_data.name;
@@ -236,36 +237,37 @@ export class Pokemon {
 
     mon.type1 = json_data.type1;
     mon.type2 = json_data.type2;
-
+    
     // Initialize other stats
-    mon.ev_from = json_data.ev_from;
-    mon.ev_to = json_data.ev_to;
+    mon.next_evos = json_data.next_evos;
+    mon.prev_evos = json_data.prev_evos;
     mon.is_base = json_data.is_base;
     mon.is_final = json_data.is_final;
     mon.evo_family = json_data.evo_family;
     mon.forms = json_data.forms;
     mon.form_num = json_data.form_num;
-
+    
     mon.learned_moves = json_data.learned_moves;
     mon.learn_levels = json_data.learn_levels;
-
+    
     mon.tms = json_data.tms;
     mon.tm_moves = json_data.tm_moves;
-
+    
     mon.type_revealed = json_data.type_revealed;
     mon.stats_revealed = json_data.stats_revealed;
     mon.abilities_revealed = json_data.abilities_revealed;
-    mon.ev_from_revealed = json_data.ev_from_revealed;
-    mon.ev_to_revealed = json_data.ev_to_revealed;
+    mon.next_evos_revealed = json_data.next_evos_revealed;
+    mon.prev_evos_revealed = json_data.prev_evos_revealed;
     mon.learned_moves_revealed_idx = json_data.learned_moves_revealed_idx;
     mon.tm_indexes_learned = json_data.tm_indexes_learned;
-
+    
     mon.fully_revealed = json_data.fully_revealed;
-
+    
     mon.notes = json_data.notes;
 
     mon.ability1 = json_data.ability1;
     mon.ability2 = json_data.ability2;
+    mon.hiddenAbility = json_data.hiddenAbility;
 
     return mon;
   }
@@ -279,15 +281,19 @@ export class Pokemon {
     const rightSide = evArr[1];
     const rightArr = rightSide.split(/(and|,)/).map(s => s.trim());
     if (leftSide === this.name) {
-      this.ev_from = rightArr;
+      this.next_evos = rightArr;
     } else {
-      this.ev_to.push(leftSide);
+      this.prev_evos.push(leftSide);
     }
+    this.is_base = this.prev_evos.length==0;
+    this.is_final = this.next_evos.length==0;
   }
 
   get_stat(stat: string): number {
     if (this.stats_revealed || this.fully_revealed) {
       switch (stat) {
+        case "hp":
+          return this.hp;
         case "attack":
           return this.attack;
         case "defense":
@@ -300,9 +306,13 @@ export class Pokemon {
           return this.special ? this.special : 0;
         case "speed":
           return this.speed;
+        case "stat_total":
+          return this.bst();
         default:
           return 0;
       }
+    } else if (this.checkBSTRevealed() && stat === "stat_total") {
+      return this.bst();
     } else {
       return 0;
     }
@@ -349,7 +359,7 @@ export class Pokemon {
   * @returns a list of Pokemon Names
   */
   get_evos_from(): string[] {
-    return this.ev_from.map((e, i) => (this.ev_from_revealed.indexOf(i) || this.fully_revealed) >= 0 ? e : "???");
+    return this.next_evos.map((e, i) => (this.next_evos_revealed.indexOf(i) || this.fully_revealed) >= 0 ? e : "???");
   }
 
   /**
@@ -358,7 +368,7 @@ export class Pokemon {
   * @returns a list of Pokemon Names
   */
   get_evos_to(): string[] {
-    return this.ev_to.map((e, i) => (this.ev_to_revealed.indexOf(i) || this.fully_revealed) >= 0 ? e : "???");
+    return this.prev_evos.map((e, i) => (this.prev_evos_revealed.indexOf(i) || this.fully_revealed) >= 0 ? e : "???");
   }
 
   bst(): number {
@@ -389,5 +399,21 @@ export class Pokemon {
       res.push("???");
     }
     return res;
+  }
+
+  checkTypeRevealed() {
+      return this.fully_revealed || this.type_revealed;
+  }
+  
+  checkStatsRevealed() {
+    return this.fully_revealed || this.stats_revealed;
+  } 
+  
+  checkBSTRevealed() {
+    return this.fully_revealed || this.stats_revealed || this.bst_revealed;
+  }
+
+  checkAbilityRevealed() {
+    return this.fully_revealed || this.abilities_revealed;
   }
 }

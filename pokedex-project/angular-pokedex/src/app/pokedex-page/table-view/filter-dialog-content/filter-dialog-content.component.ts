@@ -17,6 +17,7 @@ export class FilterDialogContentComponent implements OnInit {
       sp_attack: {name: 'Special Attack', type: 'number'},
       defense: {name: 'Defense', type: 'number'},
       sp_defense: {name: 'Special Defense', type: 'number'},
+      speed: {name: 'Speed', type: 'number'},
       stat_total: { name: 'Total Stats', type: 'number' },
       type: {
         name: 'Type',
@@ -41,6 +42,11 @@ export class FilterDialogContentComponent implements OnInit {
           {name: 'Steel', value: 'steel'},
           {name: 'Fairy', value: 'fairy'}
         ]
+      },
+      ability: {
+        name: 'Ability',
+        type: 'string',
+        operators: ['=', '!=']
       }
     }
   }

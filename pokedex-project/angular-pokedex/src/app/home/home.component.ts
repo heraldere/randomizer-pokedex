@@ -43,6 +43,10 @@ export class HomeComponent implements OnInit {
     }
   }
 
+  detailButtonClicked() {
+    this.router.navigate(['/', 'about'])
+  }
+
   save() {
     let dexString = JSON.stringify(this.dex.pokedex);
     this.downloadRef.nativeElement.href='data:text/plain;charset=utf-8,' + encodeURIComponent(dexString);

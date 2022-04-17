@@ -4,15 +4,36 @@
     <!-- <a class="disabled tab" [class.selected]="selectedTab==='teamTab'"  (click)="selectedTab='teamTab'"><i class="material-icons">view_module</i>Team Builder</a>
     <a class="disabled tab" [class.selected]="selectedTab==='vsTab'" (click)="selectedTab='vsTab'"><i class="material-icons">compare_arrows</i>Matchup</a> -->
     <span>(More tabs here soon)</span>
-    <input class="tab-file-input" type="file"  id="dex-file-input" (change)="onFileSelected($event)" #fileUpload>
+    <input class="tab-file-input" type="file"  id="dex-file-input" (change)="onFileSelected($event)" #fileUpload accept=".log,.pkdx">
     <label class="tab-button" for="dex-file-input">Upload</label>
     <a #downloadButton *ngIf="dex.validDexUploaded" download="mons.pkdx" >
         <button (click)="save()" class="tab-button" id="saveButton" title="Save notes and revealed status of Pokemon">Save</button>
     </a>
-    <button class="tab-button" *ngIf="dex.validDexUploaded" (click)="spoil()">{{this.dex.isFullyRevealed?"Unspoil":"Spoil"}}</button>
+    <button class="tab-button" id="spoil-button" *ngIf="dex.validDexUploaded" (click)="spoil()">{{this.dex.isFullyRevealed?"Unspoil":"Spoil"}}</button>
+
+    <button mat-button [matMenuTriggerFor]="powerSpoilMenu" *ngIf="dex.validDexUploaded"  class="tab-button" id="power-options">
+        <i class="material-icons">
+        arrow_drop_down
+        </i>
+    </button>
+    <mat-menu #powerSpoilMenu="matMenu" backdropClass="spoil-option" xPosition="before">
+        <button  mat-menu-item (click)="spoilTypes()">{{this.dex.allTypesRevealed?"Unspoil Types":"Spoil Types"}}</button>
+        <button mat-menu-item (click)="spoilBSTs()">{{this.dex.allBSTRevealed?"Unspoil BSTs":"Spoil BSTs"}}</button>
+        <button mat-menu-item (click)="spoilAbilities()">{{this.dex.allAbilitiesRevealed?"Unspoil Abilities":"Spoil Abilities"}}</button>
+    </mat-menu>
+    <!-- <label for="power-options">hellosir</label>
+    <select class="tab-button" id="power-options" title="Additional Spoil Options">
+    <option >
+      <span class="spoil-option">hello</span>
+    </option>
+    <option class="spoil-option">
+      hello2
+    </option>
+
+  </select> -->
 </div>
 <div *ngIf="selectedTab==='summaryTab'">
-    <individual-card></individual-card>
+    <individual-card *ngIf="dex.validDexUploaded"></individual-card>
 </div>
 <div *ngIf="selectedTab==='teamTab'">
     <team-builder></team-builder>

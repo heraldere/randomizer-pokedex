@@ -283,6 +283,12 @@ mat-dialog-container {
     background-color: #EEEEEE;
   }
   
+  .spoil-option+* .mat-menu-item {
+    width: 100%;
+    line-height: 30px;
+    height: 30px;
+    font-size: 12px;
+  }
   
   /*
   Copyright Google LLC. All Rights Reserved.
@@ -291,3 +297,5 @@ mat-dialog-container {
   */
 html, body { height: 100%; }
 body { margin: 0; font-family: Roboto, "Helvetica Neue", sans-serif; }
+
+
