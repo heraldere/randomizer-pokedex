@@ -44,8 +44,6 @@ export type IPokeQuery = {
 
 
 export function filterDataByQueryTree(data: Pokemon[], querytree: IPokeQuery): any[] {
-
-    //TODO: This We should filter on whether or not stats are revealed
     return data.filter(p => recursiveRuleCheck(p, querytree));
 }
 
@@ -127,12 +125,14 @@ function ruleCheck(pokemon: Pokemon, rule: IPokeRule) {
                 break;
         }
     } else if (rule.field == 'ability') {
-        if (pokemon.checkAbilityRevealed()) {
+        if (!pokemon.checkAbilityRevealed()) {
             return false;
         }
         switch (rule.operator) {
             case EqualityOperators.eq: {
-                return pokemon.getAbilitiesIfRevealed().map(a => a.toLowerCase()).includes(rule.value.toLowerCase())
+
+                return pokemon.getAbilitiesIfRevealed().some(ab => ab.toLowerCase() === rule.value.toLowerCase());
+                // return pokemon.getAbilitiesIfRevealed().map(a => a.toLowerCase()).includes(rule.value.toLowerCase())
             } break;
             case EqualityOperators.neq: {
                 return !(pokemon.getAbilitiesIfRevealed().map(a => a.toLowerCase()).includes(rule.value.toLowerCase()))

@@ -42,7 +42,7 @@
     <div id="ability-parent" class="left">
         <div>Abilities:</div>
         <div class="ability-collection" *ngIf="mon_selected">
-            <div class="ability-panel" *ngFor="let ability of current_mon!.getAbilitiesIfRevealed()"> {{ability}}</div>
+            <div class="ability-panel" *ngFor="let ability of current_mon!.getAbilitiesIfRevealed(); index as i"> {{ability + (i>1?" (hidden)":"")}}</div>
         </div>
         <div class="reveal-button" *ngIf="mon_selected">
             <button id="ability-reveal" [disabled]="dex.isFullyRevealed" (click)="toggleAbilityRevealButton()">{{current_mon!.abilities_revealed ? "Hide Abilities" : "Show Abilities"}}</button>

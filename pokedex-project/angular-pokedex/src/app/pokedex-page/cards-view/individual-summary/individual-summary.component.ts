@@ -163,7 +163,7 @@ export class IndividualSummaryComponent implements OnInit, AfterViewInit{
 
     this.dex.individualChanges.subscribe(
       mon => {
-        console.log("ichange");
+        // console.log("ichange");
         if(this.current_mon && this.current_mon.name.toLowerCase() == mon.name.toLowerCase()) {
           this.refreshChart();
         }
@@ -172,7 +172,7 @@ export class IndividualSummaryComponent implements OnInit, AfterViewInit{
 
     this.dex.dexChanges.subscribe(
       () => {
-        console.log("wechange");
+        // console.log("wechange");
         this.ctrl.setValue('');
         if(this.current_mon) {
           

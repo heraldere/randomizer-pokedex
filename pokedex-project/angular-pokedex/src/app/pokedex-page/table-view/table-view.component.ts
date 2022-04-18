@@ -102,7 +102,7 @@ export class TableViewComponent implements OnInit, AfterViewInit{
       dialogRef.afterClosed().subscribe(result => {
         this.dialogOpen = false;
         this.query = result;
-        console.log("after close", this.query);
+        // console.log("after close", this.query);
       });
     }
 
@@ -136,7 +136,6 @@ export class TableViewComponent implements OnInit, AfterViewInit{
         this.refreshTable();
       }
     )
-    // this.refreshTable();
   }
 
   refreshTable() {

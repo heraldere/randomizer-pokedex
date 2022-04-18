@@ -203,9 +203,9 @@ export class PokedexService {
       }
     }
 
-    console.log(this.pokedex)
+    // console.log(this.pokedex)
     // console.log(moveStrings.map(s => s.trim()));
-    console.log(tmStrings);
+    // console.log(tmStrings);
   }
 
   private parseSaveFile(save_data: string) {

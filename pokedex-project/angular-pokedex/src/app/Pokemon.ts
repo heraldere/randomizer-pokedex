@@ -393,7 +393,7 @@ export class Pokemon {
         res.push(this.ability2);
       }
       if (this.hiddenAbility) {
-        res.push(this.hiddenAbility + "(hidden)");
+        res.push(this.hiddenAbility);
       }
     } else if (this.ability1) {
       res.push("???");

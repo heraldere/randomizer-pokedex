@@ -26,7 +26,6 @@ export class CardsViewComponent implements OnInit {
     const file:File|null = files && files[0];
 
     if (file) {
-      console.log("yes");
       this.dex.readSelectedFile(file);
     }
 

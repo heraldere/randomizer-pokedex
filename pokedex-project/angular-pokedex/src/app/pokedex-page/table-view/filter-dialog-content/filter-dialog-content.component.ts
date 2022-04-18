@@ -54,14 +54,14 @@ export class FilterDialogContentComponent implements OnInit {
   constructor(
     public dialogRef: MatDialogRef<FilterDialogContentComponent>,
     @Inject(MAT_DIALOG_DATA) public data: IPokeQuery) { 
-      console.log("dialog data", this.data);
+      // console.log("dialog data", this.data);
     }
 
   ngOnInit(): void {
   }
 
   onNoClick(): void {
-    console.log(this.data);
+    // console.log(this.data);
     this.dialogRef.close();
   }
 

@@ -35,7 +35,6 @@ export class HomeComponent implements OnInit {
     const file:File|null = files && files[0];
 
     if (file) {
-      console.log("yes");
       this.validFileUploaded=false;
       this.dex.readSelectedFile(file);
       this.validFileUploaded=true;
