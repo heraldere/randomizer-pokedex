@@ -28,7 +28,7 @@ export class PokedexService {
     // this.getPokemonList();
 
     //TODO: THIS MUST BE COMMENTED OUT BEFORE PRODUCTION
-    (window as any).dex_service = this;
+    // (window as any).dex_service = this;
   }
 
   /**
