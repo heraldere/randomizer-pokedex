@@ -638,7 +638,7 @@ class HeaderComponent {
     }
 }
 HeaderComponent.ɵfac = function HeaderComponent_Factory(t) { return new (t || HeaderComponent)(_angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵdirectiveInject"](_pokedex_service__WEBPACK_IMPORTED_MODULE_0__.PokedexService)); };
-HeaderComponent.ɵcmp = /*@__PURE__*/ _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵdefineComponent"]({ type: HeaderComponent, selectors: [["app-header"]], decls: 15, vars: 0, consts: [[1, "header-title"], [1, "tabs"], ["routerLink", "/home", "routerLinkActive", "selected", 1, "tab"], [1, "material-icons"], ["routerLink", "/pokedex", "routerLinkActive", "selected", 1, "tab"], ["src", "../../assets/images/pokeball-icon.png", 1, "pokeball-icon"], ["routerLink", "/about", "routerLinkActive", "selected", 1, "tab"], ["id", "help-icon", 1, "material-icons"]], template: function HeaderComponent_Template(rf, ctx) { if (rf & 1) {
+HeaderComponent.ɵcmp = /*@__PURE__*/ _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵdefineComponent"]({ type: HeaderComponent, selectors: [["app-header"]], decls: 15, vars: 0, consts: [[1, "header-title"], [1, "tabs"], ["routerLink", "/home", "routerLinkActive", "selected", 1, "tab"], [1, "material-icons"], ["routerLink", "/pokedex", "routerLinkActive", "selected", 1, "tab"], ["src", "assets/images/pokeball-icon.png", 1, "pokeball-icon"], ["routerLink", "/about", "routerLinkActive", "selected", 1, "tab"], ["id", "help-icon", 1, "material-icons"]], template: function HeaderComponent_Template(rf, ctx) { if (rf & 1) {
         _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵelementStart"](0, "div")(1, "h1", 0);
         _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵtext"](2, "Randomizer Pokedex");
         _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵelementEnd"]();
