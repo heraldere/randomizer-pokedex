@@ -120,5 +120,8 @@
       }
     }
   },
-  "defaultProject": "angular-pokedex"
+  "defaultProject": "angular-pokedex",
+  "cli": {
+    "analytics": false
+  }
 }
