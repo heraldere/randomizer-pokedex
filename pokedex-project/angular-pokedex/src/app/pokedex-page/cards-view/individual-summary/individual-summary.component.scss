@@ -1,4 +1,108 @@
 
+// New Layout Section
+#main-card {
+    display:flex;
+    flex-direction: row;
+    // align-items: flex-start;
+    min-height: 600px;
+    min-width: 1100px;
+    max-width: 1300px;
+    margin-top: 20px;
+    margin-left: auto;
+    margin-right: auto;
+    margin-bottom: 10px;
+}
+
+// Level 1
+
+#search-col {
+    // width: 20%;
+    // flex-grow: 1;
+    flex:1;
+    max-width: 220px;
+    display: flex;
+    flex-direction: column;
+    #search-slot {
+        height: 50%;
+    }
+    #dex-summary-slot {
+        height: 50%;
+    }
+}
+
+#profile-col {
+    // width: 20%;
+    // flex-grow: 1;
+    flex:1;
+    display: flex;
+    flex-direction: column;
+    #name-slot {
+        height: 10%;
+    }
+    #sprite-slot {
+        height: 30%;
+        display: flex;
+        justify-content: center;
+    }
+    #type-slot {
+        height: 10%;
+    }
+    #notes-slot {
+        flex-grow: 1;
+    }
+}
+
+#stat-col {
+    // width: 40%;
+    // flex-grow: 2;
+    flex:2;
+    display: flex;
+    flex-direction: column;
+    #title-slot {
+        height: 10%;
+    }
+    #chart-slot {
+        flex-grow: 1;
+    }
+    #total-ability-slot {
+        height: 10%;
+        display: flex;
+        flex-direction: row;
+        #total-slot {
+            width: 30%;
+        }
+        #ability-slot {
+            flex-grow: 1;
+        }
+    }
+    #evolutions-slot {
+        height: 20%;
+    }
+}
+
+#moves-col {
+    // width: 20%;
+    // flex-grow: 1;
+    flex:1;
+    display: flex;
+    flex-direction: column;
+    #move-title-slot {
+        height: 10%;
+    }
+    #tables-slot {
+        flex-grow: 1;
+        display: flex;
+        flex-direction: row;
+        #level-moves-slot {
+            width: 50%;
+        }
+        #tm-moves-slot {
+            width: 50%;
+        }
+    }
+}
+
+
 #background {
     //background-color: rgb(92, 92, 207);
     // border: solid;
@@ -87,18 +191,23 @@
     margin-left: 2px;
     margin-right: 2px;
     margin-top: 2px;
+
     
 }
 
 #type-container {
-    margin-left: auto;
-    margin-right: auto;
-    margin-top: 5px;
-    width: fit-content;
-    background-color: rgb(25, 24, 26);
-    // border: 2px solid rgb(167, 163, 168);
-    border-radius: 10px;
-    padding: 15px;
+    // margin-top: 5px;
+    // width: fit-content;
+    // background-color: rgb(25, 24, 26);
+    // // border: 2px solid rgb(167, 163, 168);
+    // border-radius: 10px;
+    // padding: 15px;
+
+    
+    
+    display: flex;
+    flex-direction: row;
+    justify-content: center;
 }
 
  #name-box {
@@ -138,7 +247,8 @@
     resize: none;
     color:rgb(218, 210, 226);
     background-color: rgb(25, 24, 26);
-    margin: 5px;
+    width: 100%;
+    // margin: 5px;
 }
 
 #ability-parent {
@@ -162,3 +272,4 @@
     padding: 15px;
     margin-left: 10px;
 }
+

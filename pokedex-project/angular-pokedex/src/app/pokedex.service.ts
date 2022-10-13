@@ -129,14 +129,14 @@ export class PokedexService {
         case 'TM Moves':
           tmStrings = lines.slice(1);
           break;
-        case 'Pokemon Movesets':
-          moveStrings.push(block.slice(block.indexOf('\r\n')));
+        case 'Pokemon Movesets': // Only the first Pokemon Moveset Block meets this description (Bulbasaur)
+          moveStrings.push(block.slice(block.indexOf('\r\n') + 2));
           break;
         case 'TM Compatibility':
           tmCompStrings = lines.slice(1);
           break;
-        default:
-          if (firstLine.match(/\d{3}/) && !firstLine.startsWith('Set')) {
+        default: //All other Pokemon Movesets appear as their own independent blocks.
+          if (firstLine.match(/\d{3} .* ->/) && !firstLine.startsWith('Set')) {
             moveStrings.push(block)
           }
           break;
@@ -186,7 +186,7 @@ export class PokedexService {
     }
 
     for (let moveString of moveStrings) {
-      let mon_name = moveString.split(' ')[1];
+      let mon_name = moveString.substring(4, moveString.indexOf('->') - 1);
       let mon = this.pokedexByName.get(mon_name);
       if (mon) {
         for (let level_line of moveString.split('\r\n')) {
@@ -202,10 +202,6 @@ export class PokedexService {
         mon.notes = "Learns Moves at: \r\n" + mon.learn_levels.filter(v => v > 1).toString();
       }
     }
-
-    // console.log(this.pokedex)
-    // console.log(moveStrings.map(s => s.trim()));
-    // console.log(tmStrings);
   }
 
   private parseSaveFile(save_data: string) {
