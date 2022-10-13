@@ -41,7 +41,11 @@
     </div>
     <div id="stat-col" class="wireframe">
         <div id="title-slot" class="wireframe"></div>
-        <div id="chart-slot" class="wireframe"></div>
+        <div id="chart-slot" class="wireframe">
+            <canvas id="stat-chart" #statChart width="200px" height="100px">
+
+            </canvas>
+        </div>
         <div id="total-ability-slot" class="wireframe">
             <div id="total-slot" class="wireframe"></div>
             <div id="ability-slot" class="wireframe"></div>
@@ -81,9 +85,7 @@
         </div>
         <div class="right stat-graph">
             
-            <canvas id="stat-chart" #statChart width="200px" height="100px">
 
-            </canvas>
             <!-- TODO: Hide buttons if dex is spoiled (also edit layout so hiding buttons doesn't shift things) -->
             <div class="reveal-button" *ngIf="mon_selected">
                 <button id="stat-reveal" [disabled]="dex.isFullyRevealed" (click)="toggleStatRevealButton()">{{current_mon!.stats_revealed ? "Hide Stats" : "Show Stats"}}</button>
