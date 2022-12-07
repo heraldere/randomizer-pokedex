@@ -416,4 +416,8 @@ export class Pokemon {
   checkAbilityRevealed() {
     return this.fully_revealed || this.abilities_revealed;
   }
+
+  sanitizedName() {
+    return this.name.replace(':','').replace('\u2640', 'f').replace('\u2642', 'm').toLowerCase();
+  }
 }

@@ -16,6 +16,7 @@
         </div>
         <div id="dex-summary-slot" class="wireframe">
             <!-- Include dex summary info here (get it from pokedex service) -->
+            <!-- src="https://www.serebii.net/swordshield/pokemon/{{current_mon!.uid}}.png" -->
         </div>
     </div>
     
@@ -24,7 +25,7 @@
            {{current_mon?current_mon.name:"N/A"}}
         </div>
         <div id="sprite-slot" class="wireframe">
-            <img *ngIf="mon_selected" style="height: 100%;" src="https://www.serebii.net/swordshield/pokemon/{{current_mon!.uid}}.png">
+            <img *ngIf="mon_selected" style="height: 100%;"  src="assets/images/sprites/{{current_mon!.sanitizedName()}}.png">
         </div>
         <div id="type-slot" class="wireframe">
             <div id="type-container" *ngIf="mon_selected">
