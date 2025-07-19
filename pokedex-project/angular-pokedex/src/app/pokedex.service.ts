@@ -11,18 +11,21 @@ import { Pokemon, learned_move, tm_move, PokeType } from './Pokemon';
 })
 export class PokedexService {
 
-
   public pokedex: Pokemon[] = [];
   public pokedexByName = new Map<string, Pokemon>();
   public validDexUploaded = false;
   public dexChanges = new Subject<any>();
   public individualChanges = new Subject<Pokemon>();
+  public monSelection = new Subject<string>();
   private v = 3;
   loadedFile: string = '';
   isFullyRevealed = false;
   allBSTRevealed = false;
   allTypesRevealed = false;
   allAbilitiesRevealed = false;
+  allEvolutionsRevealed = false;
+  revealedTMs: number[] = [];
+  allMovesRevealed: boolean = false;
 
   constructor() {
     // this.getPokemonList();
@@ -145,7 +148,7 @@ export class PokedexService {
 
     // Potentially let this become the factory method (returns a list
     // of Pokemon objects fully formed from the component string arrays)
-    this.buildDex(pokeStrings, evoStrings, tmStrings, moveStrings);
+    this.buildDex(pokeStrings, evoStrings, tmCompStrings, moveStrings);
 
     this.resetSpoils();
     return;
@@ -156,10 +159,13 @@ export class PokedexService {
     this.allBSTRevealed = false;
     this.allTypesRevealed = false;
     this.isFullyRevealed = false;
+    this.allMovesRevealed = false;
+    this.revealedTMs = [];
+    this.allEvolutionsRevealed = false;
   }
 
   // TODO: Potentially move to Pokemon.ts as a static method
-  buildDex(pokeStrings: string[], evoStrings: string[], tmStrings: string[], moveStrings: string[]) {
+  buildDex(pokeStrings: string[], evoStrings: string[], tmCompStrings: string[], moveStrings: string[]) {
     let res: Pokemon[] = [];
     const labels = pokeStrings[0];
     for (const pokeString of pokeStrings.slice(1)) {
@@ -199,7 +205,22 @@ export class PokedexService {
           }
 
         }
-        mon.notes = "Learns Moves at: \r\n" + mon.learn_levels.filter(v => v > 1).toString();
+        // mon.notes = "Learns Moves at: \r\n" + mon.learn_levels.filter(v => v > 1).toString();
+      }
+    }
+    for (let tmCompString of tmCompStrings) {
+      let mon_name = tmCompString.slice(0,tmCompString.indexOf('|')).trim()
+      mon_name=mon_name.slice(mon_name.indexOf(' ')).trim();
+      let mon = this.pokedexByName.get(mon_name)
+      let tmHmTokens = tmCompString.split('|').map(s => s.trim()).filter(s=>s.startsWith('TM') || s.startsWith('HM'));
+      let tmStrings = tmHmTokens.filter(s=>s.startsWith('TM'));
+      let hmStrings = tmHmTokens.filter(s=>s.startsWith('HM'));
+      if(mon) {
+        for(let tmString of tmStrings) {
+          let match = tmString.match(/\d+/);
+          mon.tms.push(parseInt(match?match[0]:'0'))
+          mon.tm_moves.push(tmString.slice(tmString.indexOf(' ')).trim())
+        }
       }
     }
   }
@@ -288,7 +309,67 @@ export class PokedexService {
     this.dexChanges.next();
   }
 
+  hideEvolutions() {
+    for (let mon of this.pokedex) {
+      mon.next_evos_revealed = [];
+      mon.prev_evos_revealed = [];
+    }
+    this.allEvolutionsRevealed = false;
+    this.dexChanges.next();
+  }
+
+  revealEvolutions() {
+    for (let mon of this.pokedex) {
+      mon.next_evos.forEach((e, i) => mon.next_evos_revealed.push(i));
+      mon.prev_evos.forEach((e, i) => mon.prev_evos_revealed.push(i));
+    }
+    this.allEvolutionsRevealed = true;
+    this.dexChanges.next();
+  }
+
+  revealMoves() {
+    for (let mon of this.pokedex) {
+      mon.learned_moves_revealed_idx = 100;
+      mon.tms.forEach((tm, i) => {
+        if(!this.revealedTMs.includes(tm))
+          this.revealedTMs.push(tm);
+        if(!mon.tm_indexes_learned.includes(i))
+          mon.tm_indexes_learned.push(i);
+      })
+    }
+    this.allMovesRevealed=true;
+    this.dexChanges.next();
+  }
+
+  hideMoves() {
+    for(let mon of this.pokedex) {
+      mon.learned_moves_revealed_idx = 0;
+      mon.tm_indexes_learned = [];
+    }
+    this.revealedTMs = []
+    this.allMovesRevealed=false;
+    this.dexChanges.next();
+  }
+  
+  hideTMForAll(tm: number) {
+    for(let mon of this.pokedex) {
+      mon.hideTM(tm);
+    }
+    this.dexChanges.next();
+  }
+  revealTMForAll(tm: number) {
+    for(let mon of this.pokedex) {
+      mon.revealTM(tm);
+    }
+    this.dexChanges.next();
+  }
+
   public updatePokemon(mon: Pokemon) {
     this.individualChanges.next(mon);
   }
+
+  public selectPokemon(name: string) {
+    this.monSelection.next(name);
+  }
+
 }

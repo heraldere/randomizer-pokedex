@@ -17,9 +17,11 @@
         </i>
     </button>
     <mat-menu #powerSpoilMenu="matMenu" backdropClass="spoil-option" xPosition="before">
-        <button  mat-menu-item (click)="spoilTypes()">{{this.dex.allTypesRevealed?"Unspoil Types":"Spoil Types"}}</button>
+        <button mat-menu-item (click)="spoilTypes()">{{this.dex.allTypesRevealed?"Unspoil Types":"Spoil Types"}}</button>
         <button mat-menu-item (click)="spoilBSTs()">{{this.dex.allBSTRevealed?"Unspoil BSTs":"Spoil BSTs"}}</button>
         <button mat-menu-item (click)="spoilAbilities()">{{this.dex.allAbilitiesRevealed?"Unspoil Abilities":"Spoil Abilities"}}</button>
+        <button mat-menu-item (click)="spoilEvolutions()">{{this.dex.allEvolutionsRevealed?"Unspoil Evolutions":"Spoil Evolutions"}}</button>
+        <button mat-menu-item (click)="spoilMoves()">{{this.dex.allMovesRevealed?"Unspoil Moves":"Spoil Moves"}}</button>
     </mat-menu>
     <!-- <label for="power-options">hellosir</label>
     <select class="tab-button" id="power-options" title="Additional Spoil Options">

@@ -29,7 +29,10 @@ export class IndividualSummaryComponent implements OnInit, AfterViewInit{
   @ViewChild('mm')
   maut!: MatAutocomplete;
   @ViewChild('searchInput')
-  search_box!: MatInput
+  search_box!: MatInput;
+  tms_shown = false;
+  
+
 
   constructor(dex: PokedexService) {
     this.dex = dex;
@@ -65,6 +68,35 @@ export class IndividualSummaryComponent implements OnInit, AfterViewInit{
       this.current_mon.abilities_revealed = !this.current_mon.abilities_revealed;
       this.dex.individualChanges.next(this.current_mon)
     }
+  }
+
+
+  revealMovesToIndex(i: number) {
+    if(this.current_mon)
+      this.current_mon.learned_moves_revealed_idx=i+1;
+  }
+
+  
+  revealTMAtIndex(i: number) {
+    if(this.current_mon) {
+      let tm = this.current_mon.tms[i]
+      if(!this.dex.revealedTMs.includes(tm)) {
+        this.dex.revealedTMs.push(this.current_mon.tms[i])
+        this.dex.revealTMForAll(tm);
+      }
+      else {
+        this.dex.revealedTMs.splice(this.dex.revealedTMs.indexOf(tm), 1);
+        this.dex.hideTMForAll(tm);
+      }
+    }
+  }
+
+  toggleTMs() {
+    this.tms_shown = !this.tms_shown;
+  }
+
+  sanitizePokemonName(name: String): String {
+    return name.replace(':','').replace('\u2640', 'f').replace('\u2642', 'm').toLowerCase();
   }
 
 
@@ -142,24 +174,15 @@ export class IndividualSummaryComponent implements OnInit, AfterViewInit{
         map(
           ev => {
             let selected = ev.option.value as string;
-            return this.dex.pokedex.find(mon => mon.name.toLowerCase() == selected.toLowerCase());
+            return this.stringToPokemon(selected);
           }
         )
       )
       .subscribe(
-      mon => {
-        // TODO: Encapsulate this in a method
-        if(mon) {
-          this.mon_selected = true;
-          this.current_mon = mon;
-          // Also maybe split this into a method as well
-          this.refreshChart();
-          //
-          this.search_box.value='';
-          this.ctrl.setValue('');
-        }
-      }
-    );
+        mon=>this.updateCurrentMon(mon)
+      );
+
+
 
     this.dex.individualChanges.subscribe(
       mon => {
@@ -180,6 +203,57 @@ export class IndividualSummaryComponent implements OnInit, AfterViewInit{
         }
       }
     )
+
+    this.dex.monSelection.subscribe(
+      n => this.selectPokemonFromName(n)
+    )
+  }
+
+  //TODO:
+  evoClicked(evo: string, direction: string, index: number) {
+    if(this.current_mon){
+      if(evo=="unknown") {
+        if(direction=='next'){
+          this.current_mon.next_evos_revealed.push(index);
+          let next_mon = this.stringToPokemon(this.current_mon.next_evos[index])
+          if(next_mon) {
+            let back_index = next_mon.prev_evos.indexOf(this.current_mon.name)
+            next_mon.prev_evos_revealed.push(back_index)
+          }
+        } else {
+          this.current_mon.prev_evos_revealed.push(index);
+          let next_mon = this.stringToPokemon(this.current_mon.prev_evos[index])
+          if(next_mon) {
+            let back_index = next_mon.next_evos.indexOf(this.current_mon.name)
+            next_mon.next_evos_revealed.push(back_index)
+          }
+        }
+        this.refreshChart();
+      }
+      else
+        this.selectPokemonFromName(evo)
+    }
+  }
+
+  selectPokemonFromName(selected: string) {
+    let mon = this.stringToPokemon(selected)
+    this.updateCurrentMon(mon)
+  }
+
+  private stringToPokemon(selected: string): Pokemon | undefined {
+    return this.dex.pokedex.find(mon => mon.name.toLowerCase() == selected.toLowerCase());
+  }
+
+  private updateCurrentMon(mon: Pokemon|undefined) {
+    if(mon) {
+          this.mon_selected = true;
+          this.current_mon = mon;
+          // Also maybe split this into a method as well
+          this.refreshChart();
+          //
+          this.search_box.value='';
+          this.ctrl.setValue('');
+        }
   }
 
   private refreshChart() {

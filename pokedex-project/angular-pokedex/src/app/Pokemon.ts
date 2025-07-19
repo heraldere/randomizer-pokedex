@@ -279,7 +279,7 @@ export class Pokemon {
     const evArr = evString.split('->').map(s => s.trim());
     const leftSide = evArr[0];
     const rightSide = evArr[1];
-    const rightArr = rightSide.split(/(and|,)/).map(s => s.trim());
+    const rightArr = rightSide.split(/(?:and|,)/).map(s => s.trim());
     if (leftSide === this.name) {
       this.next_evos = rightArr;
     } else {
@@ -359,7 +359,7 @@ export class Pokemon {
   * @returns a list of Pokemon Names
   */
   get_evos_from(): string[] {
-    return this.next_evos.map((e, i) => (this.next_evos_revealed.indexOf(i) || this.fully_revealed) >= 0 ? e : "???");
+    return this.next_evos.map((e, i) => (this.next_evos_revealed.indexOf(i)  >= 0|| this.fully_revealed) ? e : "unknown");
   }
 
   /**
@@ -368,7 +368,7 @@ export class Pokemon {
   * @returns a list of Pokemon Names
   */
   get_evos_to(): string[] {
-    return this.prev_evos.map((e, i) => (this.prev_evos_revealed.indexOf(i) || this.fully_revealed) >= 0 ? e : "???");
+    return this.prev_evos.map((e, i) => (this.prev_evos_revealed.indexOf(i)  >= 0 || this.fully_revealed) ? e : "unknown");
   }
 
   bst(): number {
@@ -399,6 +399,31 @@ export class Pokemon {
       res.push("???");
     }
     return res;
+  }
+
+  
+  getMovesIfRevealed(): string[] {
+    let res: string[] = []
+    if (this.fully_revealed) {
+      res = this.learned_moves.concat(this.tm_moves)
+    } else {
+      res = res.concat(this.learned_moves.slice(0, this.learned_moves_revealed_idx))
+      res = res.concat(this.tm_indexes_learned.map(id => this.tm_moves[id]));
+    }
+    return res;
+  }
+
+  hideTM(tm: number) {
+    let tmIdx = this.tms.indexOf(tm);
+    if(tmIdx>=0 && this.tm_indexes_learned.includes(tmIdx)) {
+      this.tm_indexes_learned.splice(this.tm_indexes_learned.indexOf(tmIdx), 1)
+    }
+  }
+  revealTM(tm: number) {
+    let tmIdx = this.tms.indexOf(tm);
+    if(tmIdx >= 0 && !this.tm_indexes_learned.includes(tmIdx))
+      this.tm_indexes_learned.push(tmIdx);
+
   }
 
   checkTypeRevealed() {

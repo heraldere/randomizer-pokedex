@@ -1,7 +1,39 @@
 <div id="main-card" class="wireframe">
 
-    <div id="search-col" class="wireframe">
-        <div id="search-slot" class="wireframe">
+
+    
+    <div id="profile-col" class="wireframe">
+        <div id="name-slot" class="wireframe">
+            <div class="element-container">
+                {{current_mon?current_mon.name:"N/A"}}
+            </div>
+        </div>
+        <div id="sprite-slot" class="wireframe">
+            <div class="sprite-background">
+                <img *ngIf="mon_selected" style="height: 100%;"  src="assets/images/sprites/{{current_mon!.sanitizedName()}}.png">
+            </div>
+        </div>
+        <div id="type-slot" class="wireframe">
+            <div class="element-container">
+                <div id="type-container" *ngIf="mon_selected" style="cursor: pointer;" (click)="toggleTypeRevealButton()">
+                    <img class="type-box"  src="https://serebii.net/pokedex-bw/type/{{current_mon!.get_type1()}}.gif">
+                    <img class="type-box" *ngIf="(current_mon!.get_type2() != 'none')" src="https://serebii.net/pokedex-bw/type/{{current_mon!.get_type2()}}.gif">
+                </div>
+                <div id="type-container" *ngIf="!mon_selected">
+                    <img class="type-box" src="https://serebii.net/pokedex-bw/type/curse.gif" alt="">
+                </div>
+            </div>
+        </div>
+        <div id="ability-slot" class="wireframe">
+            <div id="ability-container" class="element-container" >
+                <b>Abilities</b>
+                <hr>
+                <div *ngIf="mon_selected" (click)="toggleAbilityRevealButton()" style="cursor: pointer;">{{current_mon!.getAbilitiesIfRevealed().join(' | ')}}</div>
+                <div *ngIf="!mon_selected">--</div>
+            </div>
+        </div>
+
+        <div id="search2-slot" class="wireframe">
             <form>
                 <mat-form-field class="search-box" >
                     <input #searchInput type="text" placeholder="Search For Pokemon" aria-label="Number" matInput [formControl]="ctrl"
@@ -14,66 +46,75 @@
                 </mat-form-field>
             </form>
         </div>
-        <div id="dex-summary-slot" class="wireframe">
-            <!-- Include dex summary info here (get it from pokedex service) -->
-            <!-- src="https://www.serebii.net/swordshield/pokemon/{{current_mon!.uid}}.png" -->
-        </div>
     </div>
-    
-    <div id="profile-col" class="wireframe">
-        <div id="name-slot" class="wireframe">
-           {{current_mon?current_mon.name:"N/A"}}
-        </div>
-        <div id="sprite-slot" class="wireframe">
-            <img *ngIf="mon_selected" style="height: 100%;"  src="assets/images/sprites/{{current_mon!.sanitizedName()}}.png">
-        </div>
-        <div id="type-slot" class="wireframe">
-            <div id="type-container" *ngIf="mon_selected">
-                <img class="type-box"  src="https://serebii.net/pokedex-bw/type/{{current_mon!.get_type1()}}.gif">
-                <img class="type-box" *ngIf="(current_mon!.get_type2() != 'none')" src="https://serebii.net/pokedex-bw/type/{{current_mon!.get_type2()}}.gif">
-            </div>
-        </div>
-        <div id="notes-slot" class="wireframe">
-            <div id="notes-parent" *ngIf="mon_selected">
-                <div>Notes:</div>
-                <textarea rows=12  class="notes-section" *ngIf="mon_selected" [(ngModel)]="current_mon!.notes"></textarea>
-            </div>
-        </div>
-    </div>
+
     <div id="stat-col" class="wireframe">
-        <div id="title-slot" class="wireframe"></div>
         <div id="chart-slot" class="wireframe">
             <canvas id="stat-chart" #statChart width="200px" height="100px">
 
-            </canvas>
+            </canvas>            
+            <div class="reveal-button" *ngIf="mon_selected">
+                <button id="stat-reveal" [disabled]="dex.isFullyRevealed" (click)="toggleStatRevealButton()">{{current_mon!.stats_revealed ? "Hide Stats" : "Show Stats"}}</button>
+            </div>
+            <div class="reveal-button" *ngIf="!mon_selected">
+                <button id="stat-reveal" disabled>Show Stats</button>
+            </div>
         </div>
-        <div id="total-ability-slot" class="wireframe">
-            <div id="total-slot" class="wireframe"></div>
-            <div id="ability-slot" class="wireframe"></div>
+        <div id="evolutions-slot" class="wireframe">
+            <div class="evolution-chart" *ngIf="mon_selected && current_mon!.prev_evos.length > 0">
+                 Evolves From
+                 <hr>
+                 <div class="evo-list">
+                    <img *ngFor="let evo of current_mon!.get_evos_to(); let i = index;" style="height: 100%; cursor: pointer;" (click)="evoClicked(evo, 'prev', i)" src="assets/images/sprites/{{sanitizePokemonName(evo)}}.png"/>
+                 </div>
+            </div>
+            <div  class="evolution-chart" *ngIf="mon_selected && current_mon!.next_evos.length > 0">
+                 Evolves To
+                 <hr>
+                 <div class="evo-list">
+                    <img *ngFor="let evo of current_mon!.get_evos_from(); let i = index;" style="height: 100%; cursor: pointer;" (click)="evoClicked(evo, 'next', i)" src="assets/images/sprites/{{sanitizePokemonName(evo)}}.png"/>
+                 </div>
+            </div>
         </div>
-        <div id="evolutions-slot" class="wireframe"></div>
+        <div id="notes-slot" class="wireframe">
+            <div id="notes-parent" class="element-container" *ngIf="mon_selected">
+                <div style="color: gray;">Notes:</div>
+                <textarea rows=6  class="notes-section" *ngIf="mon_selected" [(ngModel)]="current_mon!.notes"></textarea>
+            </div>
+        </div>
     </div>
+
     <div id="moves-col" class="wireframe">
-        <div id="move-title-slot" class="wireframe"></div>
-        <div id="tables-slot" class="wireframe">
-            <div id="level-moves-slot" class="wireframe"></div>
-            <div id="tm-moves-slot" class="wireframe"></div>
+        <div id="move-table" *ngIf="mon_selected" class="element-container">
+            Moves
+            <hr style="flex-grow: 1; width: 100%;">
+            <div id="LvlTMSelector">
+                <div style="margin-right: 10px;" [class.tabSelected]="!tms_shown" [class.tabUnselected]="tms_shown" (click)="tms_shown && toggleTMs()">Level Up</div>
+                <div [class.tabSelected]="tms_shown" [class.tabUnselected]="!tms_shown" (click)="!tms_shown && toggleTMs()">TMs</div>
+            </div>
+            <div class="move-list">
+                <table style="border-collapse: collapse;" *ngIf="!this.tms_shown">
+                    <tr *ngFor="let level of current_mon!.learn_levels; let i = index" (click)="revealMovesToIndex(i)">
+                        <td class="left-table">{{level}}</td>
+                        <td class="right-table">{{current_mon!.get_revealed_learned_move_pairs()[i].move}}</td>
+                    </tr>
+                </table>
+                <table style="border-collapse: collapse;" *ngIf="this.tms_shown">
+                    <tr *ngFor="let tm of current_mon!.tms; let i = index" (click)="revealTMAtIndex(i)">
+                        <td class="left-table">{{tm}}</td>
+                        <td class="right-table">{{dex.revealedTMs.includes(tm) || dex.isFullyRevealed  ?current_mon!.tm_moves[i]:'???'}}</td>
+                    </tr>
+                </table>
+            </div>
         </div>
     </div>
 </div>
 
-<div id="background">
+<!-- <div id="background">
 
 
-
-    <div id="search_container" class="wireframe">
-
-
-
-    </div>
     <div style="overflow: auto" >
         <div class="left sprite">
-            <div id="name-box"></div>
             <div class="sprite-background">
                 <img *ngIf="mon_selected" style="width: 100%;" src="https://www.serebii.net/swordshield/pokemon/{{current_mon!.uid}}.png">
             </div>
@@ -85,19 +126,9 @@
             </div>
         </div>
         <div class="right stat-graph">
-            
-
-            <!-- TODO: Hide buttons if dex is spoiled (also edit layout so hiding buttons doesn't shift things) -->
-            <div class="reveal-button" *ngIf="mon_selected">
-                <button id="stat-reveal" [disabled]="dex.isFullyRevealed" (click)="toggleStatRevealButton()">{{current_mon!.stats_revealed ? "Hide Stats" : "Show Stats"}}</button>
-            </div>
         </div>
     </div>
     <div id="ability-parent" class="left">
-        <div>Abilities:</div>
-        <div class="ability-collection" *ngIf="mon_selected">
-            <div class="ability-panel" *ngFor="let ability of current_mon!.getAbilitiesIfRevealed(); index as i"> {{ability + (i>1?" (hidden)":"")}}</div>
-        </div>
         <div class="reveal-button" *ngIf="mon_selected">
             <button id="ability-reveal" [disabled]="dex.isFullyRevealed" (click)="toggleAbilityRevealButton()">{{current_mon!.abilities_revealed ? "Hide Abilities" : "Show Abilities"}}</button>
         </div>
@@ -106,5 +137,5 @@
 
         <div class="column"></div>
     </div>
-</div>
+</div> -->
 

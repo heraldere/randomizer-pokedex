@@ -3,22 +3,22 @@
     <button class='filterButton openDialogButton' (click)="openFilterTreeDialog()">Filter</button>
     <ngx-table [configuration]="configuration" [data]="filteredData" [columns]="columns" (event)="eventEmitted($event)" #tableTemplate>
         <ng-template let-row let-index="index">
-            <td>
+            <td (click)="rowClick(row.name)">
                 <h2>{{ row.name }}</h2>
             </td>
-            <td >
+            <td (click)="rowClick(row.name)">
                 <h3>{{ row.uid }}</h3>
             </td>
-            <td>
+            <td (click)="rowClick(row.name)">
                 <span>{{row.checkTypeRevealed() ? row.type1 : "???"}}</span>
             </td>
-            <td>
+            <td (click)="rowClick(row.name)">
                 <span>{{row.checkTypeRevealed() ? row.type2 : "???"}}</span>
             </td>
-            <td>
+            <td (click)="rowClick(row.name)">
                 <span>Total: {{ row.checkBSTRevealed()?row.bst():"???" }}</span>
             </td>
-            <td *ngFor="let stat of ['hp', 'attack', 'defense', 'sp_attack', 'sp_defense', 'speed']">
+            <td *ngFor="let stat of ['hp', 'attack', 'defense', 'sp_attack', 'sp_defense', 'speed']" (click)="rowClick(row.name)">
                 <div class="statsBar">
                     <span class="statsBarFill total" [class]="[stat]" [style.width]="row.get_stat(stat)/2.55+ '%'" aria-valuenow="row.get_stat(stat)"
                     aria-valuemin="0" aria-valuemax="255">
@@ -30,6 +30,7 @@
                     </div>
                 </div>
             </td>
+
         </ng-template>
     </ngx-table>
 </div>

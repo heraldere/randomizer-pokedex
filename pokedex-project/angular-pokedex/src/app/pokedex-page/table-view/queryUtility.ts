@@ -17,6 +17,11 @@ export enum EqualityOperators {
     eq = '=',
     neq = '!='
 }
+export enum ContainsOperators {
+    has = 'has',
+    nhas = '!has'
+}
+
 export type Operators = NumberOperators | CategoryOperators | EqualityOperators;
 export type IPokeRule = {
     field: 'hp' | 'attack' | 'sp_attack' | 'defense' | 'sp_defense' | 'speed' | 'total';
@@ -30,10 +35,13 @@ export type IPokeRule = {
     field: 'type';
     operator: EqualityOperators;
     value: PokeType;
-}
-| {
+} | {
     field: 'ability';
     operator: EqualityOperators;
+    value: string;
+} | {
+    field: 'move';
+    operator: ContainsOperators;
     value: string;
 }
 ;
@@ -140,6 +148,17 @@ function ruleCheck(pokemon: Pokemon, rule: IPokeRule) {
             default:
                 break;
         }        
+    } else if (rule.field == 'move') {
+        switch (rule.operator) {
+            case ContainsOperators.has: {
+                return (pokemon.getMovesIfRevealed().some(mv => mv.toLowerCase() === rule.value.toLowerCase()));
+            } break;
+            case ContainsOperators.nhas: {
+                return !(pokemon.getMovesIfRevealed().some(mv => mv.toLowerCase() === rule.value.toLowerCase()));
+            } break;
+            default:
+                break;
+        }
     } else {
         return true;
     }

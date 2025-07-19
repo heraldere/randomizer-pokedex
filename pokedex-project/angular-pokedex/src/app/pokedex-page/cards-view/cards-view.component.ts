@@ -73,6 +73,22 @@ export class CardsViewComponent implements OnInit {
     }
   }
 
+  //TODO: spoilEvolutions
+  spoilEvolutions() {
+    if(this.dex.allEvolutionsRevealed) {
+      this.dex.hideEvolutions();
+    } else {
+      this.dex.revealEvolutions();
+    }
+  }
+
+  spoilMoves() {
+    if(this.dex.allMovesRevealed)
+      this.dex.hideMoves();
+    else
+      this.dex.revealMoves();
+  }
+
   ngOnInit(): void {
   }
 

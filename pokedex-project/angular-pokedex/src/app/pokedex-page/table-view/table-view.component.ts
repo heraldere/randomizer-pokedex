@@ -158,6 +158,12 @@ export class TableViewComponent implements OnInit, AfterViewInit{
     return res;
   }
 
+  rowClick(name: string|undefined) {
+    if(name){
+      this._pokedexService.selectPokemon(name);
+    }
+  }
+
   eventEmitted($event: { event: string; value: any }) {
     if ($event.event === Event.onOrder) {
       console.log($event)

@@ -47,6 +47,11 @@ export class FilterDialogContentComponent implements OnInit {
         name: 'Ability',
         type: 'string',
         operators: ['=', '!=']
+      },
+      move: {
+        name: 'Move',
+        type: 'string',
+        operators: ['has']
       }
     }
   }
