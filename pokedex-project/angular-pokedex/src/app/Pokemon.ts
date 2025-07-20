@@ -216,7 +216,9 @@ export class Pokemon {
       json_data.learned_moves_revealed_idx === undefined ||
       json_data.tm_indexes_learned === undefined ||
       json_data.fully_revealed === undefined ||
-      json_data.notes === undefined 
+      json_data.notes === undefined ||
+
+      json_data.bst_revealed === undefined
       // json_data.ability1 === undefined ||
       // json_data.ability2 === undefined
     ) {
@@ -255,6 +257,7 @@ export class Pokemon {
     
     mon.type_revealed = json_data.type_revealed;
     mon.stats_revealed = json_data.stats_revealed;
+    mon.bst_revealed = json_data.bst_revealed;
     mon.abilities_revealed = json_data.abilities_revealed;
     mon.next_evos_revealed = json_data.next_evos_revealed;
     mon.prev_evos_revealed = json_data.prev_evos_revealed;

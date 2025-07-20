@@ -1,7 +1,7 @@
 import { JsonPipe } from '@angular/common';
 import { ElementRef, Injectable, ViewChild } from '@angular/core';
 // import { readFile, readFileSync } from 'fs';
-import { Observable, Subject } from 'rxjs';
+import { Observable, Subject, ReplaySubject } from 'rxjs';
 // import SampleJson from '../assets/data/main_collection.json';
 import { Pokemon, learned_move, tm_move, PokeType } from './Pokemon';
 
@@ -14,9 +14,10 @@ export class PokedexService {
   public pokedex: Pokemon[] = [];
   public pokedexByName = new Map<string, Pokemon>();
   public validDexUploaded = false;
+  public isLoaded = false;
   public dexChanges = new Subject<any>();
   public individualChanges = new Subject<Pokemon>();
-  public monSelection = new Subject<string>();
+  public monSelection = new ReplaySubject<string>(1);
   private v = 3;
   loadedFile: string = '';
   isFullyRevealed = false;
@@ -26,12 +27,12 @@ export class PokedexService {
   allEvolutionsRevealed = false;
   revealedTMs: number[] = [];
   allMovesRevealed: boolean = false;
+  defaultPkdxName = '/assets/data/Default.pkdx';
 
   constructor() {
-    // this.getPokemonList();
 
     //TODO: THIS MUST BE COMMENTED OUT BEFORE PRODUCTION
-    // (window as any).dex_service = this;
+    (window as any).dex_service = this;
   }
 
   /**
@@ -99,7 +100,9 @@ export class PokedexService {
       this.validDexUploaded = false;
       alert("The file didn't load properly")
     }
-
+    if(this.validDexUploaded && this.pokedex.length>0) {
+      this.selectPokemon(this.pokedex[0].name)
+    }
   }
 
   /**
@@ -231,9 +234,26 @@ export class PokedexService {
       this.pokedex = save_obj.pokedex.map(
         (mon_data: any) => Pokemon.loadFromJson(mon_data)
       )
+      this.isFullyRevealed = save_obj.full;
+      this.allBSTRevealed = save_obj.bsts;
+      this.allTypesRevealed = save_obj.types;
+      this.allAbilitiesRevealed = save_obj.full;
+      this.allEvolutionsRevealed = save_obj.evolutions;
+      this.revealedTMs = save_obj.tms;
+      this.allMovesRevealed = save_obj.moves;
+      this.dexChanges.next();
     } catch {
       alert("Bad File Uploaded (have you checked your .pkdx?)")
     }
+  }
+
+  public loadDefaultData() {
+    fetch(this.defaultPkdxName)
+      .then(res => res.text())
+      .then(text => {
+        this.parseFile(text);
+        this.loadedFile = this.defaultPkdxName;
+      });
   }
 
   // This may be useful when integrating all the views w/ this service

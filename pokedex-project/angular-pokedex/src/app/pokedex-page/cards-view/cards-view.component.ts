@@ -36,7 +36,14 @@ export class CardsViewComponent implements OnInit {
   save() {
     let dexString = JSON.stringify(
       {
-        pokedex: this.dex.pokedex
+        pokedex: this.dex.pokedex,
+        abilities: this.dex.allAbilitiesRevealed,
+        bsts: this.dex.allBSTRevealed,
+        types: this.dex.allTypesRevealed,
+        full: this.dex.isFullyRevealed,
+        moves: this.dex.allMovesRevealed,
+        tms: this.dex.revealedTMs,
+        evolutions: this.dex.allEvolutionsRevealed,
       });
     this.downloadRef.nativeElement.href='data:text/plain;charset=utf-8,' + encodeURIComponent(dexString);
   }

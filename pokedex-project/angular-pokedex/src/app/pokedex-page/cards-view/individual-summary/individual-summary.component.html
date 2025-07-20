@@ -1,10 +1,10 @@
-<div id="main-card" class="wireframe">
+<div id="main-card" class="wireframe" *ngIf="dex.validDexUploaded">
 
 
     
     <div id="profile-col" class="wireframe">
         <div id="name-slot" class="wireframe">
-            <div class="element-container">
+            <div class="element-container" *ngIf="mon_selected">
                 {{current_mon?current_mon.name:"N/A"}}
             </div>
         </div>

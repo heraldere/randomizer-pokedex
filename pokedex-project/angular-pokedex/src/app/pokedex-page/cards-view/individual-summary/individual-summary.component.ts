@@ -1,4 +1,4 @@
-import { AfterViewInit, Component, ElementRef, EventEmitter, OnInit, Output, ViewChild } from '@angular/core';
+import { AfterViewInit, ChangeDetectorRef, Component, ElementRef, EventEmitter, OnInit, Output, ViewChild } from '@angular/core';
 import { FormControl } from '@angular/forms';
 import { Observable, Subscriber } from 'rxjs';
 import { PokedexService } from 'src/app/pokedex.service';
@@ -34,7 +34,7 @@ export class IndividualSummaryComponent implements OnInit, AfterViewInit{
   
 
 
-  constructor(dex: PokedexService) {
+  constructor(dex: PokedexService, private cdr: ChangeDetectorRef) {
     this.dex = dex;
     this.pokes_filtered_by_text = this.ctrl.valueChanges.pipe(
       startWith(''),
@@ -198,15 +198,23 @@ export class IndividualSummaryComponent implements OnInit, AfterViewInit{
         // console.log("wechange");
         this.ctrl.setValue('');
         if(this.current_mon) {
-          
+
           this.refreshChart();
         }
       }
     )
 
     this.dex.monSelection.subscribe(
-      n => this.selectPokemonFromName(n)
+      n =>  {
+        this.selectPokemonFromName(n);
+        this.cdr.detectChanges();
+      }
     )
+
+    // if(this.dex.validDexUploaded && this.dex.pokedex.length > 0)
+    //   this.dex.selectPokemon(this.dex.pokedex[0].name)
+    // setTimeout(() => {
+    // })
   }
 
   //TODO:

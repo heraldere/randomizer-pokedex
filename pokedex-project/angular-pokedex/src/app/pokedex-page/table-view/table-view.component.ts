@@ -136,6 +136,9 @@ export class TableViewComponent implements OnInit, AfterViewInit{
         this.refreshTable();
       }
     )
+
+    // if(this.pokedexService.validDexUploaded)
+    //   this.pokedexService.dexChanges.next();
   }
 
   refreshTable() {
