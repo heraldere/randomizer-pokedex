@@ -127,6 +127,34 @@ export class TableViewComponent implements OnInit, AfterViewInit{
     //TODO: Subscribe to the dex service (specifically dex changed subject)
     this.pokedexService.dexChanges.subscribe(
       () => {
+        if(this.pokedexService.pokedex.length>0 && this.pokedexService.pokedex[0].special) {
+          this.columns = [
+            { key: 'name', title: 'Name' },
+            { key: 'uid', title: 'Id'},
+            { key: 'type1', title: 'Type 1' },
+            { key: 'type2', title: 'Type 2'},
+            { key: 'stat_total', title: 'Total' },
+            { key: 'hp', title: 'HP'},
+            { key: 'attack', title: 'Attack'},
+            { key: 'defense', title: 'Defense'},
+            { key: 'special', title: 'Special'},
+            { key: 'speed', title: 'Speed'},
+          ];
+        } else {
+          this.columns = [
+            { key: 'name', title: 'Name' },
+            { key: 'uid', title: 'Id'},
+            { key: 'type1', title: 'Type 1' },
+            { key: 'type2', title: 'Type 2'},
+            { key: 'stat_total', title: 'Total' },
+            { key: 'hp', title: 'HP'},
+            { key: 'attack', title: 'Attack'},
+            { key: 'defense', title: 'Defense'},
+            { key: 'sp_attack', title: 'Special Attack'},
+            { key: 'sp_defense', title: 'Special Defense'},
+            { key: 'speed', title: 'Speed'},
+          ];
+        }
         this.refreshTable();
       }
     )

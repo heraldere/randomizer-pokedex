@@ -267,6 +267,9 @@ export class IndividualSummaryComponent implements OnInit, AfterViewInit{
   private refreshChart() {
     if(this.current_mon) {
       this.chart.data.datasets[0].data = this.current_mon.getStatsIfRevealed();
+      this.chart.data.labels = this.current_mon.special
+        ?["HP", "Attack", "Defense", "Special", "Speed"]
+        :["HP", "Attack", "Defense", "Sp. Attack", "Sp. Defense", "Speed"]
       this.chart.options.plugins!.title!.text = "BST : " + (this.current_mon && (this.current_mon.bst_revealed || this.current_mon.stats_revealed || this.current_mon.fully_revealed)? this.current_mon.bst() : "???");
       this.chart.update();
     }

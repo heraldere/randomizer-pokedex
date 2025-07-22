@@ -163,8 +163,8 @@ export class Pokemon {
     this.defense = parseInt(tokens[labels.indexOf('DEF')]);
     this.sp_attack = parseInt(tokens[labels.indexOf('SATK')]);
     this.sp_defense = parseInt(tokens[labels.indexOf('SDEF')]);
-    this.speed = labels.indexOf('SPEC') >= 0 ? labels.indexOf('SPE') : parseInt(tokens[labels.indexOf('SPD')]);
-    this.special = labels.indexOf('SPEC') >= 0 ? parseInt(tokens[labels.indexOf('SPE')]) : undefined;
+    this.speed = labels.indexOf('SPEC') >= 0 ? parseInt(tokens[labels.indexOf('SPE')]) : parseInt(tokens[labels.indexOf('SPD')]);
+    this.special = labels.indexOf('SPEC') >= 0 ? parseInt(tokens[labels.indexOf('SPEC')]) : undefined;
     this.stat_total = this.bst();
 
     const typeString = tokens[labels.indexOf('TYPE')];
@@ -381,7 +381,11 @@ export class Pokemon {
 
   getStatsIfRevealed(): number[] {
     if (this.stats_revealed || this.fully_revealed) {
-      return [this.hp, this.attack, this.defense, this.sp_attack, this.sp_defense, this.speed];
+      if (this.special) {
+        return [this.hp, this.attack, this.defense, this.special, this.speed];
+      } else {
+        return [this.hp, this.attack, this.defense, this.sp_attack, this.sp_defense, this.speed];
+      }
     }
     return [0, 0, 0, 0, 0, 0];
   }

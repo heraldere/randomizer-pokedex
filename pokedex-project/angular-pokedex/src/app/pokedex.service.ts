@@ -178,7 +178,11 @@ export class PokedexService {
       if (new_mon.name.indexOf('-') !== -1
         && res.find(mon => new_mon.name.indexOf(mon.name) !== -1)
         && !new_mon.name.toLowerCase().includes('porygon')) {
-        new_mon.uid = res.find(mon => new_mon.name.indexOf(mon.name) !== -1)!.uid
+        let base_forme = res.find(mon => new_mon.name.indexOf(mon.name) !== -1);
+        new_mon.uid = base_forme!.uid;
+        !(base_forme!.forms.includes(base_forme!.name)) && base_forme!.forms.push(base_forme!.name)
+        base_forme!.forms.push(new_mon.name);
+        new_mon.forms = base_forme!.forms;
       }
       res.push(new_mon)
     }

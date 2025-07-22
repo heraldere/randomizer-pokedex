@@ -230,6 +230,9 @@
 .sprite-background {
     display: flex;
     height: 100%;
+    overflow: hidden;
+    align-items: center;
+    justify-content: center;
     aspect-ratio: 1 / 1;
     // padding-top: 50px;
     border-radius: 30%;

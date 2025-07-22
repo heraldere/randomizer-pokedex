@@ -18,7 +18,9 @@
             <td (click)="rowClick(row.name)">
                 <span>Total: {{ row.checkBSTRevealed()?row.bst():"???" }}</span>
             </td>
-            <td *ngFor="let stat of ['hp', 'attack', 'defense', 'sp_attack', 'sp_defense', 'speed']" (click)="rowClick(row.name)">
+            <td *ngFor="let stat of row.special?['hp', 'attack', 'defense', 'special', 'speed']
+                        : ['hp', 'attack', 'defense', 'sp_attack', 'sp_defense', 'speed']" 
+                        (click)="rowClick(row.name)">
                 <div class="statsBar">
                     <span class="statsBarFill total" [class]="[stat]" [style.width]="row.get_stat(stat)/2.55+ '%'" aria-valuenow="row.get_stat(stat)"
                     aria-valuemin="0" aria-valuemax="255">
