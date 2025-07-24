@@ -183,6 +183,7 @@ export class PokedexService {
         !(base_forme!.forms.includes(base_forme!.name)) && base_forme!.forms.push(base_forme!.name)
         base_forme!.forms.push(new_mon.name);
         new_mon.forms = base_forme!.forms;
+        new_mon.form_num = new_mon.forms.length - 1;
       }
       res.push(new_mon)
     }

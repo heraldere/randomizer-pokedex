@@ -75,6 +75,13 @@
                     <img *ngFor="let evo of current_mon!.get_evos_from(); let i = index;" style="height: 100%; cursor: pointer;" (click)="evoClicked(evo, 'next', i)" src="assets/images/sprites/{{sanitizePokemonName(evo)}}.png"/>
                  </div>
             </div>
+            <div  class="evolution-chart" *ngIf="mon_selected && current_mon!.forms.length > 0">
+                 Alt Forms
+                 <hr>
+                 <div class="evo-list">
+                    <img *ngFor="let form of getFilteredForms(current_mon!); let i = index;" style="height: 100%; cursor: pointer;" (click)="evoClicked(form, 'form', i)" src="assets/images/sprites/{{sanitizePokemonName(form)}}.png"/>
+                 </div>
+            </div>
         </div>
         <div id="notes-slot" class="wireframe">
             <div id="notes-parent" class="element-container" *ngIf="mon_selected">

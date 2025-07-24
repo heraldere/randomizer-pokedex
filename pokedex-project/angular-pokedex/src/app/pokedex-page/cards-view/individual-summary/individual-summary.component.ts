@@ -99,6 +99,10 @@ export class IndividualSummaryComponent implements OnInit, AfterViewInit{
     return name.replace(':','').replace('\u2640', 'f').replace('\u2642', 'm').toLowerCase();
   }
 
+  getFilteredForms(mon: Pokemon): string[] {
+    return mon.forms.filter((_, i) => i != mon.form_num);
+  }
+
 
   ngOnInit(): void {
     
@@ -217,7 +221,7 @@ export class IndividualSummaryComponent implements OnInit, AfterViewInit{
     // })
   }
 
-  //TODO:
+  
   evoClicked(evo: string, direction: string, index: number) {
     if(this.current_mon){
       if(evo=="unknown") {
@@ -228,7 +232,7 @@ export class IndividualSummaryComponent implements OnInit, AfterViewInit{
             let back_index = next_mon.prev_evos.indexOf(this.current_mon.name)
             next_mon.prev_evos_revealed.push(back_index)
           }
-        } else {
+        } else if (direction=='prev') {
           this.current_mon.prev_evos_revealed.push(index);
           let next_mon = this.stringToPokemon(this.current_mon.prev_evos[index])
           if(next_mon) {

@@ -90,6 +90,8 @@ export class Pokemon {
 
   tms: number[];
   tm_moves: string[];
+  hms: number[];
+  hm_moves: string[];
 
   type_revealed: boolean;
   stats_revealed: boolean;
@@ -135,6 +137,9 @@ export class Pokemon {
 
     this.tms = [];
     this.tm_moves = [];
+
+    this.hms = [];
+    this.hm_moves = [];
 
     this.type_revealed = false;
     this.stats_revealed = false;
@@ -254,6 +259,8 @@ export class Pokemon {
     
     mon.tms = json_data.tms;
     mon.tm_moves = json_data.tm_moves;
+    mon.hms = json_data.hms ? json_data.hms : [];
+    mon.hm_moves = json_data.hm_moves ? json_data.hm_moves : [];
     
     mon.type_revealed = json_data.type_revealed;
     mon.stats_revealed = json_data.stats_revealed;
