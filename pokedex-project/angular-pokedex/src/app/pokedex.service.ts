@@ -39,7 +39,7 @@ export class PokedexService {
   constructor() {
 
     //TODO: THIS MUST BE COMMENTED OUT BEFORE PRODUCTION
-    (window as any).dex = this.pokedex;
+    (window as any).dex = this;
   }
 
   public async readSelectedFile(inputFile: File) {
@@ -294,7 +294,6 @@ export class PokedexService {
       for (let mon of defaultDexList) {
         res.set(mon.name, mon);
       }
-      console.log(res);
       return res;
     } catch (err) {
       console.error('Error loading JSON:', err);
@@ -305,7 +304,6 @@ export class PokedexService {
   private getGenerationFromLog(logBlocks: string[]): string {
     let completion = logBlocks.find(s=>s.trim().startsWith('----------------'))
     if(completion) {
-      console.log(completion)
       let match = completion.match(/of (.*?) completed/);
       if(match) {
         let title = match[1].toLowerCase();
