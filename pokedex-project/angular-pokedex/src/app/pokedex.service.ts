@@ -4,6 +4,13 @@ import { ElementRef, Injectable, ViewChild } from '@angular/core';
 import { Observable, Subject, ReplaySubject } from 'rxjs';
 // import SampleJson from '../assets/data/main_collection.json';
 import { Pokemon, learned_move, tm_move, PokeType } from './Pokemon';
+// import * as gen7data from '../assets/data/gen7vantest.json';
+// import * as gen6data from '../assets/data/gen6vantest.json';
+// import * as gen5data from '../assets/data/gen5vantest.json';
+// import * as gen4data from '../assets/data/gen4vantest.json';
+// import * as gen3data from '../assets/data/gen3vantest.json';
+// import * as gen2data from '../assets/data/gen2vantest.json';
+// import * as gen1data from '../assets/data/gen1vantest.json';
 
 
 @Injectable({
@@ -32,44 +39,10 @@ export class PokedexService {
   constructor() {
 
     //TODO: THIS MUST BE COMMENTED OUT BEFORE PRODUCTION
-    (window as any).dex_service = this;
+    (window as any).dex = this.pokedex;
   }
 
-  /**
-   * Gets the default pokemon list loaded into the service.
-   * TODO: Deprecate this and either start with a) no list or b) a list of
-   * actual pokemon objects
-   */
-  // private getPokemonList() {
-  //   this.pokedex = Object.values(SampleJson).map((pokeJson) => {
-  //     return {
-  //       name: pokeJson.name,
-  //       pokedex_num: Number.parseInt(pokeJson.long_id),
-  //       uid: pokeJson.long_id,
-
-  //       stat_total: Number.parseInt(pokeJson.stat_total),
-  //       hp: Number.parseInt(pokeJson.hp),
-  //       attack: Number.parseInt(pokeJson.attack),
-  //       defense: Number.parseInt(pokeJson.defense),
-  //       sp_attack: Number.parseInt(pokeJson.sp_attack),
-  //       sp_defense: Number.parseInt(pokeJson.sp_defense),
-  //       speed: Number.parseInt(pokeJson.speed),
-
-  //       type1: pokeJson.type1 as PokeType,
-  //       type2: pokeJson.type2 as PokeType,
-
-  //       // ev_from: [pokeJson.ev_from],
-  //       // ev_to: JSON.parse(pokeJson.ev_to.replace(/'/g, '"')) as string[],
-  //       is_base: pokeJson.is_base == "1",
-  //       is_final: pokeJson.is_full_ev == "1",
-  //       // evo_family: JSON.parse(pokeJson.evo_family.replace(/'/g, '"')) as string[]
-  //     } as Pokemon
-  //     // This does not actually produce a pokemon object
-  //   });
-  //   this.pokedex.sort((a, b) => a.pokedex_num - b.pokedex_num);
-  // }
-
-  public readSelectedFile(inputFile: File) {
+  public async readSelectedFile(inputFile: File) {
     let reader = new FileReader();
     this.v = 4;
     reader.onload = (e) => {
@@ -83,25 +56,20 @@ export class PokedexService {
     reader.readAsText(inputFile)
   }
 
-  private parseFile(fileString: string) {
+  private async parseFile(fileString: string) {
     if (fileString.length) {
       try {
         if (fileString.startsWith('Randomizer Version:')) {
-          this.parseLogFile(fileString)
+          await this.parseLogFile(fileString)
         } else {
           this.parseSaveFile(fileString)
         }
-        this.validDexUploaded = true;
-        this.dexChanges.next();
       } catch (err) {
         alert("There was a problem reading the file you uploaded:" + err);
       }
     } else {
       this.validDexUploaded = false;
       alert("The file didn't load properly")
-    }
-    if(this.validDexUploaded && this.pokedex.length>0) {
-      this.selectPokemon(this.pokedex[0].name)
     }
   }
 
@@ -112,7 +80,7 @@ export class PokedexService {
    * @param log 
    * @returns 
    */
-  private parseLogFile(log: string) {
+  private async parseLogFile(log: string) {
     const blocks = log.split('\r\n\r\n');
 
     let pokeStrings: string[] = [];
@@ -120,6 +88,7 @@ export class PokedexService {
     let tmStrings: string[] = [];
     let moveStrings: string[] = [];
     let tmCompStrings: string[] = [];
+    let defaultData: Map<string, any>;
 
     for (const block of blocks) {
       const lines = block.split('\r\n');
@@ -128,6 +97,7 @@ export class PokedexService {
       switch (label) {
         case 'Randomized Evolutions':
           evoStrings = lines.slice(1);
+          console.log(evoStrings);
           break;
         case 'Pokemon Base Stats & Types':
           pokeStrings = lines.slice(1);
@@ -136,7 +106,8 @@ export class PokedexService {
           tmStrings = lines.slice(1);
           break;
         case 'Pokemon Movesets': // Only the first Pokemon Moveset Block meets this description (Bulbasaur)
-          moveStrings.push(block.slice(block.indexOf('\r\n') + 2));
+          if(block.indexOf('\r\n')>=0)
+            moveStrings.push(block.slice(block.indexOf('\r\n') + 2));
           break;
         case 'TM Compatibility':
           tmCompStrings = lines.slice(1);
@@ -149,11 +120,18 @@ export class PokedexService {
       }
     }
 
-    // Potentially let this become the factory method (returns a list
-    // of Pokemon objects fully formed from the component string arrays)
-    this.buildDex(pokeStrings, evoStrings, tmCompStrings, moveStrings);
+    if(!pokeStrings || !evoStrings || !moveStrings || !tmCompStrings || true) { 
+      defaultData = await this.getDefaultGenData(blocks)
+    }
 
+    //TODO: all of these things may need to occur after a quick file read.
+    this.buildDex(pokeStrings, evoStrings, tmCompStrings, moveStrings, tmStrings, defaultData);
     this.resetSpoils();
+    this.validDexUploaded=true;
+    this.dexChanges.next();    
+    if(this.pokedex.length>0) {
+      this.selectPokemon(this.pokedex[0].name)
+    }
     return;
   }
 
@@ -168,9 +146,14 @@ export class PokedexService {
   }
 
   // TODO: Potentially move to Pokemon.ts as a static method
-  buildDex(pokeStrings: string[], evoStrings: string[], tmCompStrings: string[], moveStrings: string[]) {
+  buildDex(pokeStrings: string[], evoStrings: string[], tmCompStrings: string[], moveStrings: string[], tmStrings: string[], defaultData: Map<string, any>) {
     let res: Pokemon[] = [];
-    const labels = pokeStrings[0];
+    let labels = '';
+    if(pokeStrings) {
+      labels = pokeStrings[0];
+    } 
+
+    //Create List and add Base Stats
     for (const pokeString of pokeStrings.slice(1)) {
       let new_mon = new Pokemon();
       new_mon.setBasicStats(pokeString, labels);
@@ -187,18 +170,36 @@ export class PokedexService {
       }
       res.push(new_mon)
     }
+    if (pokeStrings.length == 0 && defaultData) {
+      //TODO: add an entry to res for every pokemon in the default list
+      for(let [n, mon] of defaultData.entries()) {
+        let new_mon = new Pokemon();
+        new_mon.setBasicStatsFromObject(mon);
+        res.push(new_mon);
+      }
+    }
+    
+    //Add to Dictionary for access by name
     this.pokedex = res;
     for (let mon of res) {
       this.pokedexByName.set(mon.name, mon);
     }
 
+    //Evolutions
     for (let evString of evoStrings) {
-      const names = evString.split(/(->|,|and)/).map(s => s.trim());
+      const names = evString.split(/->|,| and /).map(s => s.trim());
+      console.log(names.join('||'))
       for (let name of names) {
         this.pokedexByName.get(name)?.addEvolution(evString);
       }
     }
+    if(evoStrings.length == 0 && defaultData) {
+      for(let mon of this.pokedex) {
+        mon.setEvolutionsFromObject(defaultData.get(mon.name), this.pokedexByName);
+      }
+    }
 
+    //Level Up Moves
     for (let moveString of moveStrings) {
       let mon_name = moveString.substring(4, moveString.indexOf('->') - 1);
       let mon = this.pokedexByName.get(mon_name);
@@ -211,11 +212,16 @@ export class PokedexService {
             mon.learn_levels.push(move.level);
             mon.learned_moves.push(move.move);
           }
-
         }
-        // mon.notes = "Learns Moves at: \r\n" + mon.learn_levels.filter(v => v > 1).toString();
       }
     }
+    if(moveStrings.length==0 && defaultData) {
+      for(let mon of this.pokedex) {
+        mon.setMovesFromObject(defaultData.get(mon.name));
+      }
+    }
+
+    //TMS and Compatibility
     for (let tmCompString of tmCompStrings) {
       let mon_name = tmCompString.slice(0,tmCompString.indexOf('|')).trim()
       mon_name=mon_name.slice(mon_name.indexOf(' ')).trim();
@@ -228,6 +234,15 @@ export class PokedexService {
           let match = tmString.match(/\d+/);
           mon.tms.push(parseInt(match?match[0]:'0'))
           mon.tm_moves.push(tmString.slice(tmString.indexOf(' ')).trim())
+        }
+      }
+    }
+    if(tmCompStrings.length == 0 && defaultData) {
+      if(tmStrings.length > 0) {
+        let tm_moves = ['']
+        tm_moves = tm_moves.concat(tmStrings.map(line => line.match(/TM\d+ (.*)/) ? line.match(/TM\d+ (.*)/)![1]: ''))
+        for(let mon of this.pokedex) {
+          mon.setTMMovesFromObject(defaultData.get(mon.name), tm_moves);
         }
       }
     }
@@ -245,8 +260,12 @@ export class PokedexService {
       this.allAbilitiesRevealed = save_obj.full;
       this.allEvolutionsRevealed = save_obj.evolutions;
       this.revealedTMs = save_obj.tms;
-      this.allMovesRevealed = save_obj.moves;
+      this.allMovesRevealed = save_obj.moves;    
+      this.validDexUploaded=true;
       this.dexChanges.next();
+      if(this.pokedex.length>0) {
+        this.selectPokemon(this.pokedex[0].name)
+      }
     } catch {
       alert("Bad File Uploaded (have you checked your .pkdx?)")
     }
@@ -259,6 +278,89 @@ export class PokedexService {
         this.parseFile(text);
         this.loadedFile = this.defaultPkdxName;
       });
+  }
+
+  private async getDefaultGenData(logBlocks: string[]): Promise<Map<string, any>> {
+    //TODO: Get gen from logBlocks[-2]
+    let gen = this.getGenerationFromLog(logBlocks);
+    try {
+      const saveObj = await fetch(`/assets/data/gen${gen}vantest.json`)
+        .then(res => {
+          if (!res.ok) throw new Error(`Failed to load: ${res.status}`);
+          return res.json();
+        });
+      let defaultDexList: any[] = saveObj.pokedex;
+      let res = new Map<string, any>();
+      for (let mon of defaultDexList) {
+        res.set(mon.name, mon);
+      }
+      console.log(res);
+      return res;
+    } catch (err) {
+      console.error('Error loading JSON:', err);
+      return new Map<string, any>();
+    }
+  }
+
+  private getGenerationFromLog(logBlocks: string[]): string {
+    let completion = logBlocks.find(s=>s.trim().startsWith('----------------'))
+    if(completion) {
+      console.log(completion)
+      let match = completion.match(/of (.*?) completed/);
+      if(match) {
+        let title = match[1].toLowerCase();
+        console.log(title);
+        if(    (title.includes('red') && !title.includes('fire'))
+            || (title.includes('green') && !title.includes('leaf'))
+            || (title.includes('blue'))
+            || (title.includes('yellow'))
+          ) {
+          return '1';
+        } else if(    
+               (title.includes('gold') && !title.includes('heart'))
+            || (title.includes('silver') && !title.includes('soul'))
+            || (title.includes('crystal'))
+          ) {
+          return '2';
+        } else if(    
+               (title.includes('ruby') && !title.includes('omega'))
+            || (title.includes('sapphire') && !title.includes('alpha'))
+            || (title.includes('emerald'))
+            || (title.includes('red'))
+            || (title.includes('green'))
+          ) {
+          return '3';
+        } else if(    
+               (title.includes('diamond') && !title.includes('brilliant'))
+            || (title.includes('pearl') && !title.includes('shining'))
+            || (title.includes('platinum'))
+            || (title.includes('silver'))
+            || (title.includes('gold'))
+          ) {
+          return '4';
+        } else if(    
+               (title.includes('black'))
+            || (title.includes('white'))
+          ) {
+          return '5';
+        } else if(    
+               (title.includes('pokemon x'))
+            || (title.includes('pokemon y'))
+            || (title.includes('ruby'))
+            || (title.includes('sapphire'))
+          ) {
+          return '6';
+        } else if(    
+               (title.includes('sun'))
+            || (title.includes('moon'))
+          ) {
+          return '7';
+        } else {
+          return '7';
+        }
+      }
+    }
+    return '7';
   }
 
   // This may be useful when integrating all the views w/ this service

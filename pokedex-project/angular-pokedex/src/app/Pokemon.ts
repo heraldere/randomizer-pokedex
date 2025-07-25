@@ -187,6 +187,47 @@ export class Pokemon {
     }
   }
 
+  public setBasicStatsFromObject(data: any) {
+    this.name = data.name;
+    this.pokedex_num = data.pokedex_num;
+    this.uid = data.uid;
+    this.hp = data.hp;
+    this.attack = data.attack;
+    this.defense = data.defense;
+    this.sp_attack = data.sp_attack;
+    this.sp_defense = data.sp_defense;
+    this.speed = data.speed;
+    this.special = data.special;
+    this.stat_total = data.stat_total;
+    this.type1 = data.type1;
+    this.type2 = data.type2;
+    this.ability1 = data.ability1;
+    this.ability2 = data.ability2;
+    this.hiddenAbility = data.hiddenAbility;
+    this.form_num = data.form_num;
+    this.forms = data.forms as string[];
+  }
+
+  public setEvolutionsFromObject(data: any, currentDexDict: Map<string, Pokemon>) {
+    this.next_evos = (data.next_evos as string[]).filter(evo => currentDexDict.has(evo));
+    this.prev_evos = (data.prev_evos as string[]).filter(evo => currentDexDict.has(evo));
+  }
+
+  public setMovesFromObject(data: any) {
+    this.learned_moves = data.learned_moves as string[];
+    this.learn_levels = data.learn_levels as number[];
+  }
+
+  public setTMMovesFromObject(data: any, dexTmMoves: string[]) {
+    this.tm_moves = data.tm_moves as string[];
+    this.tms = data.tms as number[];
+    if(dexTmMoves.length !== 0) {
+      for(let [idx, tm] of this.tms.entries()) {
+        this.tm_moves[idx] = dexTmMoves[tm];
+      }
+    }
+  }
+
   static loadFromJson(json_data: any): Pokemon {
     // Verify that this object contains all necessary fields
     if (
@@ -239,6 +280,7 @@ export class Pokemon {
     mon.defense = json_data.defense;
     mon.sp_attack = json_data.sp_attack;
     mon.sp_defense = json_data.sp_defense;
+    mon.special = json_data.special;
     mon.speed = json_data.speed;
     mon.stat_total = json_data.stat_total;
 
@@ -289,7 +331,7 @@ export class Pokemon {
     const evArr = evString.split('->').map(s => s.trim());
     const leftSide = evArr[0];
     const rightSide = evArr[1];
-    const rightArr = rightSide.split(/(?:and|,)/).map(s => s.trim());
+    const rightArr = rightSide.split(/(?: and |,)/).map(s => s.trim());
     if (leftSide === this.name) {
       this.next_evos = rightArr;
     } else {
