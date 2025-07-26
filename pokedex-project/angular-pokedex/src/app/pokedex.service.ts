@@ -97,7 +97,6 @@ export class PokedexService {
       switch (label) {
         case 'Randomized Evolutions':
           evoStrings = lines.slice(1);
-          console.log(evoStrings);
           break;
         case 'Pokemon Base Stats & Types':
           pokeStrings = lines.slice(1);
@@ -188,7 +187,6 @@ export class PokedexService {
     //Evolutions
     for (let evString of evoStrings) {
       const names = evString.split(/->|,| and /).map(s => s.trim());
-      console.log(names.join('||'))
       for (let name of names) {
         this.pokedexByName.get(name)?.addEvolution(evString);
       }
@@ -307,7 +305,6 @@ export class PokedexService {
       let match = completion.match(/of (.*?) completed/);
       if(match) {
         let title = match[1].toLowerCase();
-        console.log(title);
         if(    (title.includes('red') && !title.includes('fire'))
             || (title.includes('green') && !title.includes('leaf'))
             || (title.includes('blue'))

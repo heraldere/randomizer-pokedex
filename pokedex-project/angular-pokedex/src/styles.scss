@@ -54,6 +54,22 @@ mat-dialog-container {
     border-style: dashed;
   }
 
+  .mat-autocomplete-panel {
+    background:rgb(25, 24, 26)
+  }
+
+  .mat-autocomplete-panel .mat-option.mat-selected:not(.mat-active):not(:hover) {
+    background:rgb(25, 24, 26)
+  }
+
+  .mat-autocomplete-panel .mat-option.mat-selected:not(.mat-active):hover {
+    background:#2f2f2f
+  }
+
+  .mat-autocomplete-panel .mat-option:hover{
+    background: #2f2f2f;
+  }
+
 //   router-outlet + *  {
 //     padding: 0 16px;
 //   }

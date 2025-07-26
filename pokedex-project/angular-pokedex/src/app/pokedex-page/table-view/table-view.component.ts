@@ -1,4 +1,4 @@
-import { Component, OnInit, ViewChild, TemplateRef, AfterViewInit, ChangeDetectionStrategy } from '@angular/core';
+import { Component, OnInit, ViewChild, TemplateRef, AfterViewInit, ChangeDetectionStrategy, ChangeDetectorRef } from '@angular/core';
 
 import { MatDialog } from '@angular/material/dialog';
 import { FilterDialogContentComponent } from './filter-dialog-content/filter-dialog-content.component';
@@ -60,11 +60,11 @@ export class TableViewComponent implements OnInit, AfterViewInit{
     ]
   };
 
-  constructor(public pokedexService: PokedexService, public dialog : MatDialog) { 
+  constructor(public pokedexService: PokedexService, public dialog : MatDialog, private cdr: ChangeDetectorRef) { 
     this.configuration = { ...DefaultConfig };
     // this.configuration.threeWaySort = true;
-    // this.configuration.orderEventOnly = true;
-    // this.configuration.orderEnabled = true;
+    this.configuration.orderEventOnly = true;
+    this.configuration.orderEnabled = true;
     // this.configuration.searchEnabled = true;
     // this.hpTemplate 
     // ... etc.
@@ -170,19 +170,23 @@ export class TableViewComponent implements OnInit, AfterViewInit{
   }
 
   refreshTable() {
+    // console.log('---------REFRESHED-------------')
     let initialdata = this.filterDataInitialPass();
     this.filteredData = filterDataByQueryTree(initialdata, this.query);
+    this.sortTable();
   }
 
   filterDataInitialPass() {
     // If a Pokemon is revealed at all, show them in the table
-    let res = this.pokedexService.pokedex.filter(mon => {
-      return  mon.fully_revealed
-      ||      mon.abilities_revealed
-      ||      mon.stats_revealed 
-      ||      mon.type_revealed
-      ||      mon.bst_revealed;
-    });
+    let res = this.pokedexService.pokedex.filter(
+      mon => { return true;
+        // return  mon.fully_revealed
+        // ||      mon.abilities_revealed
+        // ||      mon.stats_revealed 
+        // ||      mon.type_revealed
+        // ||      mon.bst_revealed;
+      }
+    );
 
 
 
@@ -197,23 +201,60 @@ export class TableViewComponent implements OnInit, AfterViewInit{
 
   eventEmitted($event: { event: string; value: any }) {
     if ($event.event === Event.onOrder) {
-      console.log($event)
-      // console.log('aaa')
-      // if($event.value.key as SortableColumn == SortableColumn.uid) {
-      //   this.filteredData = [
-      //     ...this.filteredData.sort((a, b) => a.uid.localeCompare(b.uid))
-      //   ]
-      // }
+      // console.log($event)
+      const { key, order } = $event.value;
+      this.lastSortedKey = key;
+      this.lastSortedOrder = order;
 
-      // if(this.lastSortedKey == ($event.value.key as string) && this.lastSortedOrder == ($event.value.order as string) ) {
-      //   return;
-      // }
-      // this.lastSortedKey = ($event.value.key as string)
-      // this.lastSortedOrder = ($event.value.order as string)
-      // this.sortedColumn = $event.value.key as SortableColumn
-      // console.log("Key: ", $event.value.key, " Order: ", $event.value.order, " Model Value: ", this.sortedColumn == SortableColumn.uid)
-      // // this.refreshTable()
+      this.sortTable();
+
     }
   }
 
+
+  private sortTable() {
+    if(!this.lastSortedKey)
+      this.lastSortedKey = 'uid';
+    if(!this.lastSortedOrder)
+      this.lastSortedOrder = 'asc';
+    this.filteredData = [...this.filteredData.sort((a, b) => {
+      const getValue = (row: any) => {
+        if (this.lastSortedKey === 'stat_total') {
+          return row.checkBSTRevealed() ? row.bst() : null;
+        }
+        if (['type1', 'type2'].includes(this.lastSortedKey)) {
+          return row.checkTypeRevealed() ? row[this.lastSortedKey] : null;
+        }
+        if (['name', 'uid'].includes(this.lastSortedKey)) {
+          return row[this.lastSortedKey] ?? null;
+        }
+        if (row.get_stat) {
+          return row.get_stat(this.lastSortedKey) ?? null;
+        }
+        return row[this.lastSortedKey] ?? null;
+      };
+
+      const valA = getValue(a);
+      const valB = getValue(b);
+
+      const isHiddenA = valA === null || valA === '???' || valA === 0;
+      const isHiddenB = valB === null || valB === '???' || valB === 0;
+
+      // Push hidden values to bottom
+      if (isHiddenA && !isHiddenB) return 1;
+      if (!isHiddenA && isHiddenB) return -1;
+      if (isHiddenA && isHiddenB) return a.uid.localeCompare(b.uid) || a.name.localeCompare(b.name);
+
+      // Normal sort
+      if (typeof valA === 'string') {
+        return this.lastSortedOrder === 'asc'
+          ? valA.localeCompare(valB) || a.uid.localeCompare(b.uid) || a.name.localeCompare(b.name)
+          : valB.localeCompare(valA) || a.uid.localeCompare(b.uid) || a.name.localeCompare(b.name);
+      }
+
+      return this.lastSortedOrder === 'asc'
+        ? valA - valB || a.uid.localeCompare(b.uid) || a.name.localeCompare(b.name)
+        : valB - valA || a.uid.localeCompare(b.uid) || a.name.localeCompare(b.name);
+    })];
+  }
 }
