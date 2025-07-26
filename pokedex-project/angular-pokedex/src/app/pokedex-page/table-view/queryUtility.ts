@@ -11,7 +11,9 @@ export enum NumberOperators {
 }
 export enum CategoryOperators {
     in = 'in',
-    notin = 'not in'
+    notin = 'not in',
+    is_yes = 'is',
+    is_not = 'is not'
 }
 export enum EqualityOperators {
     eq = '=',
@@ -42,6 +44,10 @@ export type IPokeRule = {
 } | {
     field: 'move';
     operator: ContainsOperators;
+    value: string;
+} | {
+    field: 'evolution';
+    operator: CategoryOperators;
     value: string;
 }
 ;
@@ -159,7 +165,24 @@ function ruleCheck(pokemon: Pokemon, rule: IPokeRule) {
             default:
                 break;
         }
-    } else {
+    } else if (rule.field == 'evolution') {
+        switch (rule.operator) {
+            case CategoryOperators.is_yes: {
+                if(rule.value == 'fullyevolved')
+                    return pokemon.next_evos.length == 0;
+                else if (rule.value == 'baseevo')
+                    return pokemon.prev_evos.length == 0;
+            } break;
+            case CategoryOperators.is_not: {
+                if(rule.value == 'fullyevolved')
+                    return pokemon.next_evos.length !== 0;
+                else if (rule.value == 'baseevo')
+                    return pokemon.prev_evos.length !== 0;
+            }break;
+            default:
+                break;
+        }
+     } else {
         return true;
     }
     return true;

@@ -52,6 +52,15 @@ export class FilterDialogContentComponent implements OnInit {
         name: 'Move',
         type: 'string',
         operators: ['has']
+      },
+      evolution: {
+        name: 'Evolution Status',
+        type: 'category',
+        operators: ['is', 'is not'],
+        options: [
+          {name: 'Fully Evolved', value: 'fullyevolved'},
+          {name: 'Base Evolution', value: 'baseevo'},
+        ]
       }
     }
   }

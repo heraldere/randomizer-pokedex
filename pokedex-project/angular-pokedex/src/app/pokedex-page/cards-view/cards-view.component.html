@@ -5,7 +5,7 @@
     <a class="disabled tab" [class.selected]="selectedTab==='vsTab'" (click)="selectedTab='vsTab'"><i class="material-icons">compare_arrows</i>Matchup</a> -->
     <span>(More tabs here soon)</span>
     <input class="tab-file-input" type="file"  id="dex-file-input" (change)="onFileSelected($event)" #fileUpload accept=".log,.pkdx">
-    <label class="tab-button" for="dex-file-input">Upload</label>
+    <label class="tab-button" for="dex-file-input" tabindex="0">Upload</label>
     <a #downloadButton *ngIf="dex.validDexUploaded" download="mons.pkdx" >
         <button (click)="save()" class="tab-button" id="saveButton" title="Save notes and revealed status of Pokemon">Save</button>
     </a>

@@ -1,4 +1,4 @@
-import { Component, OnInit, ViewChild, TemplateRef, AfterViewInit, ChangeDetectionStrategy, ChangeDetectorRef } from '@angular/core';
+import { Component, OnInit, ViewChild, TemplateRef, AfterViewInit, ChangeDetectionStrategy, ChangeDetectorRef, ElementRef } from '@angular/core';
 
 import { MatDialog } from '@angular/material/dialog';
 import { FilterDialogContentComponent } from './filter-dialog-content/filter-dialog-content.component';
@@ -34,6 +34,7 @@ enum SortableColumn {
 export class TableViewComponent implements OnInit, AfterViewInit{
 
   @ViewChild('tableTemplate', { static: true }) tableTemplate: APIDefinition | undefined;
+  @ViewChild('filterButton') filterButton!: ElementRef<HTMLButtonElement>;
 
   public configuration: Config;
   public columns: Columns[];
@@ -91,6 +92,7 @@ export class TableViewComponent implements OnInit, AfterViewInit{
   }
 
   public openFilterTreeDialog(): void {
+    this.filterButton.nativeElement.blur();
     if (!this.dialogOpen) { 
       this.dialogOpen = true;
       let dialogRef = this.dialog.open(FilterDialogContentComponent, {
@@ -98,6 +100,7 @@ export class TableViewComponent implements OnInit, AfterViewInit{
         data: this.query,
         disableClose: false,
         hasBackdrop: true,
+        autoFocus: false,
       });
       dialogRef.afterClosed().subscribe(result => {
         this.dialogOpen = false;
