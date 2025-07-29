@@ -32,8 +32,13 @@ export class PokedexService {
   allTypesRevealed = false;
   allAbilitiesRevealed = false;
   allEvolutionsRevealed = false;
-  revealedTMs: number[] = [];
   allMovesRevealed: boolean = false;
+  revealedTMs: number[] = [];
+  tmIds: number[] = [];
+  hmIds: number[] = [];
+  tmMoves: string[] = [];
+  hmMoves: string[] = [];
+  starters: string[] = [];
   defaultPkdxName = '/assets/data/Default.pkdx';
 
   constructor() {
@@ -88,10 +93,11 @@ export class PokedexService {
     let tmStrings: string[] = [];
     let moveStrings: string[] = [];
     let tmCompStrings: string[] = [];
-    let defaultData: Map<string, any>;
+    let starterStrings: string[] = [];
+    let defaultData: Map<string, any>|undefined;
 
     for (const block of blocks) {
-      const lines = block.split('\r\n');
+      const lines = block.trim().split('\r\n');
       const firstLine = lines[0];
       const label = firstLine.startsWith('-') ? firstLine.split('--')[1] : firstLine.split(':')[0];
       switch (label) {
@@ -111,6 +117,9 @@ export class PokedexService {
         case 'TM Compatibility':
           tmCompStrings = lines.slice(1);
           break;
+        case 'Random Starters':
+          starterStrings = lines.slice(1);
+          break;
         default: //All other Pokemon Movesets appear as their own independent blocks.
           if (firstLine.match(/\d{3} .* ->/) && !firstLine.startsWith('Set')) {
             moveStrings.push(block)
@@ -119,12 +128,13 @@ export class PokedexService {
       }
     }
 
-    if(!pokeStrings || !evoStrings || !moveStrings || !tmCompStrings || true) { 
+    if(pokeStrings.length == 0 || evoStrings.length == 0 || moveStrings.length == 0 || tmCompStrings.length == 0) { 
       defaultData = await this.getDefaultGenData(blocks)
     }
 
+
     //TODO: all of these things may need to occur after a quick file read.
-    this.buildDex(pokeStrings, evoStrings, tmCompStrings, moveStrings, tmStrings, defaultData);
+    this.buildDex(pokeStrings, evoStrings, tmCompStrings, moveStrings, tmStrings, starterStrings, defaultData);
     this.resetSpoils();
     this.validDexUploaded=true;
     this.dexChanges.next();    
@@ -145,7 +155,7 @@ export class PokedexService {
   }
 
   // TODO: Potentially move to Pokemon.ts as a static method
-  buildDex(pokeStrings: string[], evoStrings: string[], tmCompStrings: string[], moveStrings: string[], tmStrings: string[], defaultData: Map<string, any>) {
+  buildDex(pokeStrings: string[], evoStrings: string[], tmCompStrings: string[], moveStrings: string[], tmStrings: string[], starterStrings: string[], defaultData: Map<string, any> | undefined) {
     let res: Pokemon[] = [];
     let labels = '';
     if(pokeStrings) {
@@ -219,19 +229,33 @@ export class PokedexService {
       }
     }
 
+    let parseMoveMachineString = (token: string): [number, string] => {
+      let match = token.match(/\d+/);
+      let machineId = parseInt(match?match[0]:'0');
+      let move = token.slice(token.indexOf(' ')).trim();
+      return [machineId, move];
+    }
+
     //TMS and Compatibility
+    let dexHmTokens: string[] = [];
     for (let tmCompString of tmCompStrings) {
       let mon_name = tmCompString.slice(0,tmCompString.indexOf('|')).trim()
       mon_name=mon_name.slice(mon_name.indexOf(' ')).trim();
       let mon = this.pokedexByName.get(mon_name)
       let tmHmTokens = tmCompString.split('|').map(s => s.trim()).filter(s=>s.startsWith('TM') || s.startsWith('HM'));
-      let tmStrings = tmHmTokens.filter(s=>s.startsWith('TM'));
-      let hmStrings = tmHmTokens.filter(s=>s.startsWith('HM'));
+      let tmTokens = tmHmTokens.filter(s=>s.startsWith('TM'));
+      let hmTokens = tmHmTokens.filter(s=>s.startsWith('HM'));
       if(mon) {
-        for(let tmString of tmStrings) {
-          let match = tmString.match(/\d+/);
-          mon.tms.push(parseInt(match?match[0]:'0'))
-          mon.tm_moves.push(tmString.slice(tmString.indexOf(' ')).trim())
+        for(let tmString of tmTokens) {
+          let [tm, move] = parseMoveMachineString(tmString);
+          mon.tms.push(tm)
+          mon.tm_moves.push(move)
+        }
+        for(let hmString of hmTokens) {
+          let [hm, move] = parseMoveMachineString(hmString);
+          mon.hms.push(hm)
+          mon.hm_moves.push(move)
+          !(dexHmTokens.includes(hmString)) && dexHmTokens.push(hmString)
         }
       }
     }
@@ -243,6 +267,31 @@ export class PokedexService {
           mon.setTMMovesFromObject(defaultData.get(mon.name), tm_moves);
         }
       }
+    }
+
+    //Add TMs and HMs to the world dex
+    this.tmIds = [];
+    this.tmMoves = [];
+    this.hmIds = [];
+    this.hmMoves = [];
+    for(let tmString of tmStrings) {
+      let [tm, move] = parseMoveMachineString(tmString);
+      this.tmIds.push(tm);
+      this.tmMoves.push(move);
+    }
+    dexHmTokens.sort()
+    for(let hmString of dexHmTokens) {
+      let [hm, move] = parseMoveMachineString(hmString);
+      this.hmIds.push(hm);
+      this.hmMoves.push(move);
+    }
+
+    //Grab Starters (if present) and add to the world dex
+    this.starters = [];
+    for(let starterString of starterStrings) {
+      let starter = starterString.trim().split(' ').pop()
+      if(starter)
+        this.starters.push(starter);
     }
   }
 
@@ -258,6 +307,11 @@ export class PokedexService {
       this.allAbilitiesRevealed = save_obj.full;
       this.allEvolutionsRevealed = save_obj.evolutions;
       this.revealedTMs = save_obj.tms;
+      this.tmIds = save_obj.tmIds ?? [];
+      this.hmIds = save_obj.hmIds ?? [];
+      this.tmMoves = save_obj.tmMoves ?? [];
+      this.hmMoves = save_obj.hmMoves ?? [];
+      this.starters = save_obj.starters ?? [];
       this.allMovesRevealed = save_obj.moves;    
       this.validDexUploaded=true;
       this.dexChanges.next();

@@ -43,7 +43,12 @@ export class CardsViewComponent implements OnInit {
         full: this.dex.isFullyRevealed,
         moves: this.dex.allMovesRevealed,
         tms: this.dex.revealedTMs,
+        tmIds: this.dex.tmIds,
+        hmIds: this.dex.hmIds,
+        tmMoves: this.dex.tmMoves,
+        hmMoves: this.dex.hmMoves,
         evolutions: this.dex.allEvolutionsRevealed,
+        starters: this.dex.starters,
       });
     this.downloadRef.nativeElement.href='data:text/plain;charset=utf-8,' + encodeURIComponent(dexString);
   }
