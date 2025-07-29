@@ -49,7 +49,26 @@ mat-dialog-container {
   }
 
   .wireframe {
-    border-width: 2px;
+    border-width: 0px;
+    border-color: red;
+    border-style: dashed;
+  }
+
+  .mat-autocomplete-panel {
+    background:rgb(25, 24, 26)
+    //TODO: Add Scroll Style here
+  }
+
+  .mat-autocomplete-panel .mat-option.mat-selected:not(.mat-active):not(:hover) {
+    background:rgb(25, 24, 26)
+  }
+
+  .mat-autocomplete-panel .mat-option.mat-selected:not(.mat-active):hover {
+    background:#2f2f2f
+  }
+
+  .mat-autocomplete-panel .mat-option:hover{
+    background: #2f2f2f;
   }
 
 //   router-outlet + *  {

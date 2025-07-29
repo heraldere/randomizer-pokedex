@@ -5,7 +5,7 @@
     <a class="disabled tab" [class.selected]="selectedTab==='vsTab'" (click)="selectedTab='vsTab'"><i class="material-icons">compare_arrows</i>Matchup</a> -->
     <span>(More tabs here soon)</span>
     <input class="tab-file-input" type="file"  id="dex-file-input" (change)="onFileSelected($event)" #fileUpload accept=".log,.pkdx">
-    <label class="tab-button" for="dex-file-input">Upload</label>
+    <label class="tab-button" for="dex-file-input" tabindex="0">Upload</label>
     <a #downloadButton *ngIf="dex.validDexUploaded" download="mons.pkdx" >
         <button (click)="save()" class="tab-button" id="saveButton" title="Save notes and revealed status of Pokemon">Save</button>
     </a>
@@ -17,9 +17,11 @@
         </i>
     </button>
     <mat-menu #powerSpoilMenu="matMenu" backdropClass="spoil-option" xPosition="before">
-        <button  mat-menu-item (click)="spoilTypes()">{{this.dex.allTypesRevealed?"Unspoil Types":"Spoil Types"}}</button>
+        <button mat-menu-item (click)="spoilTypes()">{{this.dex.allTypesRevealed?"Unspoil Types":"Spoil Types"}}</button>
         <button mat-menu-item (click)="spoilBSTs()">{{this.dex.allBSTRevealed?"Unspoil BSTs":"Spoil BSTs"}}</button>
         <button mat-menu-item (click)="spoilAbilities()">{{this.dex.allAbilitiesRevealed?"Unspoil Abilities":"Spoil Abilities"}}</button>
+        <button mat-menu-item (click)="spoilEvolutions()">{{this.dex.allEvolutionsRevealed?"Unspoil Evolutions":"Spoil Evolutions"}}</button>
+        <button mat-menu-item (click)="spoilMoves()">{{this.dex.allMovesRevealed?"Unspoil Moves":"Spoil Moves"}}</button>
     </mat-menu>
     <!-- <label for="power-options">hellosir</label>
     <select class="tab-button" id="power-options" title="Additional Spoil Options">

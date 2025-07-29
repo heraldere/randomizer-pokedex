@@ -1,4 +1,4 @@
-import { Component, OnInit, ViewChild, TemplateRef, AfterViewInit, ChangeDetectionStrategy } from '@angular/core';
+import { Component, OnInit, ViewChild, TemplateRef, AfterViewInit, ChangeDetectionStrategy, ChangeDetectorRef, ElementRef } from '@angular/core';
 
 import { MatDialog } from '@angular/material/dialog';
 import { FilterDialogContentComponent } from './filter-dialog-content/filter-dialog-content.component';
@@ -34,6 +34,7 @@ enum SortableColumn {
 export class TableViewComponent implements OnInit, AfterViewInit{
 
   @ViewChild('tableTemplate', { static: true }) tableTemplate: APIDefinition | undefined;
+  @ViewChild('filterButton') filterButton!: ElementRef<HTMLButtonElement>;
 
   public configuration: Config;
   public columns: Columns[];
@@ -60,11 +61,11 @@ export class TableViewComponent implements OnInit, AfterViewInit{
     ]
   };
 
-  constructor(public pokedexService: PokedexService, public dialog : MatDialog) { 
+  constructor(public pokedexService: PokedexService, public dialog : MatDialog, private cdr: ChangeDetectorRef) { 
     this.configuration = { ...DefaultConfig };
     // this.configuration.threeWaySort = true;
-    // this.configuration.orderEventOnly = true;
-    // this.configuration.orderEnabled = true;
+    this.configuration.orderEventOnly = true;
+    this.configuration.orderEnabled = true;
     // this.configuration.searchEnabled = true;
     // this.hpTemplate 
     // ... etc.
@@ -91,6 +92,7 @@ export class TableViewComponent implements OnInit, AfterViewInit{
   }
 
   public openFilterTreeDialog(): void {
+    this.filterButton.nativeElement.blur();
     if (!this.dialogOpen) { 
       this.dialogOpen = true;
       let dialogRef = this.dialog.open(FilterDialogContentComponent, {
@@ -98,6 +100,7 @@ export class TableViewComponent implements OnInit, AfterViewInit{
         data: this.query,
         disableClose: false,
         hasBackdrop: true,
+        autoFocus: false,
       });
       dialogRef.afterClosed().subscribe(result => {
         this.dialogOpen = false;
@@ -127,6 +130,34 @@ export class TableViewComponent implements OnInit, AfterViewInit{
     //TODO: Subscribe to the dex service (specifically dex changed subject)
     this.pokedexService.dexChanges.subscribe(
       () => {
+        if(this.pokedexService.pokedex.length>0 && this.pokedexService.pokedex[0].special) {
+          this.columns = [
+            { key: 'name', title: 'Name' },
+            { key: 'uid', title: 'Id'},
+            { key: 'type1', title: 'Type 1' },
+            { key: 'type2', title: 'Type 2'},
+            { key: 'stat_total', title: 'Total' },
+            { key: 'hp', title: 'HP'},
+            { key: 'attack', title: 'Attack'},
+            { key: 'defense', title: 'Defense'},
+            { key: 'special', title: 'Special'},
+            { key: 'speed', title: 'Speed'},
+          ];
+        } else {
+          this.columns = [
+            { key: 'name', title: 'Name' },
+            { key: 'uid', title: 'Id'},
+            { key: 'type1', title: 'Type 1' },
+            { key: 'type2', title: 'Type 2'},
+            { key: 'stat_total', title: 'Total' },
+            { key: 'hp', title: 'HP'},
+            { key: 'attack', title: 'Attack'},
+            { key: 'defense', title: 'Defense'},
+            { key: 'sp_attack', title: 'Special Attack'},
+            { key: 'sp_defense', title: 'Special Defense'},
+            { key: 'speed', title: 'Speed'},
+          ];
+        }
         this.refreshTable();
       }
     )
@@ -136,47 +167,97 @@ export class TableViewComponent implements OnInit, AfterViewInit{
         this.refreshTable();
       }
     )
+
+    // if(this.pokedexService.validDexUploaded)
+    //   this.pokedexService.dexChanges.next();
   }
 
   refreshTable() {
+    // console.log('---------REFRESHED-------------')
     let initialdata = this.filterDataInitialPass();
     this.filteredData = filterDataByQueryTree(initialdata, this.query);
+    this.sortTable();
   }
 
   filterDataInitialPass() {
     // If a Pokemon is revealed at all, show them in the table
-    let res = this.pokedexService.pokedex.filter(mon => {
-      return  mon.fully_revealed
-      ||      mon.abilities_revealed
-      ||      mon.stats_revealed 
-      ||      mon.type_revealed
-      ||      mon.bst_revealed;
-    });
+    let res = this.pokedexService.pokedex.filter(
+      mon => { return true;
+        // return  mon.fully_revealed
+        // ||      mon.abilities_revealed
+        // ||      mon.stats_revealed 
+        // ||      mon.type_revealed
+        // ||      mon.bst_revealed;
+      }
+    );
 
 
 
     return res;
   }
 
-  eventEmitted($event: { event: string; value: any }) {
-    if ($event.event === Event.onOrder) {
-      console.log($event)
-      // console.log('aaa')
-      // if($event.value.key as SortableColumn == SortableColumn.uid) {
-      //   this.filteredData = [
-      //     ...this.filteredData.sort((a, b) => a.uid.localeCompare(b.uid))
-      //   ]
-      // }
-
-      // if(this.lastSortedKey == ($event.value.key as string) && this.lastSortedOrder == ($event.value.order as string) ) {
-      //   return;
-      // }
-      // this.lastSortedKey = ($event.value.key as string)
-      // this.lastSortedOrder = ($event.value.order as string)
-      // this.sortedColumn = $event.value.key as SortableColumn
-      // console.log("Key: ", $event.value.key, " Order: ", $event.value.order, " Model Value: ", this.sortedColumn == SortableColumn.uid)
-      // // this.refreshTable()
+  rowClick(name: string|undefined) {
+    if(name){
+      this._pokedexService.selectPokemon(name);
     }
   }
 
+  eventEmitted($event: { event: string; value: any }) {
+    if ($event.event === Event.onOrder) {
+      // console.log($event)
+      const { key, order } = $event.value;
+      this.lastSortedKey = key;
+      this.lastSortedOrder = order;
+
+      this.sortTable();
+
+    }
+  }
+
+
+  private sortTable() {
+    if(!this.lastSortedKey)
+      this.lastSortedKey = 'uid';
+    if(!this.lastSortedOrder)
+      this.lastSortedOrder = 'asc';
+    this.filteredData = [...this.filteredData.sort((a, b) => {
+      const getValue = (row: any) => {
+        if (this.lastSortedKey === 'stat_total') {
+          return row.checkBSTRevealed() ? row.bst() : null;
+        }
+        if (['type1', 'type2'].includes(this.lastSortedKey)) {
+          return row.checkTypeRevealed() ? row[this.lastSortedKey] : null;
+        }
+        if (['name', 'uid'].includes(this.lastSortedKey)) {
+          return row[this.lastSortedKey] ?? null;
+        }
+        if (row.get_stat) {
+          return row.get_stat(this.lastSortedKey) ?? null;
+        }
+        return row[this.lastSortedKey] ?? null;
+      };
+
+      const valA = getValue(a);
+      const valB = getValue(b);
+
+      const isHiddenA = valA === null || valA === '???' || valA === 0;
+      const isHiddenB = valB === null || valB === '???' || valB === 0;
+
+      // Push hidden values to bottom
+      if (isHiddenA && !isHiddenB) return 1;
+      if (!isHiddenA && isHiddenB) return -1;
+      if (isHiddenA && isHiddenB) return a.uid.localeCompare(b.uid) || a.name.localeCompare(b.name);
+
+      // Normal sort
+      if (typeof valA === 'string') {
+        return this.lastSortedOrder === 'asc'
+          ? valA.localeCompare(valB) || a.uid.localeCompare(b.uid) || a.name.localeCompare(b.name)
+          : valB.localeCompare(valA) || a.uid.localeCompare(b.uid) || a.name.localeCompare(b.name);
+      }
+
+      return this.lastSortedOrder === 'asc'
+        ? valA - valB || a.uid.localeCompare(b.uid) || a.name.localeCompare(b.name)
+        : valB - valA || a.uid.localeCompare(b.uid) || a.name.localeCompare(b.name);
+    })];
+  }
 }

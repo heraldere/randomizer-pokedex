@@ -1,4 +1,5 @@
 import { Component, OnInit } from '@angular/core';
+import { PokedexService } from '../pokedex.service';
 
 @Component({
   selector: 'app-pokedex-page',
@@ -7,9 +8,14 @@ import { Component, OnInit } from '@angular/core';
 })
 export class PokedexPageComponent implements OnInit {
 
-  constructor() { }
+  dex: PokedexService
+
+  constructor(dex: PokedexService) {
+    this.dex = dex;
+   }
 
   ngOnInit(): void {
+    this.dex.loadDefaultData();
   }
 
 }

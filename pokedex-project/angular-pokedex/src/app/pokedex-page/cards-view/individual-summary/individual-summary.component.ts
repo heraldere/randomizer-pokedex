@@ -1,4 +1,4 @@
-import { AfterViewInit, Component, ElementRef, EventEmitter, OnInit, Output, ViewChild } from '@angular/core';
+import { AfterViewInit, ChangeDetectorRef, Component, ElementRef, EventEmitter, OnInit, Output, ViewChild } from '@angular/core';
 import { FormControl } from '@angular/forms';
 import { Observable, Subscriber } from 'rxjs';
 import { PokedexService } from 'src/app/pokedex.service';
@@ -29,9 +29,12 @@ export class IndividualSummaryComponent implements OnInit, AfterViewInit{
   @ViewChild('mm')
   maut!: MatAutocomplete;
   @ViewChild('searchInput')
-  search_box!: MatInput
+  search_box!: MatInput;
+  tms_shown = false;
+  
 
-  constructor(dex: PokedexService) {
+
+  constructor(dex: PokedexService, private cdr: ChangeDetectorRef) {
     this.dex = dex;
     this.pokes_filtered_by_text = this.ctrl.valueChanges.pipe(
       startWith(''),
@@ -65,6 +68,39 @@ export class IndividualSummaryComponent implements OnInit, AfterViewInit{
       this.current_mon.abilities_revealed = !this.current_mon.abilities_revealed;
       this.dex.individualChanges.next(this.current_mon)
     }
+  }
+
+
+  revealMovesToIndex(i: number) {
+    if(this.current_mon)
+      this.current_mon.learned_moves_revealed_idx=i+1;
+  }
+
+  
+  revealTMAtIndex(i: number) {
+    if(this.current_mon) {
+      let tm = this.current_mon.tms[i]
+      if(!this.dex.revealedTMs.includes(tm)) {
+        this.dex.revealedTMs.push(this.current_mon.tms[i])
+        this.dex.revealTMForAll(tm);
+      }
+      else {
+        this.dex.revealedTMs.splice(this.dex.revealedTMs.indexOf(tm), 1);
+        this.dex.hideTMForAll(tm);
+      }
+    }
+  }
+
+  toggleTMs() {
+    this.tms_shown = !this.tms_shown;
+  }
+
+  sanitizePokemonName(name: String): String {
+    return name.replace(':','').replace('\u2640', 'f').replace('\u2642', 'm').toLowerCase();
+  }
+
+  getFilteredForms(mon: Pokemon): string[] {
+    return mon.forms.filter((_, i) => i != mon.form_num);
   }
 
 
@@ -142,24 +178,15 @@ export class IndividualSummaryComponent implements OnInit, AfterViewInit{
         map(
           ev => {
             let selected = ev.option.value as string;
-            return this.dex.pokedex.find(mon => mon.name.toLowerCase() == selected.toLowerCase());
+            return this.stringToPokemon(selected);
           }
         )
       )
       .subscribe(
-      mon => {
-        // TODO: Encapsulate this in a method
-        if(mon) {
-          this.mon_selected = true;
-          this.current_mon = mon;
-          // Also maybe split this into a method as well
-          this.refreshChart();
-          //
-          this.search_box.value='';
-          this.ctrl.setValue('');
-        }
-      }
-    );
+        mon=>this.updateCurrentMon(mon)
+      );
+
+
 
     this.dex.individualChanges.subscribe(
       mon => {
@@ -175,16 +202,78 @@ export class IndividualSummaryComponent implements OnInit, AfterViewInit{
         // console.log("wechange");
         this.ctrl.setValue('');
         if(this.current_mon) {
-          
+
           this.refreshChart();
         }
       }
     )
+
+    this.dex.monSelection.subscribe(
+      n =>  {
+        this.selectPokemonFromName(n);
+        this.cdr.detectChanges();
+      }
+    )
+
+    // if(this.dex.validDexUploaded && this.dex.pokedex.length > 0)
+    //   this.dex.selectPokemon(this.dex.pokedex[0].name)
+    // setTimeout(() => {
+    // })
+  }
+
+  
+  evoClicked(evo: string, direction: string, index: number) {
+    if(this.current_mon){
+      if(evo=="unknown") {
+        if(direction=='next'){
+          this.current_mon.next_evos_revealed.push(index);
+          let next_mon = this.stringToPokemon(this.current_mon.next_evos[index])
+          if(next_mon) {
+            let back_index = next_mon.prev_evos.indexOf(this.current_mon.name)
+            next_mon.prev_evos_revealed.push(back_index)
+          }
+        } else if (direction=='prev') {
+          this.current_mon.prev_evos_revealed.push(index);
+          let next_mon = this.stringToPokemon(this.current_mon.prev_evos[index])
+          if(next_mon) {
+            let back_index = next_mon.next_evos.indexOf(this.current_mon.name)
+            next_mon.next_evos_revealed.push(back_index)
+          }
+        }
+        this.refreshChart();
+      }
+      else
+        this.selectPokemonFromName(evo)
+    }
+  }
+
+  selectPokemonFromName(selected: string) {
+    let mon = this.stringToPokemon(selected)
+    this.updateCurrentMon(mon)
+  }
+
+  private stringToPokemon(selected: string): Pokemon | undefined {
+    return this.dex.pokedex.find(mon => mon.name.toLowerCase() == selected.toLowerCase());
+  }
+
+  private updateCurrentMon(mon: Pokemon|undefined) {
+    if(mon) {
+          this.mon_selected = true;
+          this.current_mon = mon;
+          // Also maybe split this into a method as well
+          this.refreshChart();
+          //
+          this.search_box.value='';
+          this.ctrl.setValue('');
+        }
   }
 
   private refreshChart() {
     if(this.current_mon) {
       this.chart.data.datasets[0].data = this.current_mon.getStatsIfRevealed();
+      this.chart.data.labels = this.current_mon.special
+        ?["HP", "Attack", "Defense", "Special", "Speed"]
+        :["HP", "Attack", "Defense", "Sp. Attack", "Sp. Defense", "Speed"]
       this.chart.options.plugins!.title!.text = "BST : " + (this.current_mon && (this.current_mon.bst_revealed || this.current_mon.stats_revealed || this.current_mon.fully_revealed)? this.current_mon.bst() : "???");
       this.chart.update();
     }
