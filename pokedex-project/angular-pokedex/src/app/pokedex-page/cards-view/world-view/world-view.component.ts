@@ -2,7 +2,7 @@ import { AfterViewInit, ChangeDetectorRef, Component, ElementRef, OnInit, ViewCh
 import { PokedexService } from 'src/app/pokedex.service';
 import { Pokemon } from 'src/app/Pokemon';
 import {Chart, ChartConfiguration, registerables} from 'chart.js'
-import { bstHistogramConfig } from './chart-configs/bst-histogram.config';
+import { bstHistogramConfig, binBSTs } from './chart-configs/bst-histogram.config';
 import { statRatioHistogramConfig, binStatRatios } from './chart-configs/stat-ratio-histogram.config';
 import { statValueHistogramConfig, binStatValues, getStatValue} from './chart-configs/stat-histogram.config';
 Chart.register(...registerables);
@@ -41,8 +41,6 @@ export class WorldViewComponent implements OnInit, AfterViewInit {
 
   ngAfterViewInit(): void {
     this.bstChart = new Chart(this.bstChartRef.nativeElement, bstHistogramConfig)
-    this.statChart = new Chart(this.statChartRef.nativeElement, statValueHistogramConfig)
-    this.statRatioChart = new Chart(this.statRatioChartRef.nativeElement, statRatioHistogramConfig)
     this.pokedex.filterChanges.subscribe(filteredList => {
       this.stats = this.pokedex.pokedex[0].special 
         ? ['hp', 'attack', 'defense', 'special', 'speed'] 
@@ -52,31 +50,48 @@ export class WorldViewComponent implements OnInit, AfterViewInit {
     })
   }
 
+  switchChartDisplay(chartName: string) {
+    this.currentChart = chartName
+    this.cdr.detectChanges();
+    switch (chartName) {
+      case 'BST':
+        if(!this.bstChart) {
+          this.bstChart = new Chart(this.bstChartRef.nativeElement, bstHistogramConfig)
+        }
+        break;
+      case 'Stat':
+        if(!this.statChart) {
+          this.statChart = new Chart(this.statChartRef.nativeElement, statValueHistogramConfig)
+          this.workingList && (this.statChart.data.datasets[0].data=binStatValues(this.workingList, this.selectedStat))
+          this.statChart.update();
+        }
+        break;
+      case 'Ratio':
+        if(!this.statRatioChart) {
+          this.statRatioChart = new Chart(this.statRatioChartRef.nativeElement, statRatioHistogramConfig)
+          this.workingList && (this.statRatioChart.data.datasets[0].data=binStatRatios(this.workingList))
+          this.statRatioChart.update();
+        }
+        break;
+    }
+    // if(this.workingList) {
+    //   this.refreshCharts(this.workingList);
+    // }
+  }
+
   refreshCharts(pokemonList: Pokemon[]) {
+    if(this.workingList === pokemonList) {
+      console.log("Skipping Work")
+      return
+    }
     this.workingList = pokemonList;
     if(this.bstChart) {
-      let binSize = 20;
-      let binMin = 200;
-      let binMax = 900;
-      let binCount = Math.ceil((binMax - binMin)/binSize);
-      this.bstChart.data.datasets[0].data = pokemonList.reduce((bins, {stat_total}) => {
-        const cappedBST = Math.min(stat_total, binMin + binSize * binCount - 1);
-        const index = Math.floor((cappedBST - binMin) / binSize);
-        bins[index]++;
-        return bins;
-      }, Array(binCount).fill(0))
-      this.bstChart.data.labels = Array.from({ length: binCount }, (_, i) => {
-        const min = binMin + i * binSize;
-        const max = min + binSize - 1;
-        return `${min}-${max}`;
-      });
-
+      this.bstChart.data.datasets[0].data = binBSTs(pokemonList)
       this.bstChart.update();
     }
     if(this.statChart) {
       if(pokemonList.length > 0 && getStatValue(pokemonList[0], this.selectedStat) === 0) {
         this.selectedStat = 'hp'
-        console.log("--In the Block--")
       }
       this.statChart.data.datasets[0].data=binStatValues(pokemonList, this.selectedStat)
       this.statChart.update();
@@ -88,6 +103,8 @@ export class WorldViewComponent implements OnInit, AfterViewInit {
     
 
   }
+
+
 
   onStatSelect(target: EventTarget | null) {
     if(target && (target as HTMLSelectElement).value) {

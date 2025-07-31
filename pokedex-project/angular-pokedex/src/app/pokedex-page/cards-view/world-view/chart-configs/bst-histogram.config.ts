@@ -1,13 +1,22 @@
 // bst-histogram.config.ts
 import { ChartConfiguration } from 'chart.js';
+import { Pokemon } from 'src/app/Pokemon';
+
+const BIN_MIN = 200;
+const BIN_SIZE = 20;
+const BIN_MAX = 900;
+const BIN_COUNT = Math.ceil((BIN_MAX - BIN_MIN)/BIN_SIZE) + 1;
 
 export const bstHistogramConfig: ChartConfiguration<'bar'> = {
   type: 'bar',
   data: {
-    labels: [
-      '200–299', '300–399', '400–499', '500–599',
-      '600–699', '700–799', '800–899', '900+'
-    ],
+    labels: Array.from({ length: BIN_COUNT }, (_, i) => {
+        const min = BIN_MIN + i * BIN_SIZE;
+        const max = min + BIN_SIZE - 1;
+        return i === BIN_COUNT - 1
+        ? `≥${min}`
+        : `${min}–${max}`;
+        }),
     datasets: [{
       label: 'Count of Pokémon by BST',
       data: [], // You can fill this dynamically
@@ -18,6 +27,9 @@ export const bstHistogramConfig: ChartConfiguration<'bar'> = {
   },
   options: {
     responsive: true,
+    animations: {
+        x: { duration: 0},
+    },
     plugins: {
       legend: { display: true },
       title: {
@@ -31,3 +43,15 @@ export const bstHistogramConfig: ChartConfiguration<'bar'> = {
     }
   }
 };
+
+export function binBSTs(pokemonList: Pokemon[]) {
+    return pokemonList.reduce((bins, { stat_total }) => {
+        if(stat_total >= BIN_MIN && stat_total < BIN_MAX) {
+            const index = Math.floor((stat_total - BIN_MIN) / BIN_SIZE);
+            bins[index]++;
+        } else if (stat_total>=BIN_MAX) {
+            bins[bins.length - 1]++
+        }
+      return bins;
+    }, Array(BIN_COUNT).fill(0));
+  }

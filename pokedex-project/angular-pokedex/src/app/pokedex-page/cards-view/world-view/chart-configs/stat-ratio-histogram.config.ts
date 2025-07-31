@@ -4,7 +4,7 @@ import { Pokemon } from 'src/app/Pokemon'; // adjust to match your project
 
 // 🔐 Private constants
 const BIN_SIZE = 0.25;  // bucket width for ratio range
-const BIN_COUNT = 8;    // e.g. 1–2, 2–3, ..., 8+
+const BIN_COUNT = 30;    // e.g. 1–2, 2–3, ..., 8+
 const BIN_MIN = 1.0;    // lowest ratio tracked
 
 // 🔢 Generate labels like "1.00–1.24", "1.25–1.49", ..., "≥3.75"

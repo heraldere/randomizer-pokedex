@@ -25,7 +25,7 @@ export const statValueHistogramConfig: ChartConfiguration<'bar'> = {
     labels: generateStatLabels(),
     datasets: [{
       label: 'Stat Value Distribution',
-      data: [], // to be filled dynamically
+      data: new Array(generateStatLabels().length).fill(50),
       backgroundColor: '#81D4FA',
       borderColor: '#0288D1',
       borderWidth: 1
@@ -33,6 +33,10 @@ export const statValueHistogramConfig: ChartConfiguration<'bar'> = {
   },
   options: {
     responsive: true,
+    animations: {
+        x: { duration: 0 },
+        y: { duration: 800, easing: 'easeOutQuart' }
+    },
     plugins: {
       legend: { display: false },
       title: {

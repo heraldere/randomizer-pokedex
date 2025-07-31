@@ -4,15 +4,15 @@
             <div class="element-container">
                 <div class="chart-selector">
                     <div [class.selected]="currentChart === 'BST'"
-                       (click)="currentChart = 'BST'">
+                       (click)="switchChartDisplay('BST')">
                        BSTs
                     </div>
                     <div [class.selected]="currentChart === 'Stat'"
-                       (click)="currentChart = 'Stat'">
+                       (click)="switchChartDisplay('Stat')">
                        Stats
                     </div>
                     <div [class.selected]="currentChart === 'Ratio'"
-                       (click)="currentChart = 'Ratio'">
+                       (click)="switchChartDisplay('Ratio')">
                        Ratios
                     </div>
                 </div>
