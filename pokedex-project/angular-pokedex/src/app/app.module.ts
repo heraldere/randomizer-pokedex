@@ -29,6 +29,7 @@ import { TeamBuilderComponent } from './pokedex-page/cards-view/team-builder/tea
 import { VsSummaryComponent } from './pokedex-page/cards-view/vs-summary/vs-summary.component';
 import { CardComponent } from './pokedex-page/cards-view/card/card.component';
 import { AboutPageComponent } from './about-page/about-page.component';
+import { WorldViewComponent } from './pokedex-page/cards-view/world-view/world-view.component';
 
 @NgModule({
     exports: [
@@ -46,7 +47,8 @@ import { AboutPageComponent } from './about-page/about-page.component';
         TeamBuilderComponent,
         VsSummaryComponent,
         CardComponent,
-        AboutPageComponent
+        AboutPageComponent,
+        WorldViewComponent
     ],
     imports: [
         BrowserModule,

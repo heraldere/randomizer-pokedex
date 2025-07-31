@@ -1,0 +1,76 @@
+.world-view-container {
+    display: flex;
+    flex-direction: row;
+    margin-top: 20px;
+    height: 600px;
+    .chart-column {
+        width: 80%;
+        display: flex;
+        flex-direction: column;
+        .chart-slot {
+            height: 100%;
+            width: 100%;
+            padding-left: 20px;
+            .element-container {
+                width: auto;
+            }
+            .chart-selector {
+                display: flex;
+                flex-direction: row;
+                justify-content: center;
+                gap: 20px;
+                .selected {
+                    text-decoration: underline;
+                    font-weight: bold;
+                    pointer-events: none;
+                }
+            }
+        }
+    }
+    .tm-column {
+        width: 20%;
+        padding: 6px;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        .tm-table {
+            max-height: 90%;
+            width: 80%;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            .move-list{
+                overflow-y: auto;
+                scrollbar-width: none;
+                width: 100%;
+                max-height: 100%;
+                .left-table{
+                    border-right: 1px solid rgb(167, 163, 168);
+                    padding-right: 5px;
+                    padding-left: 25px;
+                    text-align: right;
+                }
+                .right-table{
+                    padding-left: 25px;
+                }
+            }
+            .move-list::-webkit-scrollbar {
+                width: 0px;        /* Chrome/Safari */
+            }
+            .move-list:hover {
+                scrollbar-width: thin;             /* Firefox */
+            }
+
+            /* Chrome-like browsers */
+            .move-list:hover::-webkit-scrollbar {
+                width: 6px;
+                background-color: transparent;     /* Matches container */
+            }
+        }
+    }
+}
+
+.world-chart {
+    width: 100%;
+    height: 100%;
+}

@@ -1,0 +1,42 @@
+<div class="world-view-container">
+    <div class="chart-column">
+        <div class="chart-slot">
+            <div class="element-container">
+                <div class="chart-selector">
+                    <div [class.selected]="currentChart === 'BST'"
+                       (click)="currentChart = 'BST'">
+                       BSTs
+                    </div>
+                    <div [class.selected]="currentChart === 'Stat'"
+                       (click)="currentChart = 'Stat'">
+                       Stats
+                    </div>
+                    <div [class.selected]="currentChart === 'Ratio'"
+                       (click)="currentChart = 'Ratio'">
+                       Ratios
+                    </div>
+                </div>
+                <div [style.display]="(currentChart !== 'BST') ? 'none' : 'block'">
+                    <canvas class="world-chart" #BSTChart></canvas>
+                </div>
+                <div [style.display]="(currentChart !== 'Stat') ? 'none' : 'block'">
+                    <select (change)="onStatSelect($event.target)">
+                        <option *ngFor="let stat of stats" [value]="stat">{{ stat | titlecase }}</option>
+                    </select>
+
+                    <canvas class="world-chart" #StatChart></canvas>
+                </div>
+                <div [style.display]="(currentChart !== 'Ratio') ? 'none' : 'block'">
+                    <canvas class="world-chart" #StatRatioChart></canvas>
+                </div>
+            </div>
+        </div>
+        <div class="chart-slot"></div>
+    </div>
+    <div class="tm-column">
+        <div class="tm-table element-container">
+            TMS
+            <hr style="flex-grow: 1; width: 100%;">
+        </div>
+    </div>
+</div>

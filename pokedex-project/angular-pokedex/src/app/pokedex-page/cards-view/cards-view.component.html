@@ -1,6 +1,7 @@
 
 <div class=tabs>
     <a class="tab" [class.selected]="selectedTab==='summaryTab'" (click)="selectedTab='summaryTab'"><i class="material-icons">wysiwyg</i>Pokemon</a>
+    <a class="tab" [class.selected]="selectedTab==='worldTab'" (click)="selectedTab='worldTab'"><i class="material-icons">public</i>World</a>
     <!-- <a class="disabled tab" [class.selected]="selectedTab==='teamTab'"  (click)="selectedTab='teamTab'"><i class="material-icons">view_module</i>Team Builder</a>
     <a class="disabled tab" [class.selected]="selectedTab==='vsTab'" (click)="selectedTab='vsTab'"><i class="material-icons">compare_arrows</i>Matchup</a> -->
     <span>(More tabs here soon)</span>
@@ -36,6 +37,9 @@
 </div>
 <div *ngIf="selectedTab==='summaryTab'">
     <individual-card *ngIf="dex.validDexUploaded"></individual-card>
+</div>
+<div *ngIf="selectedTab==='worldTab'">
+    <world-view *ngIf="dex.validDexUploaded"></world-view>
 </div>
 <div *ngIf="selectedTab==='teamTab'">
     <team-builder></team-builder>

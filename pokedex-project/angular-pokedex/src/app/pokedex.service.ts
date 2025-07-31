@@ -25,6 +25,7 @@ export class PokedexService {
   public dexChanges = new Subject<any>();
   public individualChanges = new Subject<Pokemon>();
   public monSelection = new ReplaySubject<string>(1);
+  public filterChanges = new ReplaySubject<Pokemon[]>(1);
   private v = 3;
   loadedFile: string = '';
   isFullyRevealed = false;
