@@ -27,19 +27,27 @@ export const bstHistogramConfig: ChartConfiguration<'bar'> = {
   },
   options: {
     responsive: true,
+    maintainAspectRatio: false,
     animations: {
         x: { duration: 0},
     },
     plugins: {
-      legend: { display: true },
+      legend: { display: false },
       title: {
         display: true,
-        text: 'Distribution of Base Stat Totals'
+        text: 'Distribution of Base Stat Totals',
+        font: { size: 18 },
+        color: '#cfcfcf',
       }
     },
     scales: {
       x: { title: { display: true, text: 'BST Range' } },
-      y: { beginAtZero: true, title: { display: true, text: 'Number of Pokémon' } }
+      y: { 
+        beginAtZero: true, 
+        title: { display: true, text: 'Number of Pokémon' },
+        ticks: { color: '#cfcfcf' }, 
+        grid: { color: 'rgba(255,255,255,0.1)' }
+      }
     }
   }
 };

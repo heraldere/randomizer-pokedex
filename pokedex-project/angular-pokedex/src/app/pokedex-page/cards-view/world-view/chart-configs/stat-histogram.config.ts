@@ -25,7 +25,7 @@ export const statValueHistogramConfig: ChartConfiguration<'bar'> = {
     labels: generateStatLabels(),
     datasets: [{
       label: 'Stat Value Distribution',
-      data: new Array(generateStatLabels().length).fill(50),
+      data: new Array(generateStatLabels().length).fill(0),
       backgroundColor: '#81D4FA',
       borderColor: '#0288D1',
       borderWidth: 1
@@ -33,9 +33,9 @@ export const statValueHistogramConfig: ChartConfiguration<'bar'> = {
   },
   options: {
     responsive: true,
+    maintainAspectRatio: false,
     animations: {
         x: { duration: 0 },
-        y: { duration: 800, easing: 'easeOutQuart' }
     },
     plugins: {
       legend: { display: false },
@@ -54,7 +54,10 @@ export const statValueHistogramConfig: ChartConfiguration<'bar'> = {
           color: '#cfcfcf'
         },
         ticks: { color: '#cfcfcf' },
-        grid: { color: 'rgba(255,255,255,0.1)' }
+        grid: { 
+            color: 'rgba(255,255,255,0.1)',
+            display: false, 
+        }
       },
       y: {
         beginAtZero: true,

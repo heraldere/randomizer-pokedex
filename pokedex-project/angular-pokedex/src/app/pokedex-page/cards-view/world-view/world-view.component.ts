@@ -100,11 +100,18 @@ export class WorldViewComponent implements OnInit, AfterViewInit {
       this.statRatioChart.data.datasets[0].data=binStatRatios(pokemonList);
       this.statRatioChart.update();
     }
-    
-
   }
 
-
+  friendlyStatName(statAbb: string): string {
+    switch(statAbb) {
+      case 'sp_attack':
+        return 'special attack'
+      case 'sp_defense':
+        return 'special defense'
+      default:
+        return statAbb
+    }
+  }
 
   onStatSelect(target: EventTarget | null) {
     if(target && (target as HTMLSelectElement).value) {
@@ -119,8 +126,14 @@ export class WorldViewComponent implements OnInit, AfterViewInit {
     }
   }
 
-  binBST(bst: number): number {
-    return 0;
+  revealTMByIndex(idx: number) {
+    let tm = this.pokedex.tmIds[idx];
+    if(!this.pokedex.revealedTMs.includes(tm)) {
+      this.pokedex.revealTMForAll(tm);
+    }
+    else {
+      this.pokedex.hideTMForAll(tm);
+    }
   }
 
 }

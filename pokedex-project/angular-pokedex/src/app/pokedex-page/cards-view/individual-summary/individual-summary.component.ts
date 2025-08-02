@@ -81,11 +81,11 @@ export class IndividualSummaryComponent implements OnInit, AfterViewInit{
     if(this.current_mon) {
       let tm = this.current_mon.tms[i]
       if(!this.dex.revealedTMs.includes(tm)) {
-        this.dex.revealedTMs.push(this.current_mon.tms[i])
+        // this.dex.revealedTMs.push(this.current_mon.tms[i])
         this.dex.revealTMForAll(tm);
       }
       else {
-        this.dex.revealedTMs.splice(this.dex.revealedTMs.indexOf(tm), 1);
+        // this.dex
         this.dex.hideTMForAll(tm);
       }
     }

@@ -532,11 +532,18 @@ export class PokedexService {
     for(let mon of this.pokedex) {
       mon.hideTM(tm);
     }
+    if(this.revealedTMs.includes(tm)) {
+      this.revealedTMs.splice(this.revealedTMs.indexOf(tm), 1);
+    }
     this.dexChanges.next();
   }
+  
   revealTMForAll(tm: number) {
     for(let mon of this.pokedex) {
       mon.revealTM(tm);
+    }
+    if(!this.revealedTMs.includes(tm)) {
+      this.revealedTMs.push(tm);
     }
     this.dexChanges.next();
   }

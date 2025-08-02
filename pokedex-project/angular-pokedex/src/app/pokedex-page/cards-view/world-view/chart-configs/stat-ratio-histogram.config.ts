@@ -33,6 +33,7 @@ export const statRatioHistogramConfig: ChartConfiguration<'bar'> = {
   },
   options: {
     responsive: true,
+    maintainAspectRatio: false,
     plugins: {
       legend: {
         display: false
@@ -51,8 +52,11 @@ export const statRatioHistogramConfig: ChartConfiguration<'bar'> = {
           text: 'Ratio Range',
           color: '#cfcfcf'
         },
-        ticks: { color: '#cfcfcf' },
-        grid: { color: 'rgba(255,255,255,0.1)' }
+        ticks: { color: '#cfcfcf' },        
+        grid: { 
+            color: 'rgba(255,255,255,0.1)',
+            display: false, 
+        }
       },
       y: {
         beginAtZero: true,
