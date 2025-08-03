@@ -27,6 +27,10 @@ export class HomeComponent implements OnInit {
   }
 
   ngOnInit(): void {
+    
+    if(!this.dex.validDexUploaded) {
+      this.dex.loadDefaultData();
+    }
   }
 
   onFileSelected(e: Event) {
@@ -41,6 +45,16 @@ export class HomeComponent implements OnInit {
     }
   }
 
+  vanillaDataButtonClicked() {
+    this.dex.loadDefaultData()
+      .then(() => this.router.navigate(['/', 'pokedex']));
+  }
+
+  sampleRandomDataButtonClicked() {
+    this.dex.loadSampleRandomData()
+      .then(() => this.router.navigate(['/', 'pokedex']));
+  }
+
   detailButtonClicked() {
     this.router.navigate(['/', 'about'])
   }
@@ -50,10 +64,7 @@ export class HomeComponent implements OnInit {
     this.downloadRef.nativeElement.href='data:text/plain;charset=utf-8,' + encodeURIComponent(dexString);
   }
 
-  // TODO: Add spoiler button! (May need to add subscription type thing to get it to work)
-  spoilButtonClicked() {
-    console.log("Nothing yet")
-  }
+
   
 
 }

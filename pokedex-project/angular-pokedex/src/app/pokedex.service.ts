@@ -41,11 +41,12 @@ export class PokedexService {
   hmMoves: string[] = [];
   starters: string[] = [];
   defaultPkdxName = '/assets/data/Default.pkdx';
+  sampleRandomPkdxName = '/assets/data/Random.pkdx';
 
   constructor() {
 
     //TODO: THIS MUST BE COMMENTED OUT BEFORE PRODUCTION
-    (window as any).dex = this;
+    // (window as any).dex = this;
   }
 
   public async readSelectedFile(inputFile: File) {
@@ -324,13 +325,23 @@ export class PokedexService {
     }
   }
 
-  public loadDefaultData() {
-    fetch(this.defaultPkdxName)
+  public loadDefaultData(): Promise<any> {
+    // console.log("Loading Default")
+    return fetch(this.defaultPkdxName)
       .then(res => res.text())
       .then(text => {
         this.parseFile(text);
         this.loadedFile = this.defaultPkdxName;
       });
+  }
+
+  public loadSampleRandomData(): Promise<any> {
+    return fetch(this.sampleRandomPkdxName)
+      .then(res => res.text())
+      .then(text => {
+        this.parseFile(text);
+        this.loadedFile = this.sampleRandomPkdxName;
+      })
   }
 
   private async getDefaultGenData(logBlocks: string[]): Promise<Map<string, any>> {
@@ -537,7 +548,7 @@ export class PokedexService {
     }
     this.dexChanges.next();
   }
-  
+
   revealTMForAll(tm: number) {
     for(let mon of this.pokedex) {
       mon.revealTM(tm);

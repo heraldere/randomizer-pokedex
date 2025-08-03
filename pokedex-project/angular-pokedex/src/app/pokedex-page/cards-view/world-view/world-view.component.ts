@@ -81,7 +81,7 @@ export class WorldViewComponent implements OnInit, AfterViewInit {
 
   refreshCharts(pokemonList: Pokemon[]) {
     if(this.workingList === pokemonList) {
-      console.log("Skipping Work")
+      // console.log("Skipping Work")
       return
     }
     this.workingList = pokemonList;
