@@ -172,12 +172,20 @@ function ruleCheck(pokemon: Pokemon, rule: IPokeRule) {
                     return pokemon.next_evos.length == 0;
                 else if (rule.value == 'baseevo')
                     return pokemon.prev_evos.length == 0;
+                else if (rule.value == 'megaevo')
+                    return pokemon.name.includes('-Mega');
+                else if (rule.value == 'megaable')
+                    return pokemon.forms.length > 0 && !pokemon.name.includes('-Mega') &&  pokemon.forms.some(name => name.includes('-Mega'));
             } break;
             case CategoryOperators.is_not: {
                 if(rule.value == 'fullyevolved')
                     return pokemon.next_evos.length !== 0;
                 else if (rule.value == 'baseevo')
                     return pokemon.prev_evos.length !== 0;
+                else if (rule.value == 'megaevo')
+                    return !pokemon.name.includes('-Mega');
+                else if (rule.value == 'megaable')
+                    return pokemon.forms.length == 0 || pokemon.name.includes('-Mega') || !pokemon.forms.some(name => name.includes('-Mega'));
             }break;
             default:
                 break;

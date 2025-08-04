@@ -1,0 +1,125 @@
+.world-view-container {
+    display: flex;
+    flex-direction: row;
+    margin-top: 20px;
+    height: 600px;
+    min-width: 1100px;
+    max-width: 1300px;
+    margin-left: auto;
+    margin-right: auto;
+    .chart-column {
+        width: 75%;
+        max-height: 100%;
+        display: flex;
+        flex-direction: column;
+        .chart-slot {
+            max-height: 100%;
+            width: 100%;
+            padding-left: 20px;
+            .element-container {
+                height: 100%;
+                width: 100%;
+                display: flex;
+                flex-direction: column;
+                // align-items: center;
+                box-sizing: border-box; // ensures padding doesn't affect layout math
+                .world-chart {
+                    flex: 1 1 auto;
+                    width: 100%;
+                    height: 100%;
+                    display: block;
+                    max-height: 100%;
+                }
+            }
+            .chart-selector {
+                display: flex;
+                flex-direction: row;
+                justify-content: center;
+                gap: 20px;
+                .selectable {
+                    cursor: pointer;
+                }
+                .selected {
+                    text-decoration: underline;
+                    font-weight: bold;
+                    pointer-events: none;
+                }
+            }
+        }
+    }
+    .tm-column {
+        width: 25%;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        .tm-table {
+            max-height: 70%;
+            width: 80%;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            .move-list{
+                overflow-y: auto;
+                scrollbar-width: none;
+                width: 100%;
+                max-height: 100%;
+                .left-table{
+                    border-right: 1px solid rgb(167, 163, 168);
+                    padding-right: 5px;
+                    padding-left: 25px;
+                    text-align: right;
+                }
+                .right-table{
+                    padding-left: 25px;
+                }
+            }
+            .move-list::-webkit-scrollbar {
+                width: 0px;        /* Chrome/Safari */
+            }
+            .move-list:hover {
+                scrollbar-width: thin;             /* Firefox */
+            }
+
+            /* Chrome-like browsers */
+            .move-list:hover::-webkit-scrollbar {
+                width: 6px;
+                background-color: transparent;     /* Matches container */
+            }
+        }
+        .starter-list {
+            max-height: 30%;
+            width: 80%;
+            margin-top: 20px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+    }
+}
+
+
+.chart-content {
+  display: flex;
+  flex-direction: column;
+  box-sizing: border-box;
+}
+
+.stat-selector {
+    background-color: #19181a;
+    // option {
+    //     background-color: red;
+    // }
+}
+
+.default-tm-message {
+    height: 300px;
+    width: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.default-starter-message {
+    margin-top: 20px;
+    margin-bottom: 20px;
+}

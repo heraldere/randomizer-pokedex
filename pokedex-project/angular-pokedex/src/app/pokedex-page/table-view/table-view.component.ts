@@ -176,6 +176,7 @@ export class TableViewComponent implements OnInit, AfterViewInit{
     // console.log('---------REFRESHED-------------')
     let initialdata = this.filterDataInitialPass();
     this.filteredData = filterDataByQueryTree(initialdata, this.query);
+    this.pokedexService.filterChanges.next(this.filteredData);
     this.sortTable();
   }
 

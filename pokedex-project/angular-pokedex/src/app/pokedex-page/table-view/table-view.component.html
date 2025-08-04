@@ -1,6 +1,8 @@
 <div *ngIf="pokedexService.validDexUploaded">
-
-    <button class='filterButton openDialogButton' (click)="openFilterTreeDialog()" #filterButton>Filter</button>
+    <div class="table-header">
+        <button class='filterButton openDialogButton' (click)="openFilterTreeDialog()" #filterButton><i class="material-icons">filter_alt</i>Filter List</button>
+        Total: {{filteredData.length}}
+    </div>
     <ngx-table [configuration]="configuration" [data]="filteredData" [columns]="columns" (event)="eventEmitted($event)" #tableTemplate>
         <ng-template let-row let-index="index">
             <td (click)="rowClick(row.name)">

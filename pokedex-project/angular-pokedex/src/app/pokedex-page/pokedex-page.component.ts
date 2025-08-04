@@ -1,4 +1,4 @@
-import { Component, OnInit } from '@angular/core';
+import { AfterViewInit, Component, OnInit } from '@angular/core';
 import { PokedexService } from '../pokedex.service';
 
 @Component({
@@ -6,7 +6,7 @@ import { PokedexService } from '../pokedex.service';
   templateUrl: './pokedex-page.component.html',
   styleUrls: ['./pokedex-page.component.scss']
 })
-export class PokedexPageComponent implements OnInit {
+export class PokedexPageComponent implements OnInit, AfterViewInit{
 
   dex: PokedexService
 
@@ -15,7 +15,14 @@ export class PokedexPageComponent implements OnInit {
    }
 
   ngOnInit(): void {
-    this.dex.loadDefaultData();
+    if(!this.dex.validDexUploaded) {
+      this.dex.loadDefaultData();
+    }
+  }
+
+  ngAfterViewInit(): void {
+    
+
   }
 
 }

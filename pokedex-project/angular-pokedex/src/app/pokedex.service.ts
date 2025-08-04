@@ -25,6 +25,7 @@ export class PokedexService {
   public dexChanges = new Subject<any>();
   public individualChanges = new Subject<Pokemon>();
   public monSelection = new ReplaySubject<string>(1);
+  public filterChanges = new ReplaySubject<Pokemon[]>(1);
   private v = 3;
   loadedFile: string = '';
   isFullyRevealed = false;
@@ -40,11 +41,12 @@ export class PokedexService {
   hmMoves: string[] = [];
   starters: string[] = [];
   defaultPkdxName = '/assets/data/Default.pkdx';
+  sampleRandomPkdxName = '/assets/data/Random.pkdx';
 
   constructor() {
 
     //TODO: THIS MUST BE COMMENTED OUT BEFORE PRODUCTION
-    (window as any).dex = this;
+    // (window as any).dex = this;
   }
 
   public async readSelectedFile(inputFile: File) {
@@ -323,13 +325,23 @@ export class PokedexService {
     }
   }
 
-  public loadDefaultData() {
-    fetch(this.defaultPkdxName)
+  public loadDefaultData(): Promise<any> {
+    // console.log("Loading Default")
+    return fetch(this.defaultPkdxName)
       .then(res => res.text())
       .then(text => {
         this.parseFile(text);
         this.loadedFile = this.defaultPkdxName;
       });
+  }
+
+  public loadSampleRandomData(): Promise<any> {
+    return fetch(this.sampleRandomPkdxName)
+      .then(res => res.text())
+      .then(text => {
+        this.parseFile(text);
+        this.loadedFile = this.sampleRandomPkdxName;
+      })
   }
 
   private async getDefaultGenData(logBlocks: string[]): Promise<Map<string, any>> {
@@ -531,11 +543,18 @@ export class PokedexService {
     for(let mon of this.pokedex) {
       mon.hideTM(tm);
     }
+    if(this.revealedTMs.includes(tm)) {
+      this.revealedTMs.splice(this.revealedTMs.indexOf(tm), 1);
+    }
     this.dexChanges.next();
   }
+
   revealTMForAll(tm: number) {
     for(let mon of this.pokedex) {
       mon.revealTM(tm);
+    }
+    if(!this.revealedTMs.includes(tm)) {
+      this.revealedTMs.push(tm);
     }
     this.dexChanges.next();
   }
