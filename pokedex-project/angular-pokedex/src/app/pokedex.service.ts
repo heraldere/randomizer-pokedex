@@ -40,8 +40,8 @@ export class PokedexService {
   tmMoves: string[] = [];
   hmMoves: string[] = [];
   starters: string[] = [];
-  defaultPkdxName = '/assets/data/Default.pkdx';
-  sampleRandomPkdxName = '/assets/data/Random.pkdx';
+  defaultPkdxName = './assets/data/Default.pkdx';
+  sampleRandomPkdxName = './assets/data/Random.pkdx';
 
   constructor() {
 
@@ -348,7 +348,7 @@ export class PokedexService {
     //TODO: Get gen from logBlocks[-2]
     let gen = this.getGenerationFromLog(logBlocks);
     try {
-      const saveObj = await fetch(`/assets/data/gen${gen}vantest.json`)
+      const saveObj = await fetch(`./assets/data/gen${gen}vantest.json`)
         .then(res => {
           if (!res.ok) throw new Error(`Failed to load: ${res.status}`);
           return res.json();

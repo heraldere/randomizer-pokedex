@@ -3145,8 +3145,8 @@ class PokedexService {
         this.tmMoves = [];
         this.hmMoves = [];
         this.starters = [];
-        this.defaultPkdxName = '/assets/data/Default.pkdx';
-        this.sampleRandomPkdxName = '/assets/data/Random.pkdx';
+        this.defaultPkdxName = './assets/data/Default.pkdx';
+        this.sampleRandomPkdxName = './assets/data/Random.pkdx';
         //TODO: THIS MUST BE COMMENTED OUT BEFORE PRODUCTION
         // (window as any).dex = this;
     }
@@ -3439,7 +3439,7 @@ class PokedexService {
             //TODO: Get gen from logBlocks[-2]
             let gen = this.getGenerationFromLog(logBlocks);
             try {
-                const saveObj = yield fetch(`/assets/data/gen${gen}vantest.json`)
+                const saveObj = yield fetch(`./assets/data/gen${gen}vantest.json`)
                     .then(res => {
                     if (!res.ok)
                         throw new Error(`Failed to load: ${res.status}`);
