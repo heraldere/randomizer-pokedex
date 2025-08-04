@@ -44,7 +44,7 @@
                 <table style="border-collapse: collapse;">
                     <tr *ngFor="let tm of pokedex.tmIds; let i = index" (click)="revealTMByIndex(i)">
                         <td class="left-table">{{tm}}</td>
-                        <td class="right-table">{{pokedex.revealedTMs.includes(tm)? pokedex.tmMoves[i]:'???'}}</td>
+                        <td class="right-table">{{pokedex.revealedTMs.includes(tm) || pokedex.isFullyRevealed ? pokedex.tmMoves[i]:'???'}}</td>
                     </tr>
                 </table>
                 <div class="default-tm-message" *ngIf="pokedex.tmIds.length == 0">
