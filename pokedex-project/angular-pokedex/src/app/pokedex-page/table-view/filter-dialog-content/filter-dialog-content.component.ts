@@ -60,6 +60,8 @@ export class FilterDialogContentComponent implements OnInit {
         options: [
           {name: 'Fully Evolved', value: 'fullyevolved'},
           {name: 'Base Evolution', value: 'baseevo'},
+          {name: 'Mega Evolution', value: 'megaevo'},
+          {name: 'Mega Evolvable', value: 'megaable'},
         ]
       }
     }
