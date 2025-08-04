@@ -1,7 +1,7 @@
 $selectedTabColor : rgb(156, 156, 156);
 $tabColor : rgb(231, 231, 231);
 $tabFontColor: rgb(44, 44, 44);
-$buttonColor : rgb(37, 167, 37);
+$buttonColor : rgb(21, 102, 21);
 
 .tabs {
     border-bottom: 5px $selectedTabColor solid;
@@ -50,6 +50,7 @@ $buttonColor : rgb(37, 167, 37);
     .tab-file-input {
         height: 0;
         width: 0;
+        display: none           ;
     }
 
     #spoil-button {
@@ -85,6 +86,12 @@ $buttonColor : rgb(37, 167, 37);
             // font-weight: 300;
         }
     }
+
+    .tab {
+        margin-top: 6px;
+    }
 }
+
+
 
 

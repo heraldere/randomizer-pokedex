@@ -36,7 +36,19 @@ export class CardsViewComponent implements OnInit {
   save() {
     let dexString = JSON.stringify(
       {
-        pokedex: this.dex.pokedex
+        pokedex: this.dex.pokedex,
+        abilities: this.dex.allAbilitiesRevealed,
+        bsts: this.dex.allBSTRevealed,
+        types: this.dex.allTypesRevealed,
+        full: this.dex.isFullyRevealed,
+        moves: this.dex.allMovesRevealed,
+        tms: this.dex.revealedTMs,
+        tmIds: this.dex.tmIds,
+        hmIds: this.dex.hmIds,
+        tmMoves: this.dex.tmMoves,
+        hmMoves: this.dex.hmMoves,
+        evolutions: this.dex.allEvolutionsRevealed,
+        starters: this.dex.starters,
       });
     this.downloadRef.nativeElement.href='data:text/plain;charset=utf-8,' + encodeURIComponent(dexString);
   }
@@ -71,6 +83,22 @@ export class CardsViewComponent implements OnInit {
     } else {
       this.dex.revealAbilities();
     }
+  }
+
+  //TODO: spoilEvolutions
+  spoilEvolutions() {
+    if(this.dex.allEvolutionsRevealed) {
+      this.dex.hideEvolutions();
+    } else {
+      this.dex.revealEvolutions();
+    }
+  }
+
+  spoilMoves() {
+    if(this.dex.allMovesRevealed)
+      this.dex.hideMoves();
+    else
+      this.dex.revealMoves();
   }
 
   ngOnInit(): void {

@@ -90,6 +90,8 @@ export class Pokemon {
 
   tms: number[];
   tm_moves: string[];
+  hms: number[];
+  hm_moves: string[];
 
   type_revealed: boolean;
   stats_revealed: boolean;
@@ -136,6 +138,9 @@ export class Pokemon {
     this.tms = [];
     this.tm_moves = [];
 
+    this.hms = [];
+    this.hm_moves = [];
+
     this.type_revealed = false;
     this.stats_revealed = false;
     this.bst_revealed = false;
@@ -163,8 +168,8 @@ export class Pokemon {
     this.defense = parseInt(tokens[labels.indexOf('DEF')]);
     this.sp_attack = parseInt(tokens[labels.indexOf('SATK')]);
     this.sp_defense = parseInt(tokens[labels.indexOf('SDEF')]);
-    this.speed = labels.indexOf('SPEC') >= 0 ? labels.indexOf('SPE') : parseInt(tokens[labels.indexOf('SPD')]);
-    this.special = labels.indexOf('SPEC') >= 0 ? parseInt(tokens[labels.indexOf('SPE')]) : undefined;
+    this.speed = labels.indexOf('SPEC') >= 0 ? parseInt(tokens[labels.indexOf('SPE')]) : parseInt(tokens[labels.indexOf('SPD')]);
+    this.special = labels.indexOf('SPEC') >= 0 ? parseInt(tokens[labels.indexOf('SPEC')]) : undefined;
     this.stat_total = this.bst();
 
     const typeString = tokens[labels.indexOf('TYPE')];
@@ -179,6 +184,47 @@ export class Pokemon {
     }
     if (labels.indexOf('ABILITY3') >= 0) {
       this.hiddenAbility = tokens[labels.indexOf('ABILITY3')];
+    }
+  }
+
+  public setBasicStatsFromObject(data: any) {
+    this.name = data.name;
+    this.pokedex_num = data.pokedex_num;
+    this.uid = data.uid;
+    this.hp = data.hp;
+    this.attack = data.attack;
+    this.defense = data.defense;
+    this.sp_attack = data.sp_attack;
+    this.sp_defense = data.sp_defense;
+    this.speed = data.speed;
+    this.special = data.special;
+    this.stat_total = data.stat_total;
+    this.type1 = data.type1;
+    this.type2 = data.type2;
+    this.ability1 = data.ability1;
+    this.ability2 = data.ability2;
+    this.hiddenAbility = data.hiddenAbility;
+    this.form_num = data.form_num;
+    this.forms = data.forms as string[];
+  }
+
+  public setEvolutionsFromObject(data: any, currentDexDict: Map<string, Pokemon>) {
+    this.next_evos = (data.next_evos as string[]).filter(evo => currentDexDict.has(evo));
+    this.prev_evos = (data.prev_evos as string[]).filter(evo => currentDexDict.has(evo));
+  }
+
+  public setMovesFromObject(data: any) {
+    this.learned_moves = data.learned_moves as string[];
+    this.learn_levels = data.learn_levels as number[];
+  }
+
+  public setTMMovesFromObject(data: any, dexTmMoves: string[]) {
+    this.tm_moves = data.tm_moves as string[];
+    this.tms = data.tms as number[];
+    if(dexTmMoves.length !== 0) {
+      for(let [idx, tm] of this.tms.entries()) {
+        this.tm_moves[idx] = dexTmMoves[tm];
+      }
     }
   }
 
@@ -216,7 +262,9 @@ export class Pokemon {
       json_data.learned_moves_revealed_idx === undefined ||
       json_data.tm_indexes_learned === undefined ||
       json_data.fully_revealed === undefined ||
-      json_data.notes === undefined 
+      json_data.notes === undefined ||
+
+      json_data.bst_revealed === undefined
       // json_data.ability1 === undefined ||
       // json_data.ability2 === undefined
     ) {
@@ -232,6 +280,7 @@ export class Pokemon {
     mon.defense = json_data.defense;
     mon.sp_attack = json_data.sp_attack;
     mon.sp_defense = json_data.sp_defense;
+    mon.special = json_data.special;
     mon.speed = json_data.speed;
     mon.stat_total = json_data.stat_total;
 
@@ -252,9 +301,12 @@ export class Pokemon {
     
     mon.tms = json_data.tms;
     mon.tm_moves = json_data.tm_moves;
+    mon.hms = json_data.hms ? json_data.hms : [];
+    mon.hm_moves = json_data.hm_moves ? json_data.hm_moves : [];
     
     mon.type_revealed = json_data.type_revealed;
     mon.stats_revealed = json_data.stats_revealed;
+    mon.bst_revealed = json_data.bst_revealed;
     mon.abilities_revealed = json_data.abilities_revealed;
     mon.next_evos_revealed = json_data.next_evos_revealed;
     mon.prev_evos_revealed = json_data.prev_evos_revealed;
@@ -279,7 +331,7 @@ export class Pokemon {
     const evArr = evString.split('->').map(s => s.trim());
     const leftSide = evArr[0];
     const rightSide = evArr[1];
-    const rightArr = rightSide.split(/(and|,)/).map(s => s.trim());
+    const rightArr = rightSide.split(/(?: and |,)/).map(s => s.trim());
     if (leftSide === this.name) {
       this.next_evos = rightArr;
     } else {
@@ -359,7 +411,7 @@ export class Pokemon {
   * @returns a list of Pokemon Names
   */
   get_evos_from(): string[] {
-    return this.next_evos.map((e, i) => (this.next_evos_revealed.indexOf(i) || this.fully_revealed) >= 0 ? e : "???");
+    return this.next_evos.map((e, i) => (this.next_evos_revealed.indexOf(i)  >= 0|| this.fully_revealed) ? e : "unknown");
   }
 
   /**
@@ -368,7 +420,7 @@ export class Pokemon {
   * @returns a list of Pokemon Names
   */
   get_evos_to(): string[] {
-    return this.prev_evos.map((e, i) => (this.prev_evos_revealed.indexOf(i) || this.fully_revealed) >= 0 ? e : "???");
+    return this.prev_evos.map((e, i) => (this.prev_evos_revealed.indexOf(i)  >= 0 || this.fully_revealed) ? e : "unknown");
   }
 
   bst(): number {
@@ -378,7 +430,11 @@ export class Pokemon {
 
   getStatsIfRevealed(): number[] {
     if (this.stats_revealed || this.fully_revealed) {
-      return [this.hp, this.attack, this.defense, this.sp_attack, this.sp_defense, this.speed];
+      if (this.special) {
+        return [this.hp, this.attack, this.defense, this.special, this.speed];
+      } else {
+        return [this.hp, this.attack, this.defense, this.sp_attack, this.sp_defense, this.speed];
+      }
     }
     return [0, 0, 0, 0, 0, 0];
   }
@@ -401,6 +457,31 @@ export class Pokemon {
     return res;
   }
 
+  
+  getMovesIfRevealed(): string[] {
+    let res: string[] = []
+    if (this.fully_revealed) {
+      res = this.learned_moves.concat(this.tm_moves)
+    } else {
+      res = res.concat(this.learned_moves.slice(0, this.learned_moves_revealed_idx))
+      res = res.concat(this.tm_indexes_learned.map(id => this.tm_moves[id]));
+    }
+    return res;
+  }
+
+  hideTM(tm: number) {
+    let tmIdx = this.tms.indexOf(tm);
+    if(tmIdx>=0 && this.tm_indexes_learned.includes(tmIdx)) {
+      this.tm_indexes_learned.splice(this.tm_indexes_learned.indexOf(tmIdx), 1)
+    }
+  }
+  revealTM(tm: number) {
+    let tmIdx = this.tms.indexOf(tm);
+    if(tmIdx >= 0 && !this.tm_indexes_learned.includes(tmIdx))
+      this.tm_indexes_learned.push(tmIdx);
+
+  }
+
   checkTypeRevealed() {
       return this.fully_revealed || this.type_revealed;
   }
@@ -415,5 +496,9 @@ export class Pokemon {
 
   checkAbilityRevealed() {
     return this.fully_revealed || this.abilities_revealed;
+  }
+
+  sanitizedName() {
+    return this.name.replace(':','').replace('\u2640', 'f').replace('\u2642', 'm').toLowerCase();
   }
 }

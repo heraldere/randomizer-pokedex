@@ -9,8 +9,8 @@
   </p>
   <p>
     I made this tool because my favorite part of Pokemon randomizers is exploring a brand new world filled with entirely "new" Pokemon.
-    Think of this as a sort of Pokedex you can carry with you on a journey, filling it in as you go. For example, the way I use the tool is I reveal types immediately upon encountering all Pokemon. After defeating a Pokemon at least once, I reveal its abilities and stats.
-    Everyone is free to come up with their own way to reveal information, I tried to make the tool flexible.
+    Think of this as a sort of Pokedex you can carry with you on a journey, filling it in as you go. For example, the way I use the tool is I reveal types immediately upon encountering any Pokemon. After defeating a Pokemon at least once, I reveal its abilities and stats.
+    Everyone is free to come up with their own way to reveal information&mdash;I tried to make the tool flexible.
   </p>
   <hr>
   <h2>
@@ -21,18 +21,16 @@
     <a href="https://github.com/Ajarmar/universal-pokemon-randomizer-zx/releases" target="_blank" rel="noopener noreferrer">Universal Pokemon Randomizer ZX</a>.
     To begin, click the upload button on the home page or on the pokedex page and select the spoiler log generated when you used the randomizer (be sure to generate the spoiler log when randomizing your game).
   </p>
-  <p class="text-warning">
-    ***NOTE: As of April 2022, this tool does not accept log files generated for Gen 1 games (Pokemon Red/Blue/Green/Yellow). However, it still works for FR/LG just fine.***
+  <p>
+    You can use the search bar in the "Pokemon" tab to select any pokemon to view. By default, the type, stat, ability and other information about each pokemon is hidden.
+    Any unknown information can be revealed by clicking on it. The page will remember what informtion you reveal about which pokemon. You also have the option to reveal all information about every pokemon by clicking the Spoil button at the top.
   </p>
   <p>
-    You can use the search bar in the individual view to select any pokemon to view. By default, the type, stat, ability and other information about each pokemon is hidden. The page will remember what informtion you reveal about which pokemon. You also have the option to reveal all information about every pokemon by clicking the Spoil button at the top.
+    If you want to save your progress, you can click the save button, which will download a .pkdx file with all of the log's information and what you've revealed so far. 
+    Next time you visit the page, you can just upload the .pkdx file and the site will load all of the progress that you had made.
   </p>
   <p>
-    If you want to save your progress or a log, you can click the save button, which will download a .pkdx file with all of the information and what you've revealed. 
-    Next time you visit the page, you can upload the .pkdx file and the site will load all of the progress that you had made.
-  </p>
-  <p>
-    This page is still under development, so not all information from the log file can be shown yet. In no particular order, I would like to add the following features:
+    This page is still under development, so not all information from the log file can be displayed yet. In no particular order, I would like to add the following features:
   </p>
   <ul>
     <li>
@@ -51,31 +49,36 @@
   </h2>
   <ul>
     <li>
-      heraldere - Log/Save parser, Stat Graphs, Site Structure
+      heraldere - Log/Save parser, Stat Graphs, Site Design, Structure, and Logic
     </li>
     <li>
       pinkpoppey - Table View and Filter functionality, CSS Consultant
     </li>
-  </ul><hr>
+  </ul>
+  <hr>
   <h2>
     Known Issues
   </h2>
   <ul>
     <li>
-      If you upload a log file, reveal some information on that file, then upload another log file, the changes won't immediately be reflected on the Pokemon that you have selected. If you search the dropdown and reselect the pokemon, the information will update properly. I will fix this behavior when I get around to it.
+      Clicking BST at the top of the chart does not reveal the Pokemon's Base Stat Total. It should, but it's a bit troublesome to fix without impacting the way the chart looks.
     </li>
     <li>
-      As stated above, Gen 1 logs will not display or update properly. I intend to add gen 1 support soon, but I don't anticipate many people are running randomized gen 1 games.
+      Some of the images can have a slight jitter when loading in (especially in Type sections, and cases where a Pokemon has multiple Evolutions)
     </li>
     <li>
-      If Pokemon are partially revealed, they will appear as a row in the table. By sorting the table, it is technically possible to infer information about Pokemon that you haven't explicitly revealed. I may fix this functionality in the future, but this particular bug is difficulty to fix.
-      For the time being, you can filter out rows that shouldn't show up by adding filters to the table (such as HP > 0). Those filters will properly respect what you've revealed about each pokemon.
+      This page will not work with extremely old versions of the Randomizer. I will not fix this. It should be compatible with most recent versions of the Randomizer (4.0.0 and up)
     </li>
     <li>
-      When swapping between the Pokedex and the Home/About pages, the site doesn't currently keep track of what pokemon you have selected. This is a relatively easy fix, and I will get it done soon.
+      Move Tutor and Breeding Moves are not currently displayed. These shouldn't impact a randomized playthrough too much, but I would like the information available somehow.
     </li>
     <li>
-      Right now, the site doesn't save whether or not the "spoil" button was clicked when saving the .pkdx file. I will fix this when I get time.
+      Log files for Gens 6 and 7 can take a second to parse. I would like to add visual feedback for when the page is loading data.
     </li>
   </ul>
+  <hr>
+  <h2>
+    THANKS FOR READING, AND GOOD LUCK PLAYING!
+  </h2>
+  <p>-heraldere</p>
 </div>

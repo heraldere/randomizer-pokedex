@@ -1,10 +1,45 @@
 $statsHeight: 30px;
+$selectedTabColor : rgb(156, 156, 156);
+$tabColor : rgb(231, 231, 231);
+$tabFontColor: rgb(44, 44, 44);
+
+.table-header {
+  display: flex;
+  flex-direction: row;
+  gap: 15px;
+  padding-left: 10px;
+  align-items: center;
+  button{ 
+    background-color: rgb(231, 231, 231);
+    color: $tabFontColor;
+    &:hover {
+        background-color: darken($color: $tabColor, $amount: 10);
+        font-weight: 300;
+    }
+    &.selected {
+        background-color: $selectedTabColor;
+        &:hover {
+            background-color: darken($color: $selectedTabColor, $amount: 20);
+        }
+    }
+    &.disabled {
+        pointer-events: none;
+        cursor: default;
+    }
+  }
+  
+  i.material-icons {
+      color: $tabFontColor;
+  }
+}
+
 .statsBar {
   box-sizing: content-box;
   height: $statsHeight;
   position: relative;
   background: rgb(46, 46, 46);
   border-radius: 10px;
+  overflow: hidden;
   box-shadow: inset 0 -1px 1px rgba(20, 9, 9, 0.3);
   div.overlayLabel {
     position: absolute;
