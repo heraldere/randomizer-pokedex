@@ -2144,7 +2144,7 @@ function WorldViewComponent_tr_30_Template(rf, ctx) { if (rf & 1) {
     _angular_core__WEBPACK_IMPORTED_MODULE_5__["ɵɵadvance"](2);
     _angular_core__WEBPACK_IMPORTED_MODULE_5__["ɵɵtextInterpolate"](tm_r9);
     _angular_core__WEBPACK_IMPORTED_MODULE_5__["ɵɵadvance"](2);
-    _angular_core__WEBPACK_IMPORTED_MODULE_5__["ɵɵtextInterpolate"](ctx_r4.pokedex.revealedTMs.includes(tm_r9) ? ctx_r4.pokedex.tmMoves[i_r10] : "???");
+    _angular_core__WEBPACK_IMPORTED_MODULE_5__["ɵɵtextInterpolate"](ctx_r4.pokedex.revealedTMs.includes(tm_r9) || ctx_r4.pokedex.isFullyRevealed ? ctx_r4.pokedex.tmMoves[i_r10] : "???");
 } }
 function WorldViewComponent_div_31_Template(rf, ctx) { if (rf & 1) {
     _angular_core__WEBPACK_IMPORTED_MODULE_5__["ɵɵelementStart"](0, "div", 27);
