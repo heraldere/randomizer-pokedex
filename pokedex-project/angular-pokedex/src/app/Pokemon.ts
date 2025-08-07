@@ -218,10 +218,10 @@ export class Pokemon {
     this.learn_levels = data.learn_levels as number[];
   }
 
-  public setTMMovesFromObject(data: any, dexTmMoves: string[]) {
+  public setTMMovesFromObject(data: any, dexTmMoves?: string[]) {
     this.tm_moves = data.tm_moves as string[];
     this.tms = data.tms as number[];
-    if(dexTmMoves.length !== 0) {
+    if(dexTmMoves && dexTmMoves.length !== 0) {
       for(let [idx, tm] of this.tms.entries()) {
         this.tm_moves[idx] = dexTmMoves[tm];
       }

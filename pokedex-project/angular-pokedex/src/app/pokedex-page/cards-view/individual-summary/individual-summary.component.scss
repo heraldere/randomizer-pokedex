@@ -361,3 +361,11 @@
     font-weight: normal;
     pointer-events: auto;
 }
+
+.default-tm-message {
+    height: 300px;
+    width: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}

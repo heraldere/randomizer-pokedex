@@ -46,7 +46,7 @@ export class PokedexService {
   constructor() {
 
     //TODO: THIS MUST BE COMMENTED OUT BEFORE PRODUCTION
-    // (window as any).dex = this;
+    (window as any).dex = this;
   }
 
   public async readSelectedFile(inputFile: File) {
@@ -267,6 +267,10 @@ export class PokedexService {
         tm_moves = tm_moves.concat(tmStrings.map(line => line.match(/TM\d+ (.*)/) ? line.match(/TM\d+ (.*)/)![1]: ''))
         for(let mon of this.pokedex) {
           mon.setTMMovesFromObject(defaultData.get(mon.name), tm_moves);
+        }
+      } else {
+        for(let mon of this.pokedex) {
+          mon.setTMMovesFromObject(defaultData.get(mon.name))
         }
       }
     }
