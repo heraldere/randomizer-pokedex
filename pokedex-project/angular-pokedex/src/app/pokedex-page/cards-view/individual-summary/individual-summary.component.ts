@@ -178,12 +178,14 @@ export class IndividualSummaryComponent implements OnInit, AfterViewInit{
         map(
           ev => {
             let selected = ev.option.value as string;
-            return this.stringToPokemon(selected);
+            // return this.stringToPokemon(selected);
+            return selected;
           }
         )
       )
       .subscribe(
-        mon=>this.updateCurrentMon(mon)
+        // mon=>this.updateCurrentMon(mon)
+        name => this.dex.monSelection.next(name)
       );
 
 
@@ -214,11 +216,6 @@ export class IndividualSummaryComponent implements OnInit, AfterViewInit{
         this.cdr.detectChanges();
       }
     )
-
-    // if(this.dex.validDexUploaded && this.dex.pokedex.length > 0)
-    //   this.dex.selectPokemon(this.dex.pokedex[0].name)
-    // setTimeout(() => {
-    // })
   }
 
   
@@ -258,14 +255,14 @@ export class IndividualSummaryComponent implements OnInit, AfterViewInit{
 
   private updateCurrentMon(mon: Pokemon|undefined) {
     if(mon) {
-          this.mon_selected = true;
-          this.current_mon = mon;
-          // Also maybe split this into a method as well
-          this.refreshChart();
-          //
-          this.search_box.value='';
-          this.ctrl.setValue('');
-        }
+      this.mon_selected = true;
+      this.current_mon = mon;
+      // Also maybe split this into a method as well
+      this.refreshChart();
+      //
+      this.search_box.value='';
+      this.ctrl.setValue('');
+    }
   }
 
   private refreshChart() {
