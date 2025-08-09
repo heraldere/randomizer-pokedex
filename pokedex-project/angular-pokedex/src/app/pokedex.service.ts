@@ -295,7 +295,7 @@ export class PokedexService {
     //Grab Starters (if present) and add to the world dex
     this.starters = [];
     for(let starterString of starterStrings) {
-      let starter = starterString.trim().split(' ').pop()
+      let starter = starterString.trim().substring(starterString.trim().indexOf(' ') + 1)
       if(starter)
         this.starters.push(starter);
     }
