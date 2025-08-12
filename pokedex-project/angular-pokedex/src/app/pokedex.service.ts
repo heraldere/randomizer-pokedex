@@ -4,6 +4,9 @@ import { ElementRef, Injectable, ViewChild } from '@angular/core';
 import { Observable, Subject, ReplaySubject } from 'rxjs';
 // import SampleJson from '../assets/data/main_collection.json';
 import { Pokemon, learned_move, tm_move, PokeType } from './Pokemon';
+import { PokedexLoader } from './PokedexLoader';
+import { PokedexContext } from './PokedexContext';
+import { Trainer } from './Trainer';
 // import * as gen7data from '../assets/data/gen7vantest.json';
 // import * as gen6data from '../assets/data/gen6vantest.json';
 // import * as gen5data from '../assets/data/gen5vantest.json';
@@ -26,7 +29,6 @@ export class PokedexService {
   public individualChanges = new Subject<Pokemon>();
   public monSelection = new ReplaySubject<string>(1);
   public filterChanges = new ReplaySubject<Pokemon[]>(1);
-  private v = 3;
   loadedFile: string = '';
   isFullyRevealed = false;
   allBSTRevealed = false;
@@ -42,6 +44,10 @@ export class PokedexService {
   starters: string[] = [];
   defaultPkdxName = './assets/data/Default.pkdx';
   sampleRandomPkdxName = './assets/data/Random.pkdx';
+  dexLoader = new PokedexLoader();
+
+  trainers: Trainer[] = [];
+  trainersByPokemonName = new Map<string, Trainer[]>();
 
   constructor() {
 
@@ -49,9 +55,46 @@ export class PokedexService {
     (window as any).dex = this;
   }
 
+  public async loadNewDex(inputFile: File | string) {
+    // this.loading.next(true)
+    // res = await this.dexLoader.parseDex(inputFile)
+    // if(res) {
+      // this.restoreFromContext(res)
+      // this.validDexUploaded = true;
+    // } else {
+    //   alert("Failed To Read Pokedex")
+    // }
+    // this.loading.next(false);
+  }
+
+  private getContext(): PokedexContext {
+    let ctx = {
+      pokedex: this.pokedex,
+      isFullyRevealed: this.isFullyRevealed,
+      allBSTRevealed: this.allBSTRevealed,
+      allTypesRevealed: this.allTypesRevealed,
+      allAbilitiesRevealed: this.allAbilitiesRevealed,
+      allEvolutionsRevealed: this.allEvolutionsRevealed,
+      allMovesRevealed: this.allMovesRevealed,
+      revealedTMs: this.revealedTMs,
+      tmIds: this.tmIds,
+      hmIds: this.hmIds,
+      tmMoves: this.tmMoves,
+      hmMoves: this.hmMoves,
+      starters: this.starters,
+      trainers: this.trainers,
+      version: PokedexContext.SCHEMA_VERSION,
+    }
+
+    return ctx;
+  }
+
+  private restoreFromContext(pkdx_ctx: PokedexContext) {
+    //TODO: Deserialize from the context, and build out dictionaries
+  }
+
   public async readSelectedFile(inputFile: File) {
     let reader = new FileReader();
-    this.v = 4;
     reader.onload = (e) => {
       this.parseFile(reader.result ? reader.result.toString() : '')
       this.loadedFile = inputFile.name;

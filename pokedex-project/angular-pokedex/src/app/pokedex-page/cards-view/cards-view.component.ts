@@ -34,6 +34,8 @@ export class CardsViewComponent implements OnInit {
   //Kinda cheeky, but the anchor element's click event will occur after the button's so the download begins immediately after we set the href
   // Is this a race? beats me :)
   save() {
+
+    //TODO: Move this to the PokedexLoader (through the pokedex.service)
     let dexString = JSON.stringify(
       {
         pokedex: this.dex.pokedex,
