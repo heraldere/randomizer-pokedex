@@ -40,7 +40,8 @@ export class HomeComponent implements OnInit {
 
     if (file) {
       this.validFileUploaded=false;
-      this.dex.readSelectedFile(file);
+      // this.dex.readSelectedFile(file);
+      this.dex.loadNewDex(file);
       this.router.navigate(['/', 'pokedex']);
     }
   }

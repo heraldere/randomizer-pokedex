@@ -26,7 +26,9 @@ export class CardsViewComponent implements OnInit {
     const file:File|null = files && files[0];
 
     if (file) {
-      this.dex.readSelectedFile(file);
+      // this.dex.readSelectedFile(file);
+      //TODO: Toggle this comment:
+      this.dex.loadNewDex(file);
     }
 
   }
@@ -36,6 +38,8 @@ export class CardsViewComponent implements OnInit {
   save() {
 
     //TODO: Move this to the PokedexLoader (through the pokedex.service)
+    let dexCtx = this.dex.getContext();
+    // let dexString = JSON.stringify(dexCtx);
     let dexString = JSON.stringify(
       {
         pokedex: this.dex.pokedex,
