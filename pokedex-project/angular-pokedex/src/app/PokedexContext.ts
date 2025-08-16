@@ -25,8 +25,18 @@ export class PokedexContext {
     let dex_obj = JSON.parse(dex_string);
 
     //TODO: Parse each Pokemon/Trainer/etc. from the dex_obj
-    let parsedPokedex = dex_obj.pokedex.map((ob: any) => Pokemon.loadFromJson(ob))
-    let parsedTrainers = dex_obj.trainers.map((ob: any) => Trainer.loadFromJson(ob))
+    let parsedPokedex = dex_obj.pokedex.map((ob: any) =>
+      Pokemon.loadFromJson(ob)
+    );
+    let parsedTrainers: Trainer[] = [];
+    if(dex_obj.trainers) {
+      parsedTrainers = dex_obj.trainers.map((ob: any) =>
+        Trainer.loadFromJson(ob)
+      );
+    }
+    if(!dex_obj.version) {
+      alert("Old .pkdx file detected.\nSome spoiling features may not work correctly")
+    }
     return {
       pokedex: parsedPokedex,
       isFullyRevealed: dex_obj.isFullyRevealed,
@@ -35,14 +45,14 @@ export class PokedexContext {
       allAbilitiesRevealed: dex_obj.allAbilitiesRevealed,
       allEvolutionsRevealed: dex_obj.allEvolutionsRevealed,
       allMovesRevealed: dex_obj.allMovesRevealed,
-      revealedTMs: dex_obj.revealedTMs,
+      revealedTMs: dex_obj.revealedTMs ? dex_obj.revealedTMs : dex_obj.tms,
       tmIds: dex_obj.tmIds,
       hmIds: dex_obj.hmIds,
       tmMoves: dex_obj.tmMoves,
       hmMoves: dex_obj.hmMoves,
       starters: dex_obj.starters,
       trainers: parsedTrainers,
-      version: dex_obj.version,
+      version: dex_obj.version ? dex_obj.version: 1,
     };
   }
 

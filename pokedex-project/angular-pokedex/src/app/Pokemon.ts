@@ -56,6 +56,7 @@ export interface tm_move {
 
 export class Pokemon {
 
+
   name: string;
   pokedex_num: number;
   uid: string;
@@ -224,6 +225,16 @@ export class Pokemon {
     if(dexTmMoves && dexTmMoves.length !== 0) {
       for(let [idx, tm] of this.tms.entries()) {
         this.tm_moves[idx] = dexTmMoves[tm];
+      }
+    }
+  }
+
+  public setTMMovesFromDefault(defaultMon: Pokemon, tm_moves_by_index?: string[]) {
+    this.tms = defaultMon.tms;
+    this.tm_moves = defaultMon.tm_moves;
+    if(tm_moves_by_index && tm_moves_by_index.length > 0) {
+      for(let [idx, tm] of this.tms.entries()) {
+        this.tm_moves[idx] = tm_moves_by_index[tm];
       }
     }
   }

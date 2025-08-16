@@ -23,6 +23,6 @@ export class Trainer {
 
   
   static loadFromJson(ob: any) {
-    throw new Error('Method not implemented.');
+    // throw new Error('Method not implemented.');
   }
 }

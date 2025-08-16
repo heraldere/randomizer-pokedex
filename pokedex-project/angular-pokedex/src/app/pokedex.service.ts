@@ -7,6 +7,7 @@ import { Pokemon, learned_move, tm_move, PokeType } from './Pokemon';
 import { PokedexLoader } from './PokedexLoader';
 import { PokedexContext } from './PokedexContext';
 import { Trainer } from './Trainer';
+import { timeout } from 'rxjs/operators';
 // import * as gen7data from '../assets/data/gen7vantest.json';
 // import * as gen6data from '../assets/data/gen6vantest.json';
 // import * as gen5data from '../assets/data/gen5vantest.json';
@@ -45,7 +46,7 @@ export class PokedexService {
   public individualChanges = new Subject<Pokemon>();
   public monSelection = new ReplaySubject<string>(1);
   public filterChanges = new ReplaySubject<Pokemon[]>(1);
-  public loadingStatus = new Subject<boolean>();
+  public loadingStatus = new ReplaySubject<boolean>();
 
   static readonly defaultPkdxName = './assets/data/Default.pkdx';
   static readonly sampleRandomPkdxName = './assets/data/Random.pkdx';
@@ -56,7 +57,7 @@ export class PokedexService {
   }
 
   public async loadDefaultData() {
-    if(this.dexLoader.lastFileRead !== PokedexService.defaultPkdxName){
+    if (this.dexLoader.lastFileRead !== PokedexService.defaultPkdxName) {
       await this.loadNewDex(PokedexService.defaultPkdxName);
     }
   }
@@ -67,12 +68,15 @@ export class PokedexService {
 
   public async loadNewDex(inputFile: File | string) {
     this.loadingStatus.next(true);
-    let res = await this.dexLoader.parseDex(inputFile);
-    if (res) {
+
+    try {
+      let res = await this.dexLoader.parseDex(inputFile);
       this.restoreFromContext(res);
-    } else {
-      alert('Failed To Read Pokedex');
+    } catch (e) {
+      console.error('Problem Loading Dex:', e);
+      alert('Problem Loading Dex');
     }
+
     this.loadingStatus.next(false);
   }
 
@@ -100,28 +104,62 @@ export class PokedexService {
 
   private restoreFromContext(pkdx_ctx: PokedexContext) {
     //TODO: Deserialize from the context, and build out dictionaries
-    // Maybe throw if not all the files are present.
+    // Maybe throw if not all the fields are present.
+    this.pokedex = pkdx_ctx.pokedex;
+    this.isFullyRevealed = pkdx_ctx.isFullyRevealed;
+    this.allBSTRevealed = pkdx_ctx.allBSTRevealed;
+    this.allTypesRevealed = pkdx_ctx.allTypesRevealed;
+    this.allAbilitiesRevealed = pkdx_ctx.allAbilitiesRevealed;
+    this.allEvolutionsRevealed = pkdx_ctx.allEvolutionsRevealed;
+    this.allMovesRevealed = pkdx_ctx.allMovesRevealed;
+    this.revealedTMs = pkdx_ctx.revealedTMs;
+    this.tmIds = pkdx_ctx.tmIds;
+    this.hmIds = pkdx_ctx.hmIds;
+    this.tmMoves = pkdx_ctx.tmMoves;
+    this.hmMoves = pkdx_ctx.hmMoves;
+    this.starters = pkdx_ctx.starters;
+    this.trainers = pkdx_ctx.trainers;
 
     for (let mon of pkdx_ctx.pokedex) {
       this.pokedexByName.set(mon.name, mon);
-      this.trainersByPokemonName.set(mon.name, this.trainers.filter(t => t.contains(mon.name)))
+      this.trainersByPokemonName.set(
+        mon.name,
+        this.trainers.filter((t) => t.contains(mon.name))
+      );
     }
+
     
+    this.dexChanges.next();
     if (this.pokedex.length > 0) {
       this.selectPokemon(this.pokedex[0].name);
     }
-    
+
     this.validDexUploaded = true;
   }
 
   async initializeData() {
-    const cached = this.dexLoader.attemptLoadCachedDex();
-    if (cached) {
+    this.loadingStatus.next(true);
+    // Simulate Loading Delay
+    // await new Promise(resolve => setTimeout(resolve, 1000));
+    const cached = await this.dexLoader.attemptLoadCachedDex();
+    if (cached && cached.pokedex.length > 0) {
       this.restoreFromContext(cached);
-      return
+      this.loadingStatus.next(false);
+      return;
     }
+    try {
+      await this.loadDefaultData();
+    } catch (err) {
+      console.error('Failed to load default dex:', err);
+    }
+    this.loadingStatus.next(false);
+  }
 
-    await this.loadNewDex(PokedexService.defaultPkdxName);
+  cacheDex() {
+    console.log('Caching')
+    let ctx = this.getContext();
+    this.dexLoader.cacheDex(ctx);
+    //TODO: Cache any Settings object that gets created
   }
 
   // This may be useful when integrating all the views w/ this service

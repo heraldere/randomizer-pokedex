@@ -28,9 +28,9 @@ export class HomeComponent implements OnInit {
 
   ngOnInit(): void {
     
-    if(!this.dex.validDexUploaded) {
-      this.dex.loadDefaultData();
-    }
+    // if(!this.dex.validDexUploaded) {
+    //   this.dex.loadDefaultData();
+    // }
   }
 
   onFileSelected(e: Event) {
