@@ -60,7 +60,7 @@ export class PokedexLoader {
     let trainerStrings: string[] = [];
     let defaultDataContext: PokedexContext | undefined;
 
-    for (const block of blocks) {
+    for (let block of blocks) {
       const lines = block.trim().split('\r\n');
       const firstLine = lines[0];
       const label = firstLine.startsWith('-')
@@ -86,9 +86,15 @@ export class PokedexLoader {
         case 'Random Starters':
           starterStrings = lines.slice(1);
           break;
+        case 'Trainers Pokemon':
+          block = block.split(firstLine)[1];
+          trainerStrings.push(block.trim());
+          break;
         default: //All other Pokemon Movesets appear as their own independent blocks.
           if (firstLine.match(/\d{3} .* ->/) && !firstLine.startsWith('Set')) {
             moveStrings.push(block);
+          } else if (firstLine.trim().match(/^#\d+ \(/)) {
+            trainerStrings.push(block)
           }
           break;
       }
@@ -285,7 +291,17 @@ export class PokedexLoader {
   }
 
   private parseTrainers(ctx: PokedexContext, trainerStrings: string[], defaultData: PokedexContext | undefined) {
-    // TODO:
+    if(trainerStrings.length == 1) {
+      let lines = trainerStrings[0].split('\r\n')
+      for(let trainerString of trainerStrings[0].split('\r\n')) {
+        ctx.trainers.push(Trainer.fromString(trainerString));
+      }
+      console.log(lines[0])
+    } else if(trainerStrings.length > 1) {
+      for(let trainerString of trainerStrings) {
+        ctx.trainers.push(Trainer.fromString(trainerString))
+      }
+    }
   }
 
   private parseStarters(ctx: PokedexContext, starterStrings: string[]) {
