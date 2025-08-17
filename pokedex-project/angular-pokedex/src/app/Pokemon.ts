@@ -94,6 +94,8 @@ export class Pokemon {
   hms: number[];
   hm_moves: string[];
 
+  locations: string[] = [];
+
   type_revealed: boolean;
   stats_revealed: boolean;
   abilities_revealed: boolean;
@@ -101,6 +103,7 @@ export class Pokemon {
   prev_evos_revealed: number[];
   learned_moves_revealed_idx: number;
   tm_indexes_learned: number[];
+  locations_revealed: boolean;
   fully_revealed: boolean;
 
   notes: string;
@@ -110,6 +113,7 @@ export class Pokemon {
   constructor() {
     // a new Pokemon should be fully defined, but all values should be
     // empty/zeroed defaults
+    // TODO: Clear out constructor and just define values by default
 
     this.name = "";
     this.pokedex_num = 0;
@@ -150,6 +154,7 @@ export class Pokemon {
     this.prev_evos_revealed = [];
     this.learned_moves_revealed_idx = 0;
     this.tm_indexes_learned = [];
+    this.locations_revealed = false
 
     this.fully_revealed = false;
 
@@ -209,6 +214,29 @@ export class Pokemon {
     this.forms = data.forms as string[];
   }
 
+  static copyStatsFromDefault(defaultMon: Pokemon): Pokemon {
+    let cpy = new Pokemon();
+    cpy.name = defaultMon.name;
+    cpy.pokedex_num = defaultMon.pokedex_num;
+    cpy.uid = defaultMon.uid;
+    cpy.hp = defaultMon.hp;
+    cpy.attack = defaultMon.attack;
+    cpy.defense = defaultMon.defense;
+    cpy.sp_attack = defaultMon.sp_attack;
+    cpy.sp_defense = defaultMon.sp_defense;
+    cpy.speed = defaultMon.speed;
+    cpy.special = defaultMon.special;
+    cpy.stat_total = defaultMon.stat_total;
+    cpy.type1 = defaultMon.type1;
+    cpy.type2 = defaultMon.type2;
+    cpy.ability1 = defaultMon.ability1;
+    cpy.ability2 = defaultMon.ability2;
+    cpy.hiddenAbility = defaultMon.hiddenAbility;
+    cpy.form_num = defaultMon.form_num;
+    cpy.forms = defaultMon.forms as string[];
+    return cpy;
+  }
+
   public setEvolutionsFromObject(data: any, currentDexDict: Map<string, Pokemon>) {
     this.next_evos = (data.next_evos as string[]).filter(evo => currentDexDict.has(evo));
     this.prev_evos = (data.prev_evos as string[]).filter(evo => currentDexDict.has(evo));
@@ -239,8 +267,9 @@ export class Pokemon {
     }
   }
 
+  //TODO: Make better use of Null Coalescing
   static loadFromJson(json_data: any): Pokemon {
-    // Verify that this object contains all necessary fields
+    // What fields do we ACTUALLY need here?
     if (
       json_data.name === undefined ||
       json_data.pokedex_num === undefined ||
@@ -314,6 +343,8 @@ export class Pokemon {
     mon.tm_moves = json_data.tm_moves;
     mon.hms = json_data.hms ? json_data.hms : [];
     mon.hm_moves = json_data.hm_moves ? json_data.hm_moves : [];
+
+    mon.locations = json_data?.locations ?? [];
     
     mon.type_revealed = json_data.type_revealed;
     mon.stats_revealed = json_data.stats_revealed;
@@ -323,6 +354,7 @@ export class Pokemon {
     mon.prev_evos_revealed = json_data.prev_evos_revealed;
     mon.learned_moves_revealed_idx = json_data.learned_moves_revealed_idx;
     mon.tm_indexes_learned = json_data.tm_indexes_learned;
+    mon.locations_revealed = json_data?.locations_revealed ?? false;
     
     mon.fully_revealed = json_data.fully_revealed;
     

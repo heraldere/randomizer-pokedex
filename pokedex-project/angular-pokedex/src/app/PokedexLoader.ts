@@ -47,7 +47,8 @@ export class PokedexLoader {
 
   async parseLog(fileContent: string): Promise<PokedexContext> {
     let ctx = new PokedexContext();
-    //TODO: unimplemented method
+
+    //TODO: Unify Line Separators
     const blocks = fileContent.split('\r\n\r\n');
 
     let pokeStrings: string[] = [];
@@ -90,11 +91,17 @@ export class PokedexLoader {
           block = block.split(firstLine)[1];
           trainerStrings.push(block.trim());
           break;
+        case 'Wild Pokemon':
+          block = block.split(firstLine)[1];
+          locationStrings.push(block.trim());
+          break;
         default: //All other Pokemon Movesets appear as their own independent blocks.
           if (firstLine.match(/\d{3} .* ->/) && !firstLine.startsWith('Set')) {
             moveStrings.push(block);
           } else if (firstLine.trim().match(/^#\d+ \(/)) {
-            trainerStrings.push(block)
+            trainerStrings.push(block);
+          } else if (firstLine.startsWith('Set')) {
+            locationStrings.push(block);
           }
           break;
       }
@@ -132,15 +139,25 @@ export class PokedexLoader {
 
     this.parseEvolutions(ctx, evoStrings, pokedexByName, defaultDataContext);
     this.parseLevelUpMoves(ctx, moveStrings, pokedexByName, defaultDataContext);
-    this.parseMoveMachines(ctx, tmCompStrings, tmStrings, pokedexByName, defaultDataContext);
-    this.parseLocations(ctx, locationStrings, pokedexByName, defaultDataContext);
-    this.parseTrainers(ctx, trainerStrings, defaultDataContext);
-    this.parseStarters(ctx, starterStrings)
+    this.parseMoveMachines(
+      ctx,
+      tmCompStrings,
+      tmStrings,
+      pokedexByName,
+      defaultDataContext
+    );
+    this.parseLocations(ctx, locationStrings, pokedexByName);
+    this.parseTrainers(ctx, trainerStrings);
+    this.parseStarters(ctx, starterStrings);
 
     return ctx;
   }
 
-  private parsePokemon(ctx: PokedexContext, pokeStrings: string[], defaultData: PokedexContext | undefined) {
+  private parsePokemon(
+    ctx: PokedexContext,
+    pokeStrings: string[],
+    defaultData: PokedexContext | undefined
+  ) {
     let labels = '';
     if (pokeStrings.length > 0) {
       labels = pokeStrings[0];
@@ -169,11 +186,18 @@ export class PokedexLoader {
       ctx.pokedex.push(new_mon);
     }
     if (pokeStrings.length == 0 && defaultData) {
-      ctx.pokedex = defaultData.pokedex;
+      ctx.pokedex = defaultData.pokedex.map((mon) => {
+        return Pokemon.copyStatsFromDefault(mon);
+      });
     }
   }
 
-  private parseEvolutions(ctx: PokedexContext, evoStrings: string[], lookupTable: Map<string, Pokemon>, defaultData: PokedexContext | undefined) {
+  private parseEvolutions(
+    ctx: PokedexContext,
+    evoStrings: string[],
+    lookupTable: Map<string, Pokemon>,
+    defaultData: PokedexContext | undefined
+  ) {
     for (let evString of evoStrings) {
       const names = evString.split(/->|,| and /).map((s) => s.trim());
       for (let name of names) {
@@ -184,8 +208,8 @@ export class PokedexLoader {
     //If the log had no data, get Default Evo Data
     if (evoStrings.length == 0 && defaultData) {
       for (let defaultMon of defaultData.pokedex) {
-        let mon = lookupTable.get(defaultMon.name)
-        if(mon) {
+        let mon = lookupTable.get(defaultMon.name);
+        if (mon) {
           mon.next_evos = defaultMon.next_evos;
           mon.prev_evos = defaultMon.prev_evos;
         }
@@ -193,8 +217,13 @@ export class PokedexLoader {
     }
   }
 
-  private parseLevelUpMoves(ctx: PokedexContext, moveStrings: string[], lookupTable: Map<string, Pokemon>, defaultData: PokedexContext | undefined) {
-        //Level Up Moves
+  private parseLevelUpMoves(
+    ctx: PokedexContext,
+    moveStrings: string[],
+    lookupTable: Map<string, Pokemon>,
+    defaultData: PokedexContext | undefined
+  ) {
+    //Level Up Moves
     for (let moveString of moveStrings) {
       let mon_name = moveString.substring(4, moveString.indexOf('->') - 1);
       let mon = lookupTable.get(mon_name);
@@ -212,8 +241,8 @@ export class PokedexLoader {
     }
     if (moveStrings.length == 0 && defaultData) {
       for (let defaultMon of defaultData.pokedex) {
-        let mon = lookupTable.get(defaultMon.name)
-        if(mon) {
+        let mon = lookupTable.get(defaultMon.name);
+        if (mon) {
           mon.learn_levels = defaultMon.learn_levels;
           mon.learned_moves = defaultMon.learned_moves;
         }
@@ -221,7 +250,13 @@ export class PokedexLoader {
     }
   }
 
-  private parseMoveMachines(ctx: PokedexContext, tmCompStrings: string[], tmStrings: string[], lookupTable: Map<string, Pokemon>, defaultData: PokedexContext | undefined) {
+  private parseMoveMachines(
+    ctx: PokedexContext,
+    tmCompStrings: string[],
+    tmStrings: string[],
+    lookupTable: Map<string, Pokemon>,
+    defaultData: PokedexContext | undefined
+  ) {
     //TMS and Compatibility
     let dexHmTokens: string[] = [];
     for (let tmCompString of tmCompStrings) {
@@ -257,15 +292,15 @@ export class PokedexLoader {
           )
         );
         for (let defaultMon of defaultData.pokedex) {
-          let mon = lookupTable.get(defaultMon.name)
-          if(mon) {
+          let mon = lookupTable.get(defaultMon.name);
+          if (mon) {
             mon.setTMMovesFromDefault(defaultMon, tm_moves_by_index);
           }
         }
       } else {
         for (let defaultMon of defaultData.pokedex) {
-          let mon = lookupTable.get(defaultMon.name)
-          if(mon) {
+          let mon = lookupTable.get(defaultMon.name);
+          if (mon) {
             mon.setTMMovesFromDefault(defaultMon);
           }
         }
@@ -286,20 +321,57 @@ export class PokedexLoader {
     }
   }
 
-  private parseLocations(ctx: PokedexContext, locationStrings: string[], lookupTable: Map<string, Pokemon>, defaultData: PokedexContext | undefined) {
-    // TODO:
+  private parseLocations(
+    ctx: PokedexContext,
+    locationStrings: string[],
+    lookupTable: Map<string, Pokemon>
+  ) {
+    for (let locationString of locationStrings) {
+      const locationMatch = locationString.match(
+        /Set #\d+ - (.*?)(?:, Table|\s*\(rate)/
+      );
+      if (!locationMatch) {
+        //If we couldn't find a location name, there is no useful information for the player
+        continue;
+      }
+      const location = locationMatch[1].trim();
+      const lines = locationString.split('\r\n').slice(1);
+      for (let line of lines) {
+
+        let maybeSOSText = '';
+        if(line.includes('SOS:')) {
+          [maybeSOSText, line] = line.split('SOS:');
+          maybeSOSText = ` (${(maybeSOSText.trim() + ' SOS').trim()})`
+          line = line.trim();
+        }
+
+        const match = line.match(/^(.+?)\s+(Lv(?:s)?\s?\d+(?:-\d+)?)\b/);
+        if (!match) {
+          console.log("Couldn't find Pokemon: " + line);
+          continue;
+        }
+
+        const name = match[1].trim();
+        const level = match[2].trim();
+        let mon = lookupTable.get(name);
+        let stringToPush = location + ` (${level})` + maybeSOSText;
+        if (mon && !mon.locations.includes(stringToPush)) {
+          mon.locations.push(stringToPush);
+        }
+      }
+    }
   }
 
-  private parseTrainers(ctx: PokedexContext, trainerStrings: string[], defaultData: PokedexContext | undefined) {
-    if(trainerStrings.length == 1) {
-      let lines = trainerStrings[0].split('\r\n')
-      for(let trainerString of trainerStrings[0].split('\r\n')) {
+  private parseTrainers(ctx: PokedexContext, trainerStrings: string[]) {
+    if (trainerStrings.length == 1) {
+      let lines = trainerStrings[0].split('\r\n');
+      for (let trainerString of trainerStrings[0].split('\r\n')) {
         ctx.trainers.push(Trainer.fromString(trainerString));
       }
-      console.log(lines[0])
-    } else if(trainerStrings.length > 1) {
-      for(let trainerString of trainerStrings) {
-        ctx.trainers.push(Trainer.fromString(trainerString))
+      console.log(lines[0]);
+    } else if (trainerStrings.length > 1) {
+      for (let trainerString of trainerStrings) {
+        ctx.trainers.push(Trainer.fromString(trainerString));
       }
     }
   }
@@ -376,10 +448,7 @@ export class PokedexLoader {
     }
     if (evoStrings.length == 0 && defaultData) {
       for (let mon of ctx.pokedex) {
-        mon.setEvolutionsFromObject(
-          defaultData.get(mon.name),
-          pokedexByName
-        );
+        mon.setEvolutionsFromObject(defaultData.get(mon.name), pokedexByName);
       }
     }
 
@@ -404,8 +473,6 @@ export class PokedexLoader {
         mon.setMovesFromObject(defaultData.get(mon.name));
       }
     }
-
-
 
     //TMS and Compatibility
     let dexHmTokens: string[] = [];
@@ -502,7 +569,9 @@ export class PokedexLoader {
     }
   }
 
-  private async getDefaultDataForGeneration(gen: number): Promise<PokedexContext>  {
+  private async getDefaultDataForGeneration(
+    gen: number
+  ): Promise<PokedexContext> {
     const dex_path = `./assets/data/gen${gen}vanilla.pkdx`;
     return this.parseDex(dex_path);
   }
@@ -862,6 +931,4 @@ export class PokedexLoader {
   //     if (starter) this.starters.push(starter);
   //   }
   // }
-
-
 }
