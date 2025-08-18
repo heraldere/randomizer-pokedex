@@ -78,8 +78,8 @@ export class PokedexLoader {
           tmStrings = lines.slice(1);
           break;
         case 'Pokemon Movesets': // Only the first Pokemon Moveset Block meets this description (Bulbasaur)
-          if (block.indexOf('\n') >= 0)
-            moveStrings.push(block.slice(block.indexOf('\n') + 2));
+          block = block.split(firstLine)[1];
+          moveStrings.push(block.trim());
           break;
         case 'TM Compatibility':
           tmCompStrings = lines.slice(1);
