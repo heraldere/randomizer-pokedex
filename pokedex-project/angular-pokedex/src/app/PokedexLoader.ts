@@ -85,6 +85,7 @@ export class PokedexLoader {
           tmCompStrings = lines.slice(1);
           break;
         case 'Random Starters':
+        case 'Custom Starters':
           starterStrings = lines.slice(1);
           break;
         case 'Trainers Pokemon':
@@ -333,7 +334,7 @@ export class PokedexLoader {
 
         const match = line.match(/^(.+?)\s+(Lv(?:s)?\s?\d+(?:-\d+)?)\b/);
         if (!match) {
-          console.log("Couldn't find Pokemon: " + line);
+          console.warn("Couldn't find Pokemon: " + line);
           continue;
         }
 
@@ -354,7 +355,6 @@ export class PokedexLoader {
       for (let trainerString of trainerStrings[0].split('\n')) {
         ctx.trainers.push(Trainer.fromString(trainerString));
       }
-      console.log(lines[0]);
     } else if (trainerStrings.length > 1) {
       for (let trainerString of trainerStrings) {
         ctx.trainers.push(Trainer.fromString(trainerString));
@@ -364,9 +364,7 @@ export class PokedexLoader {
 
   private parseStarters(ctx: PokedexContext, starterStrings: string[]) {
     for (let starterString of starterStrings) {
-      let starter = starterString
-        .trim()
-        .substring(starterString.trim().indexOf(' ') + 1);
+      let starter = starterString.trim().split(' to ')[1]
       if (starter) ctx.starters.push(starter);
     }
   }

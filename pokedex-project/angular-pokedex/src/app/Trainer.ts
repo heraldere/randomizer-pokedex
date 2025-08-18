@@ -10,13 +10,13 @@ export class TrainerPokemon {
     this.level = level;
   }
 
-  static fromString(pokemonString: string): TrainerPokemon {
+  static fromString(tPokemonString: string): TrainerPokemon {
     // Match name, optional item, and level
-    const nameItemLevelMatch = pokemonString.match(
+    const nameItemLevelMatch = tPokemonString.match(
       /^([\p{L}\p{N}\-.: '@’♀♂]+?)(?:@(.+?))? Lv(\d+)/u
     );
     if (!nameItemLevelMatch) {
-      throw new Error('Invalid Pokémon line: ' + pokemonString);
+      throw new Error('Invalid Pokémon line: ' + tPokemonString);
     }
 
     const name = nameItemLevelMatch[1].trim();
@@ -24,13 +24,13 @@ export class TrainerPokemon {
     const level = parseInt(nameItemLevelMatch[3]);
 
     // Match ability (optional)
-    const abilityMatch = pokemonString.match(/Ability:\s*(.*?)\s*-/);
+    const abilityMatch = tPokemonString.match(/Ability:\s*(.*?)\s*-/);
     const ability = abilityMatch?.[1]?.trim() || undefined;
 
     // Match moves (optional)
-    const lastDashIndex = pokemonString.lastIndexOf(' - ');
+    const lastDashIndex = tPokemonString.lastIndexOf(' - ');
     const movesSegment =
-      lastDashIndex !== -1 ? pokemonString.slice(lastDashIndex + 3) : '';
+      lastDashIndex !== -1 ? tPokemonString.slice(lastDashIndex + 3) : '';
     const moves = movesSegment
       .split(',')
       .map((m) => m.trim())
@@ -65,7 +65,7 @@ export class Trainer {
   constructor() {}
 
   contains(mon_name: string): boolean {
-    return this.Pokes.some((poke) => (poke.name = mon_name));
+    return this.Pokes.some((poke) => (poke.name === mon_name));
   }
 
   static fromString(trainerString: string): Trainer {
@@ -86,14 +86,14 @@ export class Trainer {
       const newName = trainerMatch?.[2]?.trim() || undefined;
 
       // Parse Pokémon lines
-      const pokemonLines = lines.slice(1);
-      const pokemonList = pokemonLines.map((line) => {
+      const tPokemonLines = lines.slice(1);
+      const tPokemonList = tPokemonLines.map((line) => {
         return TrainerPokemon.fromString(line);
       });
 
       res.name = newName ? newName : oldName;
       res.oldName = oldName;
-      res.Pokes = pokemonList;
+      res.Pokes = tPokemonList;
     } else {
       //Line string (does not include ability or moveset)
       const trainerMatch = trainerString.match(/\(([^()=]+)(?: => ([^)]+))?\)/);
@@ -105,20 +105,20 @@ export class Trainer {
 
       // Extract Pokémon segment
       const splitIndex = trainerString.indexOf(' - ');
-      const pokemonSegment =
+      const tPokemonSegment =
         splitIndex !== -1 ? trainerString.slice(splitIndex + 3) : '';
-      const pokemonStrings = pokemonSegment
+      const tPokemonStrings = tPokemonSegment
         .split(',')
         .map((p) => p.trim())
         .filter((p) => p.length > 0);
 
-      const pokemonList = pokemonStrings.map((str) => {
+      const tPokemonList = tPokemonStrings.map((str) => {
         return TrainerPokemon.fromString(str);
       });
 
       res.name = newName ? newName : oldName;
       res.oldName = oldName;
-      res.Pokes = pokemonList;
+      res.Pokes = tPokemonList;
     }
     return res;
   }
