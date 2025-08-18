@@ -1,20 +1,10 @@
 import { JsonPipe } from '@angular/common';
 import { ElementRef, Injectable, ViewChild } from '@angular/core';
-// import { readFile, readFileSync } from 'fs';
 import { Observable, Subject, ReplaySubject } from 'rxjs';
-// import SampleJson from '../assets/data/main_collection.json';
 import { Pokemon, learned_move, tm_move, PokeType } from './Pokemon';
 import { PokedexLoader } from './PokedexLoader';
 import { PokedexContext } from './PokedexContext';
 import { Trainer } from './Trainer';
-import { timeout } from 'rxjs/operators';
-// import * as gen7data from '../assets/data/gen7vantest.json';
-// import * as gen6data from '../assets/data/gen6vantest.json';
-// import * as gen5data from '../assets/data/gen5vantest.json';
-// import * as gen4data from '../assets/data/gen4vantest.json';
-// import * as gen3data from '../assets/data/gen3vantest.json';
-// import * as gen2data from '../assets/data/gen2vantest.json';
-// import * as gen1data from '../assets/data/gen1vantest.json';
 
 @Injectable({
   providedIn: 'root',
@@ -103,8 +93,7 @@ export class PokedexService {
   }
 
   private restoreFromContext(pkdx_ctx: PokedexContext) {
-    //TODO: Deserialize from the context, and build out dictionaries
-    // Maybe throw if not all the fields are present.
+    //TODO: Maybe throw if not all the fields are present.
     this.pokedex = pkdx_ctx.pokedex;
     this.isFullyRevealed = pkdx_ctx.isFullyRevealed;
     this.allBSTRevealed = pkdx_ctx.allBSTRevealed;
@@ -127,7 +116,6 @@ export class PokedexService {
         this.trainers.filter((t) => t.contains(mon.name))
       );
     }
-
     
     this.dexChanges.next();
     if (this.pokedex.length > 0) {
@@ -139,8 +127,6 @@ export class PokedexService {
 
   async initializeData() {
     this.loadingStatus.next(true);
-    // Simulate Loading Delay
-    // await new Promise(resolve => setTimeout(resolve, 1000));
     const cached = await this.dexLoader.attemptLoadCachedDex();
     if (cached && cached.pokedex.length > 0) {
       this.restoreFromContext(cached);
@@ -160,15 +146,6 @@ export class PokedexService {
     let ctx = this.getContext();
     this.dexLoader.cacheDex(ctx);
     //TODO: Cache any Settings object that gets created
-  }
-
-  // This may be useful when integrating all the views w/ this service
-  private updatePokemonList(newList: Pokemon[]) {
-    if (newList.length) {
-      this.pokedex = newList;
-      //Inform our subscribers that the dex has changed
-      this.dexChanges.next();
-    }
   }
 
   public revealAll() {

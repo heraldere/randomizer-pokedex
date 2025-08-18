@@ -57,164 +57,96 @@ export interface tm_move {
 export class Pokemon {
 
 
-  name: string;
-  pokedex_num: number;
-  uid: string;
+  name: string = "";
+  pokedex_num: number = 0;
+  uid: string = "000";
   
-  stat_total: number;
-  hp: number;
-  attack: number;
-  defense: number;
-  sp_attack: number;
-  sp_defense: number;
-  speed: number;
+  stat_total: number = 0;
+  hp: number = 0;
+  attack: number = 0;
+  defense: number = 0;
+  sp_attack: number = 0;
+  sp_defense: number = 0;
+  speed: number = 0;
   special?: number;
   
-  type1: PokeType;
-  type2: PokeType;
+  type1: PokeType = "unknown" as PokeType;;
+  type2: PokeType = "none" as PokeType;;
   
   ability1?: string;
   ability2?: string;
   hiddenAbility?: string;
   
-  next_evos: string[];
-  prev_evos: string[];
-  is_base: boolean;
-  is_final: boolean;
-  evo_family: string[];
+  next_evos: string[] = [];
+  prev_evos: string[] = [];
+  is_base: boolean = false;
+  is_final: boolean = false;
+  evo_family: string[] = [];
   
-  forms: string[];
-  form_num: number;
+  forms: string[] = [];
+  form_num: number = 0;
 
-  learn_levels: number[];
-  learned_moves: string[];
+  learn_levels: number[] = [];
+  learned_moves: string[] = [];
 
-  tms: number[];
-  tm_moves: string[];
-  hms: number[];
-  hm_moves: string[];
+  tms: number[] = [];
+  tm_moves: string[] = [];
+  hms: number[] = [];
+  hm_moves: string[] = [];
 
   locations: string[] = [];
 
-  type_revealed: boolean;
-  stats_revealed: boolean;
-  abilities_revealed: boolean;
-  next_evos_revealed: number[];
-  prev_evos_revealed: number[];
-  learned_moves_revealed_idx: number;
-  tm_indexes_learned: number[];
-  locations_revealed: boolean;
-  fully_revealed: boolean;
+  type_revealed: boolean = false;
+  stats_revealed: boolean = false;
+  abilities_revealed: boolean = false;
+  next_evos_revealed: number[] = [];
+  prev_evos_revealed: number[] = [];
+  learned_moves_revealed_idx: number = 0;
+  tm_indexes_learned: number[] = [];
+  locations_revealed: boolean = false;
+  fully_revealed: boolean = false;
 
-  notes: string;
-  bst_revealed: boolean;
+  notes: string = "";
+  bst_revealed: boolean = false;
   
   // We may be able to make this private and only access Pokemon w/ factories
-  constructor() {
-    // a new Pokemon should be fully defined, but all values should be
-    // empty/zeroed defaults
-    // TODO: Clear out constructor and just define values by default
-
-    this.name = "";
-    this.pokedex_num = 0;
-    this.uid = "000";
-    this.hp = 0;
-    this.attack = 0;
-    this.defense = 0;
-    this.sp_attack = 0;
-    this.sp_defense = 0;
-    this.speed = 0;
-    this.stat_total = 0;
-
-    this.type1 = "unknown" as PokeType;
-    this.type2 = "none" as PokeType;
-
-    this.next_evos = [];
-    this.prev_evos = [];
-    this.is_base = true;
-    this.is_final = true;
-    this.evo_family = [];
-    this.forms = [];
-    this.form_num = 0;
-
-    this.learned_moves = [];
-    this.learn_levels = [];
-
-    this.tms = [];
-    this.tm_moves = [];
-
-    this.hms = [];
-    this.hm_moves = [];
-
-    this.type_revealed = false;
-    this.stats_revealed = false;
-    this.bst_revealed = false;
-    this.abilities_revealed = false;
-    this.next_evos_revealed = [];
-    this.prev_evos_revealed = [];
-    this.learned_moves_revealed_idx = 0;
-    this.tm_indexes_learned = [];
-    this.locations_revealed = false
-
-    this.fully_revealed = false;
-
-    this.notes = "";
+  private constructor() {
   }
 
-  //TODO: Refactor into a factory (for posterity)
-  setBasicStats(statString: string, labelString: string) {
+  static createPokemonFromTraits(statString: string, labelString: string): Pokemon {
+    let res = new Pokemon();
     const tokens = statString.split('|').map(s => s.trim());
     const labels = labelString.split('|').map(s => s.trim());
-
-    this.name = tokens[labels.indexOf('NAME')];
-    this.pokedex_num = parseInt(tokens[labels.indexOf('NUM')]);
-    this.uid = String(this.pokedex_num).padStart(3, '0');
-    this.hp = parseInt(tokens[labels.indexOf('HP')]);
-    this.attack = parseInt(tokens[labels.indexOf('ATK')]);
-    this.defense = parseInt(tokens[labels.indexOf('DEF')]);
-    this.sp_attack = parseInt(tokens[labels.indexOf('SATK')]);
-    this.sp_defense = parseInt(tokens[labels.indexOf('SDEF')]);
-    this.speed = labels.indexOf('SPEC') >= 0 ? parseInt(tokens[labels.indexOf('SPE')]) : parseInt(tokens[labels.indexOf('SPD')]);
-    this.special = labels.indexOf('SPEC') >= 0 ? parseInt(tokens[labels.indexOf('SPEC')]) : undefined;
-    this.stat_total = this.bst();
-
+    
+    res.name = tokens[labels.indexOf('NAME')];
+    res.pokedex_num = parseInt(tokens[labels.indexOf('NUM')]);
+    res.uid = String(res.pokedex_num).padStart(3, '0');
+    res.hp = parseInt(tokens[labels.indexOf('HP')]);
+    res.attack = parseInt(tokens[labels.indexOf('ATK')]);
+    res.defense = parseInt(tokens[labels.indexOf('DEF')]);
+    res.sp_attack = labels.indexOf('SATK') >= 0 ? parseInt(tokens[labels.indexOf('SATK')]) : 0;
+    res.sp_defense = labels.indexOf('SDEF')>= 0 ? parseInt(tokens[labels.indexOf('SDEF')]) : 0;
+    res.speed = labels.indexOf('SPEC') >= 0 ? parseInt(tokens[labels.indexOf('SPE')]) : parseInt(tokens[labels.indexOf('SPD')]);
+    res.special = labels.indexOf('SPEC') >= 0 ? parseInt(tokens[labels.indexOf('SPEC')]) : undefined;
+    res.stat_total = res.bst();
+    
     const typeString = tokens[labels.indexOf('TYPE')];
-    this.type1 = typeString.split('/')[0].toLowerCase() as PokeType;
-    this.type2 = typeString.indexOf('/') >= 0 ? typeString.split('/')[1].toLowerCase() as PokeType : "none" as PokeType;
-
+    res.type1 = typeString.split('/')[0].toLowerCase() as PokeType;
+    res.type2 = typeString.indexOf('/') >= 0 ? typeString.split('/')[1].toLowerCase() as PokeType : "none" as PokeType;
+    
     if (labels.indexOf('ABILITY1') >= 0) {
-      this.ability1 = tokens[labels.indexOf('ABILITY1')];
+      res.ability1 = tokens[labels.indexOf('ABILITY1')];
     }
     if (labels.indexOf('ABILITY2') >= 0) {
-      this.ability2 = tokens[labels.indexOf('ABILITY2')];
+      res.ability2 = tokens[labels.indexOf('ABILITY2')];
     }
     if (labels.indexOf('ABILITY3') >= 0) {
-      this.hiddenAbility = tokens[labels.indexOf('ABILITY3')];
+      res.hiddenAbility = tokens[labels.indexOf('ABILITY3')];
     }
+    return res;
   }
 
-  public setBasicStatsFromObject(data: any) {
-    this.name = data.name;
-    this.pokedex_num = data.pokedex_num;
-    this.uid = data.uid;
-    this.hp = data.hp;
-    this.attack = data.attack;
-    this.defense = data.defense;
-    this.sp_attack = data.sp_attack;
-    this.sp_defense = data.sp_defense;
-    this.speed = data.speed;
-    this.special = data.special;
-    this.stat_total = data.stat_total;
-    this.type1 = data.type1;
-    this.type2 = data.type2;
-    this.ability1 = data.ability1;
-    this.ability2 = data.ability2;
-    this.hiddenAbility = data.hiddenAbility;
-    this.form_num = data.form_num;
-    this.forms = data.forms as string[];
-  }
-
-  static copyStatsFromDefault(defaultMon: Pokemon): Pokemon {
+  static createCloneFromTraits(defaultMon: Pokemon): Pokemon {
     let cpy = new Pokemon();
     cpy.name = defaultMon.name;
     cpy.pokedex_num = defaultMon.pokedex_num;
@@ -236,25 +168,12 @@ export class Pokemon {
     cpy.forms = defaultMon.forms as string[];
     return cpy;
   }
-
-  public setEvolutionsFromObject(data: any, currentDexDict: Map<string, Pokemon>) {
-    this.next_evos = (data.next_evos as string[]).filter(evo => currentDexDict.has(evo));
-    this.prev_evos = (data.prev_evos as string[]).filter(evo => currentDexDict.has(evo));
-  }
-
-  public setMovesFromObject(data: any) {
-    this.learned_moves = data.learned_moves as string[];
-    this.learn_levels = data.learn_levels as number[];
-  }
-
-  public setTMMovesFromObject(data: any, dexTmMoves?: string[]) {
-    this.tm_moves = data.tm_moves as string[];
-    this.tms = data.tms as number[];
-    if(dexTmMoves && dexTmMoves.length !== 0) {
-      for(let [idx, tm] of this.tms.entries()) {
-        this.tm_moves[idx] = dexTmMoves[tm];
-      }
-    }
+  
+  static loadFromJson(json_data: any): Pokemon {
+    let mon = new Pokemon();
+    //TODO: Validate json_data
+    Object.assign(mon, json_data);
+    return mon;
   }
 
   public setTMMovesFromDefault(defaultMon: Pokemon, tm_moves_by_index?: string[]) {
@@ -265,106 +184,6 @@ export class Pokemon {
         this.tm_moves[idx] = tm_moves_by_index[tm];
       }
     }
-  }
-
-  //TODO: Make better use of Null Coalescing
-  static loadFromJson(json_data: any): Pokemon {
-    // What fields do we ACTUALLY need here?
-    if (
-      json_data.name === undefined ||
-      json_data.pokedex_num === undefined ||
-      json_data.uid === undefined ||
-      json_data.hp === undefined ||
-      json_data.attack === undefined ||
-      json_data.defense === undefined ||
-      json_data.sp_attack === undefined ||
-      json_data.sp_defense === undefined ||
-      json_data.speed === undefined ||
-      json_data.stat_total === undefined ||
-      json_data.type1 === undefined ||
-      json_data.type2 === undefined ||
-      json_data.next_evos === undefined ||
-      json_data.prev_evos === undefined ||
-      json_data.is_base === undefined ||
-      json_data.is_final === undefined ||
-      json_data.evo_family === undefined ||
-      json_data.forms === undefined ||
-      json_data.form_num === undefined ||
-      json_data.learned_moves === undefined ||
-      json_data.learn_levels === undefined ||
-      json_data.tms === undefined ||
-      json_data.tm_moves === undefined ||
-      json_data.type_revealed === undefined ||
-      json_data.stats_revealed === undefined ||
-      json_data.abilities_revealed === undefined ||
-      json_data.next_evos_revealed === undefined ||
-      json_data.prev_evos_revealed === undefined ||
-      json_data.learned_moves_revealed_idx === undefined ||
-      json_data.tm_indexes_learned === undefined ||
-      json_data.fully_revealed === undefined ||
-      json_data.notes === undefined ||
-
-      json_data.bst_revealed === undefined
-      // json_data.ability1 === undefined ||
-      // json_data.ability2 === undefined
-    ) {
-      // if not, we shouldn't continue
-      throw new Error("Trouble Parsing Pokemon");
-    }
-    let mon = new Pokemon();
-    mon.name = json_data.name;
-    mon.pokedex_num = json_data.pokedex_num;
-    mon.uid = json_data.uid;
-    mon.hp = json_data.hp;
-    mon.attack = json_data.attack;
-    mon.defense = json_data.defense;
-    mon.sp_attack = json_data.sp_attack;
-    mon.sp_defense = json_data.sp_defense;
-    mon.special = json_data.special;
-    mon.speed = json_data.speed;
-    mon.stat_total = json_data.stat_total;
-
-    mon.type1 = json_data.type1;
-    mon.type2 = json_data.type2;
-    
-    // Initialize other stats
-    mon.next_evos = json_data.next_evos;
-    mon.prev_evos = json_data.prev_evos;
-    mon.is_base = json_data.is_base;
-    mon.is_final = json_data.is_final;
-    mon.evo_family = json_data.evo_family;
-    mon.forms = json_data.forms;
-    mon.form_num = json_data.form_num;
-    
-    mon.learned_moves = json_data.learned_moves;
-    mon.learn_levels = json_data.learn_levels;
-    
-    mon.tms = json_data.tms;
-    mon.tm_moves = json_data.tm_moves;
-    mon.hms = json_data.hms ? json_data.hms : [];
-    mon.hm_moves = json_data.hm_moves ? json_data.hm_moves : [];
-
-    mon.locations = json_data?.locations ?? [];
-    
-    mon.type_revealed = json_data.type_revealed;
-    mon.stats_revealed = json_data.stats_revealed;
-    mon.bst_revealed = json_data.bst_revealed;
-    mon.abilities_revealed = json_data.abilities_revealed;
-    mon.next_evos_revealed = json_data.next_evos_revealed;
-    mon.prev_evos_revealed = json_data.prev_evos_revealed;
-    mon.learned_moves_revealed_idx = json_data.learned_moves_revealed_idx;
-    mon.tm_indexes_learned = json_data.tm_indexes_learned;
-    mon.locations_revealed = json_data?.locations_revealed ?? false;
-    
-    mon.fully_revealed = json_data.fully_revealed;
-    
-    mon.notes = json_data.notes;
-
-    mon.ability1 = json_data.ability1;
-    mon.ability2 = json_data.ability2;
-    mon.hiddenAbility = json_data.hiddenAbility;
-
-    return mon;
   }
 
   addEvolution(evString: string) {

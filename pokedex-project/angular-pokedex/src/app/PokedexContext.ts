@@ -24,7 +24,6 @@ export class PokedexContext {
   static fromJSON(dex_string: string): PokedexContext {
     let dex_obj = JSON.parse(dex_string);
 
-    //TODO: Parse each Pokemon/Trainer/etc. from the dex_obj
     let parsedPokedex = dex_obj.pokedex.map((ob: any) =>
       Pokemon.loadFromJson(ob)
     );
@@ -55,32 +54,4 @@ export class PokedexContext {
       version: dex_obj.version ? dex_obj.version: 1,
     };
   }
-
-  // private parseSaveFile(save_data: string) {
-  //   try {
-  //     const save_obj = JSON.parse(save_data);
-  //     this.pokedex = save_obj.pokedex.map((mon_data: any) =>
-  //       Pokemon.loadFromJson(mon_data)
-  //     );
-  //     this.isFullyRevealed = save_obj.full;
-  //     this.allBSTRevealed = save_obj.bsts;
-  //     this.allTypesRevealed = save_obj.types;
-  //     this.allAbilitiesRevealed = save_obj.full;
-  //     this.allEvolutionsRevealed = save_obj.evolutions;
-  //     this.revealedTMs = save_obj.tms;
-  //     this.tmIds = save_obj.tmIds ?? [];
-  //     this.hmIds = save_obj.hmIds ?? [];
-  //     this.tmMoves = save_obj.tmMoves ?? [];
-  //     this.hmMoves = save_obj.hmMoves ?? [];
-  //     this.starters = save_obj.starters ?? [];
-  //     this.allMovesRevealed = save_obj.moves;
-  //     this.validDexUploaded = true;
-  //     this.dexChanges.next();
-  //     if (this.pokedex.length > 0) {
-  //       this.selectPokemon(this.pokedex[0].name);
-  //     }
-  //   } catch {
-  //     alert('Bad File Uploaded (have you checked your .pkdx?)');
-  //   }
-  // }
 }
