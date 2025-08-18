@@ -159,6 +159,7 @@ export class TableViewComponent implements OnInit, AfterViewInit{
           ];
         }
         this.refreshTable();
+        this.cdr.detectChanges();
       }
     )
     //TODO: Subscribe to individual revelation

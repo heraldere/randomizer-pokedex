@@ -32,7 +32,7 @@ export class PokedexService {
   trainers: Trainer[] = [];
   trainersByPokemonName = new Map<string, Trainer[]>();
 
-  public dexChanges = new Subject<any>();
+  public dexChanges = new ReplaySubject<void>();
   public individualChanges = new Subject<Pokemon>();
   public monSelection = new ReplaySubject<string>(1);
   public filterChanges = new ReplaySubject<Pokemon[]>(1);
