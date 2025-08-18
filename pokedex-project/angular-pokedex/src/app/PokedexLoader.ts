@@ -49,7 +49,8 @@ export class PokedexLoader {
     let ctx = new PokedexContext();
 
     //TODO: Unify Line Separators
-    const blocks = fileContent.split('\r\n\r\n');
+    fileContent = fileContent.replace(/\r\n|\r/g, '\n');
+    const blocks = fileContent.split('\n\n');
 
     let pokeStrings: string[] = [];
     let evoStrings: string[] = [];
@@ -62,7 +63,7 @@ export class PokedexLoader {
     let defaultDataContext: PokedexContext | undefined;
 
     for (let block of blocks) {
-      const lines = block.trim().split('\r\n');
+      const lines = block.trim().split('\n');
       const firstLine = lines[0];
       const label = firstLine.startsWith('-')
         ? firstLine.split('--')[1]
@@ -78,8 +79,8 @@ export class PokedexLoader {
           tmStrings = lines.slice(1);
           break;
         case 'Pokemon Movesets': // Only the first Pokemon Moveset Block meets this description (Bulbasaur)
-          if (block.indexOf('\r\n') >= 0)
-            moveStrings.push(block.slice(block.indexOf('\r\n') + 2));
+          if (block.indexOf('\n') >= 0)
+            moveStrings.push(block.slice(block.indexOf('\n') + 2));
           break;
         case 'TM Compatibility':
           tmCompStrings = lines.slice(1);
@@ -228,7 +229,7 @@ export class PokedexLoader {
       let mon_name = moveString.substring(4, moveString.indexOf('->') - 1);
       let mon = lookupTable.get(mon_name);
       if (mon) {
-        for (let level_line of moveString.split('\r\n')) {
+        for (let level_line of moveString.split('\n')) {
           if (level_line.match(/Level[ \da-zA-Z:]*/)) {
             let level = level_line.split(/[ :]/)[1].trim();
             let move_name = level_line.split(':')[1].trim();
@@ -335,7 +336,7 @@ export class PokedexLoader {
         continue;
       }
       const location = locationMatch[1].trim();
-      const lines = locationString.split('\r\n').slice(1);
+      const lines = locationString.split('\n').slice(1);
       for (let line of lines) {
 
         let maybeSOSText = '';
@@ -364,8 +365,8 @@ export class PokedexLoader {
 
   private parseTrainers(ctx: PokedexContext, trainerStrings: string[]) {
     if (trainerStrings.length == 1) {
-      let lines = trainerStrings[0].split('\r\n');
-      for (let trainerString of trainerStrings[0].split('\r\n')) {
+      let lines = trainerStrings[0].split('\n');
+      for (let trainerString of trainerStrings[0].split('\n')) {
         ctx.trainers.push(Trainer.fromString(trainerString));
       }
       console.log(lines[0]);
@@ -457,7 +458,7 @@ export class PokedexLoader {
       let mon_name = moveString.substring(4, moveString.indexOf('->') - 1);
       let mon = pokedexByName.get(mon_name);
       if (mon) {
-        for (let level_line of moveString.split('\r\n')) {
+        for (let level_line of moveString.split('\n')) {
           if (level_line.match(/Level[ \da-zA-Z:]*/)) {
             let level = level_line.split(/[ :]/)[1].trim();
             let move_name = level_line.split(':')[1].trim();
@@ -681,7 +682,7 @@ export class PokedexLoader {
   //  * @returns
   //  */
   // private async parseLogFile(log: string) {
-  //   const blocks = log.split('\r\n\r\n');
+  //   const blocks = log.split('\n\n');
 
   //   let pokeStrings: string[] = [];
   //   let evoStrings: string[] = [];
@@ -692,7 +693,7 @@ export class PokedexLoader {
   //   let defaultData: Map<string, any> | undefined;
 
   //   for (const block of blocks) {
-  //     const lines = block.trim().split('\r\n');
+  //     const lines = block.trim().split('\n');
   //     const firstLine = lines[0];
   //     const label = firstLine.startsWith('-')
   //       ? firstLine.split('--')[1]
@@ -708,8 +709,8 @@ export class PokedexLoader {
   //         tmStrings = lines.slice(1);
   //         break;
   //       case 'Pokemon Movesets': // Only the first Pokemon Moveset Block meets this description (Bulbasaur)
-  //         if (block.indexOf('\r\n') >= 0)
-  //           moveStrings.push(block.slice(block.indexOf('\r\n') + 2));
+  //         if (block.indexOf('\n') >= 0)
+  //           moveStrings.push(block.slice(block.indexOf('\n') + 2));
   //         break;
   //       case 'TM Compatibility':
   //         tmCompStrings = lines.slice(1);
@@ -837,7 +838,7 @@ export class PokedexLoader {
   //     let mon_name = moveString.substring(4, moveString.indexOf('->') - 1);
   //     let mon = this.pokedexByName.get(mon_name);
   //     if (mon) {
-  //       for (let level_line of moveString.split('\r\n')) {
+  //       for (let level_line of moveString.split('\n')) {
   //         if (level_line.match(/Level[ \da-zA-Z:]*/)) {
   //           let level = level_line.split(/[ :]/)[1].trim();
   //           let move_name = level_line.split(':')[1].trim();

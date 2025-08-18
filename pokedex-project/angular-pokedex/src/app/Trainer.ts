@@ -72,9 +72,9 @@ export class Trainer {
     //TODO: 2 Cases, one multiline, one single line
     let res = new Trainer();
 
-    if (trainerString.indexOf('\r\n') >= 0) {
+    if (trainerString.indexOf('\n') >= 0) {
       //Block string (includes moveset)
-      const lines = trainerString.trim().split('\r\n');
+      const lines = trainerString.trim().split('\n');
 
       // Extract trainer names
       const trainerHeader = lines[0];
