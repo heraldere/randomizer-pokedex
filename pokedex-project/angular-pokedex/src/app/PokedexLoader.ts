@@ -1,7 +1,7 @@
 import { PokedexContext } from './PokedexContext';
 import { learned_move, Pokemon } from './Pokemon';
 import { Trainer } from './Trainer';
-import { PokedexService } from './pokedex.service';
+import { GameVersion } from './GameVersion';
 
 export class PokedexLoader {
   lastFileRead: string = '';
@@ -363,6 +363,7 @@ export class PokedexLoader {
   }
 
   private parseStarters(ctx: PokedexContext, starterStrings: string[]) {
+    starterStrings = starterStrings.slice(0, 3); // Only take the first 3 lines
     for (let starterString of starterStrings) {
       let starter = starterString.trim().split(' to ')[1]
       if (starter) ctx.starters.push(starter);

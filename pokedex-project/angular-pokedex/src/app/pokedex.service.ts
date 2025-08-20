@@ -109,6 +109,8 @@ export class PokedexService {
     this.starters = pkdx_ctx.starters;
     this.trainers = pkdx_ctx.trainers;
 
+    this.pokedexByName.clear();
+    this.trainersByPokemonName.clear();
     for (let mon of pkdx_ctx.pokedex) {
       this.pokedexByName.set(mon.name, mon);
       this.trainersByPokemonName.set(
@@ -118,6 +120,8 @@ export class PokedexService {
     }
     
     this.dexChanges.next();
+
+    //TODO: This would be better in the Individual View I think
     if (this.pokedex.length > 0) {
       this.selectPokemon(this.pokedex[0].name);
     }
