@@ -1,10 +1,12 @@
 import { PokedexContext } from './PokedexContext';
 import { learned_move, Pokemon } from './Pokemon';
 import { Trainer } from './Trainer';
-import { GameVersion } from './GameVersion';
+import { GameVersion, gameVersionMap } from './GameVersion';
 
 export class PokedexLoader {
   lastFileRead: string = '';
+  lastLoadedLogGeneration: number = 0;
+  lastLoadedLogGameVersion: string = '';
 
   constructor() {}
 
@@ -18,7 +20,7 @@ export class PokedexLoader {
         throw new Error(`Failed to fetch file: ${inputFile}`);
       }
       const content = await response.text();
-
+      this.lastFileRead = inputFile;
       ctx = PokedexContext.fromJSON(content);
     } else {
       // Local File object: read and parse
@@ -31,6 +33,7 @@ export class PokedexLoader {
       } else {
         throw new Error(`Unsupported file type: ${inputFile.name}`);
       }
+      this.lastFileRead = inputFile.name;
     }
 
     return ctx;
@@ -79,7 +82,9 @@ export class PokedexLoader {
           break;
         case 'Pokemon Movesets': // Only the first Pokemon Moveset Block meets this description (Bulbasaur)
           block = block.split(firstLine)[1];
-          moveStrings.push(block.trim());
+          if (block.trim().length > 0) {
+            moveStrings.push(block.trim());
+          }
           break;
         case 'TM Compatibility':
           tmCompStrings = lines.slice(1);
@@ -90,11 +95,15 @@ export class PokedexLoader {
           break;
         case 'Trainers Pokemon':
           block = block.split(firstLine)[1];
-          trainerStrings.push(block.trim());
+          if (block.trim().length > 0) {
+            trainerStrings.push(block.trim());
+          }
           break;
         case 'Wild Pokemon':
           block = block.split(firstLine)[1];
-          locationStrings.push(block.trim());
+          if (block.trim().length > 0) {
+            locationStrings.push(block.trim());
+          }
           break;
         default: //All other Pokemon Movesets appear as their own independent blocks.
           if (firstLine.match(/\d{3} .* ->/) && !firstLine.startsWith('Set')) {
@@ -112,10 +121,20 @@ export class PokedexLoader {
       pokeStrings.length == 0 ||
       evoStrings.length == 0 ||
       moveStrings.length == 0 ||
-      tmCompStrings.length == 0
+      tmCompStrings.length == 0 ||
+      tmStrings.length == 0 ||
+      locationStrings.length == 0 ||
+      trainerStrings.length == 0 ||
+      starterStrings.length == 0
     ) {
-      const gen = parseInt(this.getGenerationFromLog(blocks));
-      // defaultDataContext = await this.getDefaultDataForGeneration(gen);
+      const { version: gameVersion, generation: gen } =
+        this.getGameAndGenerationFromLog(blocks);
+      this.lastLoadedLogGameVersion = gameVersion;
+      this.lastLoadedLogGeneration = gen;
+      console.log(
+        `Loading default data for ${gameVersion} (Generation ${gen})`
+      );
+      defaultDataContext = await this.getDefaultDataForGameVersion(gameVersion);
     }
 
     this.parsePokemon(ctx, pokeStrings, defaultDataContext);
@@ -134,9 +153,14 @@ export class PokedexLoader {
       pokedexByName,
       defaultDataContext
     );
-    this.parseLocations(ctx, locationStrings, pokedexByName);
-    this.parseTrainers(ctx, trainerStrings);
-    this.parseStarters(ctx, starterStrings);
+    this.parseLocations(
+      ctx,
+      locationStrings,
+      pokedexByName,
+      defaultDataContext
+    );
+    this.parseTrainers(ctx, trainerStrings, defaultDataContext);
+    this.parseStarters(ctx, starterStrings, defaultDataContext);
 
     return ctx;
   }
@@ -270,29 +294,6 @@ export class PokedexLoader {
         }
       }
     }
-    if (tmCompStrings.length == 0 && defaultData) {
-      if (tmStrings.length > 0) {
-        let tm_moves_by_index = ['']; // Kinda hacky, but I want array index to equal TM number
-        tm_moves_by_index = tm_moves_by_index.concat(
-          tmStrings.map((line) =>
-            line.match(/TM\d+ (.*)/) ? line.match(/TM\d+ (.*)/)![1] : ''
-          )
-        );
-        for (let defaultMon of defaultData.pokedex) {
-          let mon = lookupTable.get(defaultMon.name);
-          if (mon) {
-            mon.setTMMovesFromDefault(defaultMon, tm_moves_by_index);
-          }
-        }
-      } else {
-        for (let defaultMon of defaultData.pokedex) {
-          let mon = lookupTable.get(defaultMon.name);
-          if (mon) {
-            mon.setTMMovesFromDefault(defaultMon);
-          }
-        }
-      }
-    }
 
     //Add TMs and HMs to the world dex
     for (let tmString of tmStrings) {
@@ -306,12 +307,54 @@ export class PokedexLoader {
       ctx.hmIds.push(hm);
       ctx.hmMoves.push(move);
     }
+
+    if (tmCompStrings.length == 0 && defaultData) {
+      if (tmStrings.length > 0) {
+        let tm_moves_by_index = ['']; // Kinda hacky, but I want array index to equal TM number
+        tm_moves_by_index = tm_moves_by_index.concat(
+          tmStrings.map((line) =>
+            line.match(/TM\d+ (.*)/) ? line.match(/TM\d+ (.*)/)![1] : ''
+          )
+        );
+        for (let defaultMon of defaultData.pokedex) {
+          let mon = lookupTable.get(defaultMon.name);
+          if (mon) {
+            mon.setTMHMMovesFromDefault(defaultMon, tm_moves_by_index);
+          }
+        }
+      } else {
+        for (let defaultMon of defaultData.pokedex) {
+          let mon = lookupTable.get(defaultMon.name);
+          if (mon) {
+            mon.setTMHMMovesFromDefault(defaultMon);
+          }
+        }
+        ctx.tmIds = defaultData.tmIds;
+        ctx.tmMoves = defaultData.tmMoves;
+      }
+
+      //Messy logic to get HMs from default data.
+      const hmMap = new Map<number, string>();
+
+      ctx.pokedex.forEach((pokemon) => {
+        for (let i = 0; i < pokemon.hms.length; i++) {
+          const id = pokemon.hms[i];
+          const move = pokemon.hm_moves[i];
+          if (!hmMap.has(id)) {
+            hmMap.set(id, move);
+          }
+        }
+      });
+      ctx.hmIds = Array.from(hmMap.keys()).sort((a, b) => a - b);
+      ctx.hmMoves = ctx.hmIds.map(id => hmMap.get(id)!);
+    }
   }
 
   private parseLocations(
     ctx: PokedexContext,
     locationStrings: string[],
-    lookupTable: Map<string, Pokemon>
+    lookupTable: Map<string, Pokemon>,
+    defaultDataContext: PokedexContext | undefined
   ) {
     for (let locationString of locationStrings) {
       const locationMatch = locationString.match(
@@ -324,11 +367,10 @@ export class PokedexLoader {
       const location = locationMatch[1].trim();
       const lines = locationString.split('\n').slice(1);
       for (let line of lines) {
-
         let maybeSOSText = '';
-        if(line.includes('SOS:')) {
+        if (line.includes('SOS:')) {
           [maybeSOSText, line] = line.split('SOS:');
-          maybeSOSText = ` (${(maybeSOSText.trim() + ' SOS').trim()})`
+          maybeSOSText = ` (${(maybeSOSText.trim() + ' SOS').trim()})`;
           line = line.trim();
         }
 
@@ -347,9 +389,21 @@ export class PokedexLoader {
         }
       }
     }
+    if (locationStrings.length == 0 && defaultDataContext) {
+      for (let defaultMon of defaultDataContext.pokedex) {
+        let mon = lookupTable.get(defaultMon.name);
+        if (mon) {
+          mon.locations = defaultMon.locations;
+        }
+      }
+    }
   }
 
-  private parseTrainers(ctx: PokedexContext, trainerStrings: string[]) {
+  private parseTrainers(
+    ctx: PokedexContext,
+    trainerStrings: string[],
+    defaultDataContext: PokedexContext | undefined
+  ) {
     if (trainerStrings.length == 1) {
       let lines = trainerStrings[0].split('\n');
       for (let trainerString of trainerStrings[0].split('\n')) {
@@ -359,78 +413,69 @@ export class PokedexLoader {
       for (let trainerString of trainerStrings) {
         ctx.trainers.push(Trainer.fromString(trainerString));
       }
+    } else if (defaultDataContext) {
+      ctx.trainers = defaultDataContext.trainers;
     }
   }
 
-  private parseStarters(ctx: PokedexContext, starterStrings: string[]) {
+  private parseStarters(
+    ctx: PokedexContext,
+    starterStrings: string[],
+    defaultDataContext: PokedexContext | undefined
+  ) {
     starterStrings = starterStrings.slice(0, 3); // Only take the first 3 lines
     for (let starterString of starterStrings) {
-      let starter = starterString.trim().split(' to ')[1]
+      let starter = starterString.trim().split(' to ')[1];
       if (starter) ctx.starters.push(starter);
+    }
+    if (starterStrings.length == 0 && defaultDataContext) {
+      ctx.starters = defaultDataContext.starters;
     }
   }
 
-  private async getDefaultDataForGeneration(
-    gen: number
+  private async getDefaultDataForGameVersion(
+    gameVersion: string
   ): Promise<PokedexContext> {
-    const dex_path = `./assets/data/gen${gen}vanilla.pkdx`;
+    const dex_path = `./assets/data/vanillaDexes/${gameVersion}vanilla.pkdx`;
     return this.parseDex(dex_path);
   }
 
-  private getGenerationFromLog(logBlocks: string[]): string {
-    let completion = logBlocks.find((s) =>
+  private getGameAndGenerationFromLog(logBlocks: string[]): {
+    version: GameVersion;
+    generation: number;
+  } {
+    const completion = logBlocks.find((s) =>
       s.trim().startsWith('----------------')
     );
-    if (completion) {
-      let match = completion.match(/of (.*?) completed/);
-      if (match) {
-        let title = match[1].toLowerCase();
-        if (
-          (title.includes('red') && !title.includes('fire')) ||
-          (title.includes('green') && !title.includes('leaf')) ||
-          title.includes('blue') ||
-          title.includes('yellow')
-        ) {
-          return '1';
-        } else if (
-          (title.includes('gold') && !title.includes('heart')) ||
-          (title.includes('silver') && !title.includes('soul')) ||
-          title.includes('crystal')
-        ) {
-          return '2';
-        } else if (
-          (title.includes('ruby') && !title.includes('omega')) ||
-          (title.includes('sapphire') && !title.includes('alpha')) ||
-          title.includes('emerald') ||
-          title.includes('red') ||
-          title.includes('green')
-        ) {
-          return '3';
-        } else if (
-          (title.includes('diamond') && !title.includes('brilliant')) ||
-          (title.includes('pearl') && !title.includes('shining')) ||
-          title.includes('platinum') ||
-          title.includes('silver') ||
-          title.includes('gold')
-        ) {
-          return '4';
-        } else if (title.includes('black') || title.includes('white')) {
-          return '5';
-        } else if (
-          title.includes('pokemon x') ||
-          title.includes('pokemon y') ||
-          title.includes('ruby') ||
-          title.includes('sapphire')
-        ) {
-          return '6';
-        } else if (title.includes('sun') || title.includes('moon')) {
-          return '7';
-        } else {
-          return '7';
-        }
+    if (!completion) {
+      console.warn('No summary block found in log blocks');
+      return { version: GameVersion.Sun, generation: 7 }; // Default to Sun if no completion found
+    }
+
+    const match = completion.match(/of (.*?) completed/);
+    if (!match) {
+      console.warn('No match found for game version in log blocks');
+      return { version: GameVersion.Sun, generation: 7 }; // Default to Sun if no completion found
+    }
+
+    const title = match[1]
+      .toLowerCase()
+      .replace(/\s+/g, '')
+      .replace(/[^a-z0-9]/g, '');
+
+    // Sort keys by descending length to prioritize specific matches
+    const sortedKeys = Object.keys(gameVersionMap).sort(
+      (a, b) => b.length - a.length
+    );
+
+    for (const key of sortedKeys) {
+      if (title.includes(key)) {
+        return gameVersionMap[key];
       }
     }
-    return '7';
+
+    console.warn('No matching game version found for title:', title);
+    return { version: GameVersion.Sun, generation: 7 }; // Default to Sun if no match found
   }
 
   cacheDex(dexctx: PokedexContext) {

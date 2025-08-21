@@ -1,7 +1,7 @@
 import { Component, OnDestroy, OnInit } from '@angular/core';
 import { PokedexService } from './pokedex.service';
 import { Observable, of, timer } from 'rxjs';
-import { debounce, map, switchMap } from 'rxjs/operators';
+import { debounce, debounceTime, map, switchMap } from 'rxjs/operators';
 
 @Component({
   selector: 'app-root',
@@ -29,7 +29,19 @@ export class AppComponent implements OnInit, OnDestroy {
   ngOnInit(): void {
     window.addEventListener('beforeunload', () => this.dexService.cacheDex());
     this.dexService.initializeData();
-    // If you run into change order errors, just call detectChanges in the relevant component
+
+    //TODO: add debounce subscriptions to dexchanges and individualChanges to cache dex
+    // Don't forget to unsubscribe in ngOnDestroy
+    // this.dexService.dexChanges
+    //   .pipe(debounceTime(10000))
+    //   .subscribe(() => {
+    //     this.dexService.cacheDex();
+    // });
+    // this.dexService.individualChanges
+    //   .pipe(debounceTime(10000))
+    //   .subscribe((mon) => {
+    //     this.dexService.cacheDex();
+    // });
   }
 
   ngOnDestroy(): void {

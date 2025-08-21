@@ -276,12 +276,14 @@ export class Pokemon {
     }
   }
 
-  public setTMMovesFromDefault(
+  public setTMHMMovesFromDefault(
     defaultMon: Pokemon,
     tm_moves_by_index?: string[]
   ) {
     this.tms = defaultMon.tms;
     this.tm_moves = defaultMon.tm_moves;
+    this.hms = defaultMon.hms;
+    this.hm_moves = defaultMon.hm_moves;
     if (tm_moves_by_index && tm_moves_by_index.length > 0) {
       for (let [idx, tm] of this.tms.entries()) {
         this.tm_moves[idx] = tm_moves_by_index[tm];
