@@ -112,7 +112,7 @@
                         <td class="right-table">{{dex.revealedTMs.includes(tm) || dex.isFullyRevealed  ?current_mon!.tm_moves[i]:'???'}}</td>
                     </tr>
                 </table>
-                <div class="default-tm-message" *ngIf="(current_mon!.tms.length == 0)">
+                <div class="default-tm-message" *ngIf="(current_mon!.tms.length == 0) && tms_shown">
                     TM Data Not Found
                 </div>
             </div>
