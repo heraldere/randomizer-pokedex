@@ -26,7 +26,9 @@ export class CardsViewComponent implements OnInit {
     const file:File|null = files && files[0];
 
     if (file) {
-      this.dex.readSelectedFile(file);
+      // this.dex.readSelectedFile(file);
+      //TODO: Toggle this comment:
+      this.dex.loadNewDex(file);
     }
 
   }
@@ -34,22 +36,24 @@ export class CardsViewComponent implements OnInit {
   //Kinda cheeky, but the anchor element's click event will occur after the button's so the download begins immediately after we set the href
   // Is this a race? beats me :)
   save() {
-    let dexString = JSON.stringify(
-      {
-        pokedex: this.dex.pokedex,
-        abilities: this.dex.allAbilitiesRevealed,
-        bsts: this.dex.allBSTRevealed,
-        types: this.dex.allTypesRevealed,
-        full: this.dex.isFullyRevealed,
-        moves: this.dex.allMovesRevealed,
-        tms: this.dex.revealedTMs,
-        tmIds: this.dex.tmIds,
-        hmIds: this.dex.hmIds,
-        tmMoves: this.dex.tmMoves,
-        hmMoves: this.dex.hmMoves,
-        evolutions: this.dex.allEvolutionsRevealed,
-        starters: this.dex.starters,
-      });
+    let dexCtx = this.dex.getContext();
+    let dexString = JSON.stringify(dexCtx);
+    // let dexString = JSON.stringify(
+    //   {
+    //     pokedex: this.dex.pokedex,
+    //     abilities: this.dex.allAbilitiesRevealed,
+    //     bsts: this.dex.allBSTRevealed,
+    //     types: this.dex.allTypesRevealed,
+    //     full: this.dex.isFullyRevealed,
+    //     moves: this.dex.allMovesRevealed,
+    //     tms: this.dex.revealedTMs,
+    //     tmIds: this.dex.tmIds,
+    //     hmIds: this.dex.hmIds,
+    //     tmMoves: this.dex.tmMoves,
+    //     hmMoves: this.dex.hmMoves,
+    //     evolutions: this.dex.allEvolutionsRevealed,
+    //     starters: this.dex.starters,
+    //   });
     this.downloadRef.nativeElement.href='data:text/plain;charset=utf-8,' + encodeURIComponent(dexString);
   }
 
