@@ -49,16 +49,21 @@
     </div>
 
     <div id="stat-col" class="wireframe">
-        <div id="chart-slot" class="wireframe">
-            <canvas id="stat-chart" #statChart width="200px" height="100px">
-
-            </canvas>            
-            <div class="reveal-button" *ngIf="mon_selected">
+        <div id="chart-slot" class="wireframe" (click)="chartClicked($event)">
+            <div id="chart-wrapper">
+                <canvas id="stat-chart" #statChart width="600px" height="300px">
+    
+                </canvas>       
+                <div id="stat-chart-overlay" *ngIf="mon_selected && !(current_mon!.stats_revealed || current_mon!.bst_revealed || current_mon!.fully_revealed)" >
+                    <span class="overlay-text">Click Hidden Data to Reveal</span>
+                </div>     
+            </div>
+            <!-- <div class="reveal-button" *ngIf="mon_selected">
                 <button id="stat-reveal" [disabled]="dex.isFullyRevealed" (click)="toggleStatRevealButton()">{{current_mon!.stats_revealed ? "Hide Stats" : "Show Stats"}}</button>
             </div>
             <div class="reveal-button" *ngIf="!mon_selected">
                 <button id="stat-reveal" disabled>Show Stats</button>
-            </div>
+            </div> -->
         </div>
         <div id="evolutions-slot" class="wireframe">
             <div class="evolution-chart" *ngIf="mon_selected && current_mon!.prev_evos.length > 0">
@@ -85,8 +90,24 @@
         </div>
         <div id="notes-slot" class="wireframe">
             <div id="notes-parent" class="element-container" *ngIf="mon_selected">
-                <div style="color: gray;">Notes:</div>
-                <textarea rows=6  class="notes-section" *ngIf="mon_selected" [(ngModel)]="current_mon!.notes"></textarea>
+                <div id="notes-selector">
+                    <div [class.tabSelected]="noteSelector == 'notes'" [class.tabUnselected]="noteSelector !== 'notes'" (click)="toggleNotes('notes')">Notes</div>
+                    <div [class.tabSelected]="noteSelector == 'trainers'" [class.tabUnselected]="noteSelector !== 'trainers'" (click)="toggleNotes('trainers')">Trainers</div>
+                    <div [class.tabSelected]="noteSelector == 'locations'" [class.tabUnselected]="noteSelector !== 'locations'" (click)="toggleNotes('locations')">Locations</div>
+                </div>
+                <div class="vertical-bar"></div>
+                <textarea rows=6 name="Notes Textbox" title="Notes Textbox" class="notes-section" *ngIf="mon_selected && noteSelector == 'notes'" [(ngModel)]="current_mon!.notes"></textarea>
+                <div id="location-parent" *ngIf="mon_selected && noteSelector == 'locations'">
+                    <div id="location-section" *ngIf="current_mon!.locations.length > 0; else noLocations">
+                        <div *ngFor="let loc of filterLocations()">
+                            {{loc}}
+                        </div>
+                    </div>
+                    <ng-template #noLocations>
+                        No Locations Found
+                    </ng-template>
+                </div>
+                <app-trainer-pokemon-selector style="height: 100%; flex-grow: 1" [hidden]="!current_mon || noteSelector !== 'trainers'" [currentMon]="current_mon!"></app-trainer-pokemon-selector>
             </div>
         </div>
     </div>
@@ -119,33 +140,4 @@
         </div>
     </div>
 </div>
-
-<!-- <div id="background">
-
-
-    <div style="overflow: auto" >
-        <div class="left sprite">
-            <div class="sprite-background">
-                <img *ngIf="mon_selected" style="width: 100%;" src="https://www.serebii.net/swordshield/pokemon/{{current_mon!.uid}}.png">
-            </div>
-            <div id="type-container" *ngIf="mon_selected">
-
-            </div>
-            <div class="reveal-button" *ngIf="mon_selected">
-                <button id="type-reveal" [disabled]="dex.isFullyRevealed" (click)="toggleTypeRevealButton()">{{current_mon!.type_revealed ? "Hide Type" : "Show Type"}}</button>
-            </div>
-        </div>
-        <div class="right stat-graph">
-        </div>
-    </div>
-    <div id="ability-parent" class="left">
-        <div class="reveal-button" *ngIf="mon_selected">
-            <button id="ability-reveal" [disabled]="dex.isFullyRevealed" (click)="toggleAbilityRevealButton()">{{current_mon!.abilities_revealed ? "Hide Abilities" : "Show Abilities"}}</button>
-        </div>
-    </div>
-    <div class="right row">
-
-        <div class="column"></div>
-    </div>
-</div> -->
 

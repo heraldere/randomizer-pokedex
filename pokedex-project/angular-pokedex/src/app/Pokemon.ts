@@ -1,3 +1,5 @@
+import { Settings } from "./Settings";
+
 export enum PokeType {
   Normal = 'normal',
   Fire = 'fire',
@@ -102,6 +104,7 @@ export class Pokemon {
   tm_indexes_learned: number[] = [];
   locations_revealed: boolean = false;
   fully_revealed: boolean = false;
+  levels_defeated_at: number[] = [];
 
   notes: string = '';
   bst_revealed: boolean = false;
@@ -257,7 +260,7 @@ export class Pokemon {
       locations_revealed: 'boolean',
     };
 
-    const optionalArrays: string[] = ['locations'];
+    const optionalArrays: string[] = ['locations', 'levels_defeated_at'];
 
     for (const [key, expectedType] of Object.entries(optionalFields)) {
       const value = json[key];
@@ -499,5 +502,43 @@ export class Pokemon {
       .replace('\u2640', 'f')
       .replace('\u2642', 'm')
       .toLowerCase();
+  }
+
+  defeatTrainerPokemon(trainerPokemonLevel: number, settings: Settings) {
+    this.levels_defeated_at.push(trainerPokemonLevel);
+    this.recalculateReveals(settings);
+  }
+
+  undefeatTrainerPokemon(trainerPokemonLevel: number, settings: Settings) {
+    const idx = this.levels_defeated_at.indexOf(trainerPokemonLevel);
+    if (idx >= 0) {
+      this.levels_defeated_at.splice(idx, 1);
+    }
+    this.recalculateReveals(settings);
+  }
+
+  private recalculateReveals(settings: Settings) {
+    if(this.levels_defeated_at.length > 0) {
+      if(settings.revealTypeOnDefeat) this.type_revealed = true;
+      if(settings.revealStatsOnDefeat) this.stats_revealed = true;
+      if(settings.revealAbilityOnDefeat) this.abilities_revealed = true;
+      if(settings.revealLevelMovesOnDefeat) {
+        const maxLevel = Math.max(...this.levels_defeated_at);
+        this.learned_moves_revealed_idx = this.learn_levels.filter(l => l <= maxLevel).length;
+      }
+      if(settings.revealPrevEvoOnDefeat) this.prev_evos_revealed = this.prev_evos.map((e,i) => i);
+      if(settings.revealNextEvoOnDefeat) this.next_evos_revealed = this.next_evos.map((e,i) => i);
+      if(settings.revealTMMovesOnDefeat) this.tm_indexes_learned = this.tms.map((t,i) => i);
+      if(settings.revealLocationsOnDefeat) this.locations_revealed = true;
+    } else {
+      this.type_revealed = false;
+      this.stats_revealed = false;
+      this.abilities_revealed = false;
+      this.learned_moves_revealed_idx = 0;
+      this.prev_evos_revealed = [];
+      this.next_evos_revealed = [];
+      this.tm_indexes_learned = [];
+      this.locations_revealed = false;
+    }
   }
 }
