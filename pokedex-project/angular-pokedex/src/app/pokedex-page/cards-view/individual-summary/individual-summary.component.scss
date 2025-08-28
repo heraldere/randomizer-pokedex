@@ -344,17 +344,45 @@
 #location-parent {
     height: 100%;
     flex-grow: 1;
+    position: relative;
 }
 
 #location-section {
     height: 100%;
-    display: grid;
-    grid-template-rows: repeat(4, 1fr);
-    grid-template-columns: repeat(6, 50%);
-    grid-auto-flow: column;
-    gap: 0px 10px;
-    overflow-x: scroll;
+    width: 100%;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    align-items: center;
+    overflow-y: scroll;
     scrollbar-width: none;
+}
+
+#location-overlay {
+    position: absolute;  
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    background-color: rgba(0, 0, 0, .5);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: white;
+    font-weight: bold;
+    z-index: 2;
+    padding: 40px;
+    border-radius: 10px;
+    cursor: pointer;
+}
+
+#no-locations {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    height: 100%;
+    width: 100%;
+    font-style: italic;
+    color: gray;
 }
 
 .row {

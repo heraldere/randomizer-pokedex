@@ -24,7 +24,7 @@
     <div class="trainer-pokemon-select">
       <select [(ngModel)]="selectedTrainerKey" (ngModelChange)="onDropdownChange($event)">
         <option *ngFor="let key of trainerPokemonSearchKeys" [value]="key">
-          {{ key ? (trainerPokemonMap.get(key)!.pokemon.isDefeated ? '✅' : '⬜') + key : 'Select a Trainer' }}
+          {{ key ? (trainerPokemonMap.get(key)!.pokemon.isDefeated ? '✅' : '⬜') + key : (trainerPokemonSearchKeys.length > 1 ? 'Select a Trainer' : 'No Trainers Found') }}
         </option>
       </select>
     </div>

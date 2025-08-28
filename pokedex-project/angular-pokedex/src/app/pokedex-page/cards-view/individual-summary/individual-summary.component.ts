@@ -225,8 +225,14 @@ export class IndividualSummaryComponent
             next_mon.next_evos_revealed.push(back_index);
           }
         }
-        this.refreshChart();
       } else this.dex.monSelection.next(evo);
+    }
+  }
+
+  locationsClicked() {
+    if(this.current_mon) {
+      this.current_mon.locations_revealed = !this.current_mon.locations_revealed;
+      this.dex.individualChanges.next(this.current_mon);
     }
   }
 

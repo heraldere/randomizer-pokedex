@@ -14,7 +14,7 @@ export class PokedexService {
   public pokedexByName = new Map<string, Pokemon>();
   public validDexUploaded = false;
   public isLoaded = false;
-  loadedFile: string = '';
+  logFileName: string = '';
   isFullyRevealed = false;
   allBSTRevealed = false;
   allTypesRevealed = false;
@@ -86,6 +86,7 @@ export class PokedexService {
       hmMoves: this.hmMoves,
       starters: this.starters,
       trainers: this.trainers,
+      logFileName: this.logFileName,
       version: PokedexContext.SCHEMA_VERSION,
     };
 
@@ -108,6 +109,7 @@ export class PokedexService {
     this.hmMoves = pkdx_ctx.hmMoves;
     this.starters = pkdx_ctx.starters;
     this.trainers = pkdx_ctx.trainers;
+    this.logFileName = pkdx_ctx.logFileName;
 
     this.pokedexByName.clear();
     this.trainersByPokemonName.clear();
@@ -146,10 +148,12 @@ export class PokedexService {
   }
 
   cacheDex() {
-    console.log('Caching')
     let ctx = this.getContext();
     this.dexLoader.cacheDex(ctx);
-    //TODO: Cache any Settings object that gets created
+  }
+
+  cacheSettings() {
+    //TODO: Implement
   }
 
   public revealAll() {

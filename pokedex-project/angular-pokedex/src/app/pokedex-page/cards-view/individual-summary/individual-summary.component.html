@@ -98,14 +98,19 @@
                 <div class="vertical-bar"></div>
                 <textarea rows=6 name="Notes Textbox" title="Notes Textbox" class="notes-section" *ngIf="mon_selected && noteSelector == 'notes'" [(ngModel)]="current_mon!.notes"></textarea>
                 <div id="location-parent" *ngIf="mon_selected && noteSelector == 'locations'">
-                    <div id="location-section" *ngIf="current_mon!.locations.length > 0; else noLocations">
+                    <div id="location-section" *ngIf="current_mon!.locations.length > 0; else noLocations"  (click)="locationsClicked()">
                         <div *ngFor="let loc of filterLocations()">
-                            {{loc}}
+                            {{current_mon!.locations_revealed || dex.isFullyRevealed ? loc : '???'}}
                         </div>
                     </div>
                     <ng-template #noLocations>
-                        No Locations Found
+                        <div id="no-locations" (click)="locationsClicked()">
+                            {{current_mon!.locations_revealed ? "No Locations Found" : "???"}}
+                        </div>
                     </ng-template>
+                    <div id="location-overlay" *ngIf="!current_mon!.locations_revealed && !dex.isFullyRevealed"  (click)="locationsClicked()">
+                        <span class="overlay-text">Click to Reveal Locations</span>
+                    </div>
                 </div>
                 <app-trainer-pokemon-selector style="height: 100%; flex-grow: 1" [hidden]="!current_mon || noteSelector !== 'trainers'" [currentMon]="current_mon!"></app-trainer-pokemon-selector>
             </div>

@@ -24,6 +24,7 @@
         <button mat-menu-item (click)="spoilEvolutions()">{{this.dex.allEvolutionsRevealed?"Unspoil Evolutions":"Spoil Evolutions"}}</button>
         <button mat-menu-item (click)="spoilMoves()">{{this.dex.allMovesRevealed?"Unspoil Moves":"Spoil Moves"}}</button>
     </mat-menu>
+    <span *ngIf="dex.logFileName">{{dex.logFileName}}</span>
     <!-- <label for="power-options">hellosir</label>
     <select class="tab-button" id="power-options" title="Additional Spoil Options">
     <option >

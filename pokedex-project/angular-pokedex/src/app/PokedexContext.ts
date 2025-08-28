@@ -21,6 +21,8 @@ export class PokedexContext {
   trainers: Trainer[] = [];
   version: number = 1;
 
+  logFileName: string = '';
+
   static fromJSON(dex_string: string): PokedexContext {
     let dex_obj = JSON.parse(dex_string);
 
@@ -52,6 +54,7 @@ export class PokedexContext {
       starters: dex_obj.starters,
       trainers: parsedTrainers,
       version: dex_obj.version ? dex_obj.version: 1,
+      logFileName: dex_obj.logFileName ? dex_obj.logFileName : '',
     };
   }
 }

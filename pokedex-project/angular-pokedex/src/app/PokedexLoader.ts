@@ -28,6 +28,7 @@ export class PokedexLoader {
 
       if (inputFile.name.endsWith('.log')) {
         ctx = await this.parseLog(content);
+        ctx.logFileName = inputFile.name;
       } else if (inputFile.name.endsWith('.pkdx')) {
         ctx = PokedexContext.fromJSON(content);
       } else {
