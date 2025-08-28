@@ -7,6 +7,7 @@ export class PokedexContext {
 
   isFullyRevealed = false;
   allBSTRevealed = false;
+  allStatsRevealed = false;
   allTypesRevealed = false;
   allAbilitiesRevealed = false;
   allEvolutionsRevealed = false;
@@ -44,6 +45,7 @@ export class PokedexContext {
       pokedex: parsedPokedex,
       isFullyRevealed: dex_obj.isFullyRevealed,
       allBSTRevealed: dex_obj.allBSTRevealed,
+      allStatsRevealed: dex_obj.allStatsRevealed ? dex_obj.allStatsRevealed : false,
       allTypesRevealed: dex_obj.allTypesRevealed,
       allAbilitiesRevealed: dex_obj.allAbilitiesRevealed,
       allEvolutionsRevealed: dex_obj.allEvolutionsRevealed,

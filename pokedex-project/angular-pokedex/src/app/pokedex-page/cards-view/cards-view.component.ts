@@ -116,6 +116,13 @@ export class CardsViewComponent implements OnInit {
       this.dex.revealTrainers();
   }
 
+  spoilStats() {
+    if(this.dex.allStatsRevealed)
+      this.dex.hideAllStats();
+    else
+      this.dex.revealAllStats();
+  }
+
   ngOnInit(): void {
   }
 

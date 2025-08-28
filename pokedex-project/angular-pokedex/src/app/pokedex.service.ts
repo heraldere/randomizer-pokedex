@@ -17,6 +17,7 @@ export class PokedexService {
   logFileName: string = '';
   isFullyRevealed = false;
   allBSTRevealed = false;
+  allStatsRevealed = false;
   allTypesRevealed = false;
   allAbilitiesRevealed = false;
   allEvolutionsRevealed = false;
@@ -77,6 +78,7 @@ export class PokedexService {
       pokedex: this.pokedex,
       isFullyRevealed: this.isFullyRevealed,
       allBSTRevealed: this.allBSTRevealed,
+      allStatsRevealed: this.allStatsRevealed,
       allTypesRevealed: this.allTypesRevealed,
       allAbilitiesRevealed: this.allAbilitiesRevealed,
       allEvolutionsRevealed: this.allEvolutionsRevealed,
@@ -102,6 +104,7 @@ export class PokedexService {
     this.pokedex = pkdx_ctx.pokedex;
     this.isFullyRevealed = pkdx_ctx.isFullyRevealed;
     this.allBSTRevealed = pkdx_ctx.allBSTRevealed;
+    this.allStatsRevealed = pkdx_ctx.allStatsRevealed;
     this.allTypesRevealed = pkdx_ctx.allTypesRevealed;
     this.allAbilitiesRevealed = pkdx_ctx.allAbilitiesRevealed;
     this.allEvolutionsRevealed = pkdx_ctx.allEvolutionsRevealed;
@@ -278,6 +281,22 @@ export class PokedexService {
       }
     }
     this.allTrainersRevealed = false;
+    this.dexChanges.next();
+  }
+
+  revealAllStats() {
+    for (let mon of this.pokedex) {
+      mon.stats_revealed = true;
+    }
+    this.allStatsRevealed = true;
+    this.dexChanges.next();
+  }
+
+  hideAllStats() {
+    for (let mon of this.pokedex) {
+      mon.stats_revealed = false;
+    }
+    this.allStatsRevealed = false;
     this.dexChanges.next();
   }
 

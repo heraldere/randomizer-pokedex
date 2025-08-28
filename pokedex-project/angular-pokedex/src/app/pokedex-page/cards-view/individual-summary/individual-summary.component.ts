@@ -110,7 +110,10 @@ export class IndividualSummaryComponent
   }
 
   revealMovesToIndex(i: number) {
-    if (this.current_mon) this.current_mon.learned_moves_revealed_idx = i + 1;
+    if (this.current_mon) {
+      this.current_mon.learned_moves_revealed_idx = i + 1;
+      this.dex.individualChanges.next(this.current_mon);
+    }
   }
 
   revealTMAtIndex(i: number) {
@@ -123,6 +126,7 @@ export class IndividualSummaryComponent
         // this.dex
         this.dex.hideTMForAll(tm);
       }
+      this.dex.individualChanges.next(this.current_mon);
     }
   }
 
