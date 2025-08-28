@@ -49,6 +49,8 @@ export class IndividualSummaryComponent
   search_box!: MatInput;
   tms_shown = false;
   noteSelector: 'notes' | 'trainers' | 'locations' = 'notes';
+  fishingControl: FormControl = new FormControl(false);
+  miscLocationsControl: FormControl = new FormControl(false);
 
   private destroy$ = new Subject<void>();
 
@@ -136,12 +138,14 @@ export class IndividualSummaryComponent
     if (this.current_mon) {
       return this.current_mon.locations.filter(
         (loc, i) =>  {
-          return  !loc.toLowerCase().includes(' rod') &&
-                  !loc.toLowerCase().includes('fishing') &&
-                  !loc.toLowerCase().includes('swarm') &&
-                  !loc.toLowerCase().includes('headbutt') &&
-                  !loc.toLowerCase().includes('radio') &&
-                  !loc.includes('SOS');
+          const lowerLoc = loc.toLowerCase();
+          const isFishing = lowerLoc.includes('fishing') || lowerLoc.includes(' rod');
+          const isMisc = (lowerLoc.includes('swarm') ||
+                          lowerLoc.includes('headbutt') ||
+                          lowerLoc.includes('radio') ||
+                          lowerLoc.includes('sos'));
+          return (!isFishing || this.fishingControl.value) &&
+              (!isMisc || this.miscLocationsControl.value)
         }
       );
     }

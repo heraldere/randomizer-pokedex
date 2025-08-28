@@ -94,9 +94,21 @@
                     <div [class.tabSelected]="noteSelector == 'notes'" [class.tabUnselected]="noteSelector !== 'notes'" (click)="toggleNotes('notes')">Notes</div>
                     <div [class.tabSelected]="noteSelector == 'trainers'" [class.tabUnselected]="noteSelector !== 'trainers'" (click)="toggleNotes('trainers')">Trainers</div>
                     <div [class.tabSelected]="noteSelector == 'locations'" [class.tabUnselected]="noteSelector !== 'locations'" (click)="toggleNotes('locations')">Locations</div>
+                    <div id="notes-options">
+                        <div id="location-options" *ngIf="mon_selected && noteSelector == 'locations'">
+                            <div class="note-option">Fishing:<input id="fishing-checkbox" type="checkbox" [formControl]="fishingControl"/></div>
+                            <div class="note-option">Other:<input id="other-checkbox" type="checkbox" [formControl]="miscLocationsControl"/></div>
+                        </div>
+                    </div>
                 </div>
                 <div class="vertical-bar"></div>
-                <textarea rows=6 name="Notes Textbox" title="Notes Textbox" class="notes-section" *ngIf="mon_selected && noteSelector == 'notes'" [(ngModel)]="current_mon!.notes"></textarea>
+                <textarea 
+                    name="Notes Textbox" 
+                    title="Notes Textbox" 
+                    class="notes-section" 
+                    *ngIf="mon_selected && noteSelector == 'notes'" 
+                    [(ngModel)]="current_mon!.notes"
+                    placeholder="Click to add notes..."></textarea>
                 <div id="location-parent" *ngIf="mon_selected && noteSelector == 'locations'">
                     <div id="location-section" *ngIf="current_mon!.locations.length > 0; else noLocations"  (click)="locationsClicked()">
                         <div *ngFor="let loc of filterLocations()">
@@ -105,7 +117,7 @@
                     </div>
                     <ng-template #noLocations>
                         <div id="no-locations" (click)="locationsClicked()">
-                            {{current_mon!.locations_revealed ? "No Locations Found" : "???"}}
+                            {{current_mon!.locations_revealed || dex.isFullyRevealed ? "No Locations Found" : "???"}}
                         </div>
                     </ng-template>
                     <div id="location-overlay" *ngIf="!current_mon!.locations_revealed && !dex.isFullyRevealed"  (click)="locationsClicked()">

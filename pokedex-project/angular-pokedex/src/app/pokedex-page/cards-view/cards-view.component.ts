@@ -102,6 +102,20 @@ export class CardsViewComponent implements OnInit {
       this.dex.revealMoves();
   }
 
+  spoilLocations() {
+    if(this.dex.allLocationsRevealed)
+      this.dex.hideLocations();
+    else
+      this.dex.revealLocations();
+  }
+
+  spoilTrainers() {
+    if(this.dex.allTrainersRevealed)
+      this.dex.hideTrainers();
+    else
+      this.dex.revealTrainers();
+  }
+
   ngOnInit(): void {
   }
 

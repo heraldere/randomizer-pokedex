@@ -399,12 +399,36 @@
 
 .notes-section {
     resize: none;
-    color:rgb(218, 210, 226);
+    font-size: 11pt;
     background-color: rgb(25, 24, 26);
     border: none;
     flex-grow: 1;
     height: 100%;
     // margin: 5px;
+    ::placeholder {
+        color: gray;
+        font-style: italic;
+    }
+}
+
+#notes-options{
+    flex-grow: 1;
+    width: 100%;
+    #location-options{
+        display: flex;
+        width: 100%;
+        height: 100%;
+        flex-direction: column;
+        align-items: flex-end;
+        justify-content: center;
+        font-size: 8pt;
+    }
+    .note-option{
+        display: flex;
+        flex-direction: row;
+        align-items: center;
+        justify-content: flex-end;
+    }
 }
 
 .vertical-bar {

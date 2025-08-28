@@ -10,6 +10,8 @@ export class PokedexContext {
   allTypesRevealed = false;
   allAbilitiesRevealed = false;
   allEvolutionsRevealed = false;
+  allLocationsRevealed = false;
+  allTrainersRevealed = false;
   allMovesRevealed: boolean = false;
   revealedTMs: number[] = [];
   tmIds: number[] = [];
@@ -45,6 +47,8 @@ export class PokedexContext {
       allTypesRevealed: dex_obj.allTypesRevealed,
       allAbilitiesRevealed: dex_obj.allAbilitiesRevealed,
       allEvolutionsRevealed: dex_obj.allEvolutionsRevealed,
+      allLocationsRevealed: dex_obj.allLocationsRevealed ? dex_obj.allLocationsRevealed : false,
+      allTrainersRevealed: dex_obj.allTrainersRevealed ? dex_obj.allTrainersRevealed : false,
       allMovesRevealed: dex_obj.allMovesRevealed,
       revealedTMs: dex_obj.revealedTMs ? dex_obj.revealedTMs : dex_obj.tms,
       tmIds: dex_obj.tmIds,

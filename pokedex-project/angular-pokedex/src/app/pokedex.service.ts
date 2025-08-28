@@ -20,6 +20,8 @@ export class PokedexService {
   allTypesRevealed = false;
   allAbilitiesRevealed = false;
   allEvolutionsRevealed = false;
+  allLocationsRevealed = false;
+  allTrainersRevealed = false;
   allMovesRevealed: boolean = false;
   revealedTMs: number[] = [];
   tmIds: number[] = [];
@@ -78,6 +80,8 @@ export class PokedexService {
       allTypesRevealed: this.allTypesRevealed,
       allAbilitiesRevealed: this.allAbilitiesRevealed,
       allEvolutionsRevealed: this.allEvolutionsRevealed,
+      allLocationsRevealed: this.allLocationsRevealed,
+      allTrainersRevealed: this.allTrainersRevealed,
       allMovesRevealed: this.allMovesRevealed,
       revealedTMs: this.revealedTMs,
       tmIds: this.tmIds,
@@ -101,6 +105,8 @@ export class PokedexService {
     this.allTypesRevealed = pkdx_ctx.allTypesRevealed;
     this.allAbilitiesRevealed = pkdx_ctx.allAbilitiesRevealed;
     this.allEvolutionsRevealed = pkdx_ctx.allEvolutionsRevealed;
+    this.allLocationsRevealed = pkdx_ctx.allLocationsRevealed;
+    this.allTrainersRevealed = pkdx_ctx.allTrainersRevealed;
     this.allMovesRevealed = pkdx_ctx.allMovesRevealed;
     this.revealedTMs = pkdx_ctx.revealedTMs;
     this.tmIds = pkdx_ctx.tmIds;
@@ -148,6 +154,7 @@ export class PokedexService {
   }
 
   cacheDex() {
+    console.log('Caching Dex');
     let ctx = this.getContext();
     this.dexLoader.cacheDex(ctx);
   }
@@ -235,6 +242,42 @@ export class PokedexService {
       mon.prev_evos.forEach((e, i) => mon.prev_evos_revealed.push(i));
     }
     this.allEvolutionsRevealed = true;
+    this.dexChanges.next();
+  }
+
+  revealLocations() {
+    for (let mon of this.pokedex) {
+      mon.locations_revealed = true;
+    }
+    this.allLocationsRevealed = true;
+    this.dexChanges.next();
+  }
+
+  hideLocations() {
+    for (let mon of this.pokedex) {
+      mon.locations_revealed = false;
+    }
+    this.allLocationsRevealed = false;
+    this.dexChanges.next();
+  }
+
+  revealTrainers() {
+    for (let t of this.trainers) {
+      for (let mon of t.Pokes) {
+        mon.isRevealed = true;
+      }
+    }
+    this.allTrainersRevealed = true;
+    this.dexChanges.next();
+  }
+
+  hideTrainers() {
+    for (let t of this.trainers) {
+      for (let mon of t.Pokes) {
+        mon.isRevealed = false;
+      }
+    }
+    this.allTrainersRevealed = false;
     this.dexChanges.next();
   }
 
