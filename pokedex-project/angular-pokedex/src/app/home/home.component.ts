@@ -15,8 +15,6 @@ import { Router } from '@angular/router';
 export class HomeComponent implements OnInit {
   dex: PokedexService;
   
-  // TODO: This should be owned by the pokedex service
-  validFileUploaded = false;
   @ViewChild('downloadButton')
   downloadRef!: ElementRef;
   router: Router;
@@ -39,7 +37,6 @@ export class HomeComponent implements OnInit {
     const file:File|null = files && files[0];
 
     if (file) {
-      this.validFileUploaded=false;
       // this.dex.readSelectedFile(file);
       this.dex.loadNewDex(file);
       this.router.navigate(['/', 'pokedex']);

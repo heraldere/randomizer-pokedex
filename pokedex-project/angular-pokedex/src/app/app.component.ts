@@ -31,7 +31,6 @@ export class AppComponent implements OnInit, OnDestroy {
     this.dexService.initializeData();
 
     //TODO: add debounce subscriptions to dexchanges and individualChanges to cache dex
-    // Don't forget to unsubscribe in ngOnDestroy
     // this.dexService.dexChanges
     //   .pipe(debounceTime(10000))
     //   .subscribe(() => {

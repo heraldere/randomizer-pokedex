@@ -26,8 +26,6 @@ export class CardsViewComponent implements OnInit {
     const file:File|null = files && files[0];
 
     if (file) {
-      // this.dex.readSelectedFile(file);
-      //TODO: Toggle this comment:
       this.dex.loadNewDex(file);
     }
 
@@ -89,7 +87,6 @@ export class CardsViewComponent implements OnInit {
     }
   }
 
-  //TODO: spoilEvolutions
   spoilEvolutions() {
     if(this.dex.allEvolutionsRevealed) {
       this.dex.hideEvolutions();

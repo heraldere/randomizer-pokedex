@@ -83,7 +83,6 @@ export class Trainer {
   }
 
   static fromString(trainerString: string): Trainer {
-    //TODO: 2 Cases, one multiline, one single line
     let res = new Trainer();
 
     if (trainerString.indexOf('\n') >= 0) {

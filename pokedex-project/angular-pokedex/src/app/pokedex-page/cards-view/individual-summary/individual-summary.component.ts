@@ -190,7 +190,6 @@ export class IndividualSummaryComponent
       });
 
     this.dex.dexChanges.pipe(takeUntil(this.destroy$)).subscribe(() => {
-      // console.log("wechange");
       this.ctrl.setValue('');
       if (this.current_mon) {
         this.refreshChart();
@@ -225,6 +224,7 @@ export class IndividualSummaryComponent
             next_mon.next_evos_revealed.push(back_index);
           }
         }
+        this.dex.individualChanges.next(this.current_mon);
       } else this.dex.monSelection.next(evo);
     }
   }

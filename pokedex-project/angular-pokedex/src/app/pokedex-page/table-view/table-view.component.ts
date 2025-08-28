@@ -105,7 +105,6 @@ export class TableViewComponent implements OnInit, AfterViewInit{
       dialogRef.afterClosed().subscribe(result => {
         this.dialogOpen = false;
         this.query = result;
-        // console.log("after close", this.query);
       });
     }
 
@@ -127,7 +126,6 @@ export class TableViewComponent implements OnInit, AfterViewInit{
 
   
   ngAfterViewInit(): void {
-    //TODO: Subscribe to the dex service (specifically dex changed subject)
     this.pokedexService.dexChanges.subscribe(
       () => {
         if(this.pokedexService.pokedex.length>0 && this.pokedexService.pokedex[0].special) {
@@ -162,7 +160,6 @@ export class TableViewComponent implements OnInit, AfterViewInit{
         this.cdr.detectChanges();
       }
     )
-    //TODO: Subscribe to individual revelation
     this.pokedexService.individualChanges.subscribe(
       () => {
         this.refreshTable();
@@ -174,7 +171,6 @@ export class TableViewComponent implements OnInit, AfterViewInit{
   }
 
   refreshTable() {
-    // console.log('---------REFRESHED-------------')
     let initialdata = this.filterDataInitialPass();
     this.filteredData = filterDataByQueryTree(initialdata, this.query);
     this.pokedexService.filterChanges.next(this.filteredData);
