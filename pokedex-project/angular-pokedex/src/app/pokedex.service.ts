@@ -5,6 +5,7 @@ import { Pokemon, learned_move, tm_move, PokeType } from './Pokemon';
 import { PokedexLoader } from './PokedexLoader';
 import { PokedexContext } from './PokedexContext';
 import { Trainer } from './Trainer';
+import { TUTORIAL_NOTE } from './TutorialNote';
 
 @Injectable({
   providedIn: 'root',
@@ -134,7 +135,11 @@ export class PokedexService {
 
     //TODO: This would be better in the Individual View I think
     if (this.pokedex.length > 0) {
-      this.selectPokemon(this.pokedex[0].name);
+      const mon = this.pokedex[0];
+      if(!mon.notes && !this.isFullyRevealed) {
+        mon.notes = TUTORIAL_NOTE;
+      }
+      this.selectPokemon(mon.name);
     }
 
     this.validDexUploaded = true;
