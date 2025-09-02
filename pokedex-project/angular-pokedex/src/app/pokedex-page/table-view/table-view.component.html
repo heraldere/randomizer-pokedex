@@ -2,6 +2,7 @@
     <div class="table-header">
         <button class='filterButton openDialogButton' (click)="openFilterTreeDialog()" #filterButton><i class="material-icons">filter_alt</i>Filter List</button>
         Total: {{filteredData.length}}
+        <span class="filter-note">When Using Filters, Information that hasn't been revealed yet (like stats or abilities) will be hidden</span>
     </div>
     <ngx-table [configuration]="configuration" [data]="filteredData" [columns]="columns" (event)="eventEmitted($event)" #tableTemplate>
         <ng-template let-row let-index="index">

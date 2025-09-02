@@ -30,6 +30,7 @@ import { VsSummaryComponent } from './pokedex-page/cards-view/vs-summary/vs-summ
 import { CardComponent } from './pokedex-page/cards-view/card/card.component';
 import { AboutPageComponent } from './about-page/about-page.component';
 import { WorldViewComponent } from './pokedex-page/cards-view/world-view/world-view.component';
+import { TrainerPokemonSelectorComponent } from './pokedex-page/cards-view/individual-summary/trainer-pokemon-selector/trainer-pokemon-selector.component';
 
 @NgModule({
     exports: [
@@ -48,7 +49,8 @@ import { WorldViewComponent } from './pokedex-page/cards-view/world-view/world-v
         VsSummaryComponent,
         CardComponent,
         AboutPageComponent,
-        WorldViewComponent
+        WorldViewComponent,
+        TrainerPokemonSelectorComponent
     ],
     imports: [
         BrowserModule,

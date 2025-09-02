@@ -1,7 +1,7 @@
 import { Component, OnDestroy, OnInit } from '@angular/core';
 import { PokedexService } from './pokedex.service';
-import { Observable, of, timer } from 'rxjs';
-import { debounce, debounceTime, map, switchMap } from 'rxjs/operators';
+import { merge, Observable, of, timer } from 'rxjs';
+import { debounce, debounceTime, map, skip, switchMap } from 'rxjs/operators';
 
 @Component({
   selector: 'app-root',
@@ -30,18 +30,14 @@ export class AppComponent implements OnInit, OnDestroy {
     window.addEventListener('beforeunload', () => this.dexService.cacheDex());
     this.dexService.initializeData();
 
-    //TODO: add debounce subscriptions to dexchanges and individualChanges to cache dex
-    // Don't forget to unsubscribe in ngOnDestroy
-    // this.dexService.dexChanges
-    //   .pipe(debounceTime(10000))
-    //   .subscribe(() => {
-    //     this.dexService.cacheDex();
-    // });
-    // this.dexService.individualChanges
-    //   .pipe(debounceTime(10000))
-    //   .subscribe((mon) => {
-    //     this.dexService.cacheDex();
-    // });
+    merge(
+      this.dexService.dexChanges,
+      this.dexService.individualChanges
+    )
+      .pipe(skip(1), debounceTime(10000))
+      .subscribe(() => {
+        this.dexService.cacheDex();
+    });
   }
 
   ngOnDestroy(): void {

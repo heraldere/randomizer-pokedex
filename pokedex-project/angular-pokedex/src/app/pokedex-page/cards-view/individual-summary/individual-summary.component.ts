@@ -22,6 +22,7 @@ import {
   MatAutocompleteTrigger,
 } from '@angular/material/autocomplete';
 import { Chart, registerables } from 'chart.js';
+import { statChartConfig } from './stat-summary.config';
 import { MatInput } from '@angular/material/input';
 Chart.register(...registerables);
 Chart.defaults.color = '#cfcfcf';
@@ -47,6 +48,9 @@ export class IndividualSummaryComponent
   @ViewChild('searchInput')
   search_box!: MatInput;
   tms_shown = false;
+  noteSelector: 'notes' | 'trainers' | 'locations' = 'notes';
+  fishingControl: FormControl = new FormControl(false);
+  miscLocationsControl: FormControl = new FormControl(false);
 
   private destroy$ = new Subject<void>();
 
@@ -73,13 +77,27 @@ export class IndividualSummaryComponent
     }
   }
 
+  chartClicked(event: MouseEvent) {
+    const rect = this.chartRef.nativeElement.getBoundingClientRect();
+    const y = event.clientY - rect.top; // y position within the element.
+    if(y>0 && y < 40) {
+      this.toggleRevealBST();
+    } else if (y > 40 && y < rect.height) {
+      this.toggleStatRevealButton();
+    }
+  }
+
   toggleStatRevealButton() {
-    if (this.current_mon) {
+    if (this.current_mon && !this.current_mon.fully_revealed) {
       this.current_mon.stats_revealed = !this.current_mon.stats_revealed;
       this.dex.individualChanges.next(this.current_mon);
-      // this.chart.data.datasets[0].data = this.current_mon.getStatsIfRevealed();
-      // this.chart.options.plugins!.title!.text = "BST : " + (this.current_mon && this.current_mon.stats_revealed? this.current_mon.bst(): "???");
-      // this.chart.update();
+    }
+  }
+
+  toggleRevealBST() {
+    if(this.current_mon && !this.current_mon.fully_revealed) {
+      this.current_mon.bst_revealed = !this.current_mon.bst_revealed;
+      this.dex.individualChanges.next(this.current_mon);
     }
   }
 
@@ -92,7 +110,10 @@ export class IndividualSummaryComponent
   }
 
   revealMovesToIndex(i: number) {
-    if (this.current_mon) this.current_mon.learned_moves_revealed_idx = i + 1;
+    if (this.current_mon) {
+      this.current_mon.learned_moves_revealed_idx = i + 1;
+      this.dex.individualChanges.next(this.current_mon);
+    }
   }
 
   revealTMAtIndex(i: number) {
@@ -105,11 +126,34 @@ export class IndividualSummaryComponent
         // this.dex
         this.dex.hideTMForAll(tm);
       }
+      this.dex.individualChanges.next(this.current_mon);
     }
   }
 
   toggleTMs() {
     this.tms_shown = !this.tms_shown;
+  }
+
+  toggleNotes(selection: 'notes' | 'trainers' | 'locations') {
+    this.noteSelector = selection;
+  }
+
+  filterLocations(): string[] {
+    if (this.current_mon) {
+      return this.current_mon.locations.filter(
+        (loc, i) =>  {
+          const lowerLoc = loc.toLowerCase();
+          const isFishing = lowerLoc.includes('fishing') || lowerLoc.includes(' rod');
+          const isMisc = (lowerLoc.includes('swarm') ||
+                          lowerLoc.includes('headbutt') ||
+                          lowerLoc.includes('radio') ||
+                          lowerLoc.includes('sos'));
+          return (!isFishing || this.fishingControl.value) &&
+              (!isMisc || this.miscLocationsControl.value)
+        }
+      );
+    }
+    return [];
   }
 
   sanitizePokemonName(name: String): String {
@@ -129,99 +173,22 @@ export class IndividualSummaryComponent
   // "https://www.serebii.net/games/type/poison.gif"
 
   ngAfterViewInit(): void {
-    this.chart = new Chart(this.chartRef.nativeElement, {
-      type: 'bar',
-      data: {
-        labels: [
-          'HP',
-          'Attack',
-          'Defense',
-          'Sp. Attack',
-          'Sp. Defense',
-          'Speed',
-        ],
-        datasets: [
-          {
-            data: this.current_mon
-              ? this.current_mon.getStatsIfRevealed()
-              : [0, 0, 0, 0, 0, 0],
-            backgroundColor: [
-              'rgba(255, 99, 132, 0.8)',
-              'rgba(255, 159, 64, 0.8)',
-              'rgba(255, 205, 86, 0.8)',
-              'rgba(54, 162, 235, 0.8)',
-              'rgba(75, 192, 92, 0.8)',
-              // '#ffbde0'
-              'rgba(153, 102, 255, 0.8)',
-            ],
-            borderColor: [
-              'rgb(255, 99, 132)',
-              'rgb(255, 159, 64)',
-              'rgb(255, 205, 86)',
-              'rgb(75, 192, 192)',
-              'rgb(54, 162, 235)',
-              'rgb(153, 102, 255)',
-            ],
-            borderWidth: 1,
-            maxBarThickness: 20,
-          },
-        ],
-      },
-      options: {
-        color: '#cfcfcf',
-        indexAxis: 'y',
-        scales: {
-          x: {
-            beginAtZero: true,
-            min: 0,
-            max: 255,
-            grid: {
-              borderColor: '#cfcfcf',
-              color: '#cfcfcf',
-            },
-          },
-          y: {
-            grid: {
-              display: false,
-            },
-          },
-        },
-        plugins: {
-          legend: {
-            display: false,
-          },
-          title: {
-            font: {
-              size: 20,
-            },
-            display: true,
-            text:
-              'BST : ' +
-              (this.current_mon && this.current_mon.stats_revealed
-                ? this.current_mon.bst()
-                : '???'),
-          },
-        },
-      },
-    });
+    this.chart = new Chart(this.chartRef.nativeElement, statChartConfig);
     this.maut.optionSelected
       .pipe(
         map((ev) => {
           let selected = ev.option.value as string;
-          // return this.stringToPokemon(selected);
           return selected;
         }),
         takeUntil(this.destroy$)
       )
       .subscribe(
-        // mon=>this.updateCurrentMon(mon)
         (name) => this.dex.monSelection.next(name)
       );
 
     this.dex.individualChanges
       .pipe(takeUntil(this.destroy$))
       .subscribe((mon) => {
-        // console.log("ichange");
         if (
           this.current_mon &&
           this.current_mon.name.toLowerCase() == mon.name.toLowerCase()
@@ -231,7 +198,6 @@ export class IndividualSummaryComponent
       });
 
     this.dex.dexChanges.pipe(takeUntil(this.destroy$)).subscribe(() => {
-      // console.log("wechange");
       this.ctrl.setValue('');
       if (this.current_mon) {
         this.refreshChart();
@@ -266,8 +232,15 @@ export class IndividualSummaryComponent
             next_mon.next_evos_revealed.push(back_index);
           }
         }
-        this.refreshChart();
-      } else this.selectPokemonFromName(evo);
+        this.dex.individualChanges.next(this.current_mon);
+      } else this.dex.monSelection.next(evo);
+    }
+  }
+
+  locationsClicked() {
+    if(this.current_mon) {
+      this.current_mon.locations_revealed = !this.current_mon.locations_revealed;
+      this.dex.individualChanges.next(this.current_mon);
     }
   }
 

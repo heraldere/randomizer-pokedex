@@ -5,6 +5,7 @@ export class TrainerPokemon {
   item?: string;
   level: number;
   isRevealed = false;
+  isDefeated = false;
   constructor(name: string, level: number) {
     this.name = name;
     this.level = level;
@@ -53,7 +54,20 @@ export class TrainerPokemon {
     tp.moves = ob?.moves ?? [];
     tp.item = ob?.item;
     tp.isRevealed = ob?.isRevealed ?? false;
+    tp.isDefeated = ob?.isDefeated ?? false;
     return tp;
+  }
+
+  getMoveString(index: number, isFullyRevealed: boolean): string {
+    return (this.isRevealed || isFullyRevealed) ? (this.moves[index] || "-") : "???"
+  }
+
+  getAbilityString(isFullyRevealed: boolean): string {
+    return (this.isRevealed || isFullyRevealed) ? (this.ability || "-") : "???"
+  }
+
+  getItemString(isFullyRevealed: boolean): string {
+    return (this.isRevealed || isFullyRevealed) ? (this.item || "-") : "???"
   }
 }
 
@@ -69,7 +83,6 @@ export class Trainer {
   }
 
   static fromString(trainerString: string): Trainer {
-    //TODO: 2 Cases, one multiline, one single line
     let res = new Trainer();
 
     if (trainerString.indexOf('\n') >= 0) {

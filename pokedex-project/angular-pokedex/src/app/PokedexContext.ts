@@ -7,9 +7,12 @@ export class PokedexContext {
 
   isFullyRevealed = false;
   allBSTRevealed = false;
+  allStatsRevealed = false;
   allTypesRevealed = false;
   allAbilitiesRevealed = false;
   allEvolutionsRevealed = false;
+  allLocationsRevealed = false;
+  allTrainersRevealed = false;
   allMovesRevealed: boolean = false;
   revealedTMs: number[] = [];
   tmIds: number[] = [];
@@ -20,6 +23,8 @@ export class PokedexContext {
 
   trainers: Trainer[] = [];
   version: number = 1;
+
+  logFileName: string = '';
 
   static fromJSON(dex_string: string): PokedexContext {
     let dex_obj = JSON.parse(dex_string);
@@ -40,9 +45,12 @@ export class PokedexContext {
       pokedex: parsedPokedex,
       isFullyRevealed: dex_obj.isFullyRevealed,
       allBSTRevealed: dex_obj.allBSTRevealed,
+      allStatsRevealed: dex_obj.allStatsRevealed ? dex_obj.allStatsRevealed : false,
       allTypesRevealed: dex_obj.allTypesRevealed,
       allAbilitiesRevealed: dex_obj.allAbilitiesRevealed,
       allEvolutionsRevealed: dex_obj.allEvolutionsRevealed,
+      allLocationsRevealed: dex_obj.allLocationsRevealed ? dex_obj.allLocationsRevealed : false,
+      allTrainersRevealed: dex_obj.allTrainersRevealed ? dex_obj.allTrainersRevealed : false,
       allMovesRevealed: dex_obj.allMovesRevealed,
       revealedTMs: dex_obj.revealedTMs ? dex_obj.revealedTMs : dex_obj.tms,
       tmIds: dex_obj.tmIds,
@@ -52,6 +60,7 @@ export class PokedexContext {
       starters: dex_obj.starters,
       trainers: parsedTrainers,
       version: dex_obj.version ? dex_obj.version: 1,
+      logFileName: dex_obj.logFileName ? dex_obj.logFileName : '',
     };
   }
 }

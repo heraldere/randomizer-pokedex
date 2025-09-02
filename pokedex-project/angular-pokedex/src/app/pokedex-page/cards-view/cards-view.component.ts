@@ -26,8 +26,6 @@ export class CardsViewComponent implements OnInit {
     const file:File|null = files && files[0];
 
     if (file) {
-      // this.dex.readSelectedFile(file);
-      //TODO: Toggle this comment:
       this.dex.loadNewDex(file);
     }
 
@@ -89,7 +87,6 @@ export class CardsViewComponent implements OnInit {
     }
   }
 
-  //TODO: spoilEvolutions
   spoilEvolutions() {
     if(this.dex.allEvolutionsRevealed) {
       this.dex.hideEvolutions();
@@ -103,6 +100,27 @@ export class CardsViewComponent implements OnInit {
       this.dex.hideMoves();
     else
       this.dex.revealMoves();
+  }
+
+  spoilLocations() {
+    if(this.dex.allLocationsRevealed)
+      this.dex.hideLocations();
+    else
+      this.dex.revealLocations();
+  }
+
+  spoilTrainers() {
+    if(this.dex.allTrainersRevealed)
+      this.dex.hideTrainers();
+    else
+      this.dex.revealTrainers();
+  }
+
+  spoilStats() {
+    if(this.dex.allStatsRevealed)
+      this.dex.hideAllStats();
+    else
+      this.dex.revealAllStats();
   }
 
   ngOnInit(): void {
