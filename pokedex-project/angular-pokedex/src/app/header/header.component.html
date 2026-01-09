@@ -1,11 +1,15 @@
 <div>
-    <h1 class="header-title">Randomizer Pokedex</h1>
+    <div class="header-container">
+        <h1 class="header-title">Randomizer Pokedex <span class="header-version">(v2.2.0)</span></h1>
+    </div>
     <div class=tabs>
         <a class="tab" routerLink="/home" routerLinkActive="selected"><i class="material-icons">home</i>Home</a>
         <a class="tab" routerLink="/pokedex" routerLinkActive="selected"><img class="pokeball-icon" src='assets/images/pokeball-icon.png' />Pokedex</a>
         <a class="tab" routerLink="/about" routerLinkActive="selected"><i id="help-icon" class="material-icons">help</i>About</a>
         
-        <!-- <span>[{{getRoute()}}]</span> -->
-        <!-- <span class="header-text">Created by Matthew Christensen and Jennifer Nelson • <a href="https://github.com/matthewlchristensen/randomizer-pokedex"> GitHub</a></span> -->
+        <div class="background-toggle">
+            Chromakey Background:
+             <input type="checkbox" id="background-toggle-input" (click)="toggleBackground()"/>
+         </div>
     </div>
 </div>

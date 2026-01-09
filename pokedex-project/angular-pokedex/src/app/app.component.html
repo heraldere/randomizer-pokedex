@@ -1,2 +1,5 @@
+<div class="loading-overlay" *ngIf="delayedLoading$ | async as isLoading">
+  <div class="temp-spinner">LOADING...</div>
+</div>
 <app-header></app-header>
 <router-outlet></router-outlet>

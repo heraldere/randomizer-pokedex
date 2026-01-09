@@ -1,0 +1,39 @@
+<div class="trainer-pokemon-selector-root">
+  <div class="trainer-pokemon-details">
+    <div class="trainer-pokemon-header">
+      <span style="width: 45%;">Ability: {{currentTrainerPokemon?.getAbilityString(dex.isFullyRevealed) ?? "-"}}</span>
+      <span style="width: 50%;">Item: {{currentTrainerPokemon?.getItemString(dex.isFullyRevealed) ?? "-"}}</span>
+    </div>
+    <div class="trainer-pokemon-moves">
+      <table class="move-table" *ngIf="currentTrainerPokemon && currentTrainerPokemon.moves.length > 0; else noMoves">
+        <tr>
+          <td style="border-right: 1px solid #ccc; border-bottom: 1px solid #ccc;">{{currentTrainerPokemon.getMoveString(0, dex.isFullyRevealed)}}</td>
+          <td>{{currentTrainerPokemon.getMoveString(1, dex.isFullyRevealed)}}</td>
+        </tr>
+        <tr>
+          <td>{{currentTrainerPokemon.getMoveString(2, dex.isFullyRevealed)}}</td>
+          <td style="border-top: 1px solid #ccc; border-left: 1px solid #ccc;">{{currentTrainerPokemon.getMoveString(3, dex.isFullyRevealed)}}</td>
+        </tr>
+      </table>
+      <ng-template #noMoves>
+        <div class="no-moves">
+          No Moves Found
+        </div>
+      </ng-template>
+    </div>
+    <div class="trainer-pokemon-select">
+      <select [(ngModel)]="selectedTrainerKey" (ngModelChange)="onDropdownChange($event)">
+        <option *ngFor="let key of trainerPokemonSearchKeys" [value]="key">
+          {{ key ? (trainerPokemonMap.get(key)!.pokemon.isDefeated ? '✅' : '⬜') + key : (trainerPokemonSearchKeys.length > 1 ? 'Select a Trainer' : 'No Trainers Found') }}
+        </option>
+      </select>
+    </div>
+  </div>
+  <div class="trainer-pokemon-buttons">
+    <div id="defeated-count" *ngIf="currentMon">Defeated: {{currentMon!.levels_defeated_at.length}}</div>
+    <div id="button-container">
+      <button class="top" [class.toggled]="currentTrainerPokemon.isRevealed" *ngIf="currentTrainerPokemon" [disabled]="dex.isFullyRevealed" (click)="toggleSpoil()">{{currentTrainerPokemon.isRevealed ? 'Unspoil' : 'Spoil'}}</button>
+      <button class="bottom" [class.toggled]="currentTrainerPokemon.isDefeated" *ngIf="currentTrainerPokemon" (click)="toggleDefeat()">{{currentTrainerPokemon.isDefeated ? 'Undefeat' : 'Defeat'}}</button>
+    </div>
+  </div>
+</div>

@@ -15,9 +15,9 @@ export class PokedexPageComponent implements OnInit, AfterViewInit{
    }
 
   ngOnInit(): void {
-    if(!this.dex.validDexUploaded) {
-      this.dex.loadDefaultData();
-    }
+    // if(!this.dex.validDexUploaded) {
+    //   this.dex.loadDefaultData();
+    // }
   }
 
   ngAfterViewInit(): void {
