@@ -1,0 +1,36 @@
+#trainer-view-base {
+  display:flex;
+  flex-direction: column;
+  // align-items: flex-start;
+  min-height: 600px;
+  max-height: 600px;
+  min-width: 1200px;
+  max-width: 1300px;
+  margin-top: 20px;
+  margin-left: auto;
+  margin-right: auto;
+  margin-bottom: 10px;
+}
+#trainer-search-zone {
+  height: 90px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+
+}
+#trainer-search-box {
+  width: 200px;
+  padding: 5px;
+
+}
+#trainer-details-grid {
+  flex: 1;
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  grid-template-rows: 1fr 1fr;
+  align-items: stretch;
+  justify-items: stretch;
+  box-sizing: border-box;
+
+}

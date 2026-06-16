@@ -58,6 +58,16 @@ export class TrainerPokemon {
     return tp;
   }
 
+  static createMegaCopy(original: TrainerPokemon): TrainerPokemon {
+    let megaCopy = new TrainerPokemon(original.name + "-Mega", original.level);
+    // megaCopy.ability = original.ability; //Ability may change on mega evolution, so we won't copy it by default
+    megaCopy.item = original.item;
+    megaCopy.moves = [...original.moves];
+    megaCopy.isRevealed = original.isRevealed;
+    megaCopy.isDefeated = original.isDefeated;
+    return megaCopy;
+  }
+
   getMoveString(index: number, isFullyRevealed: boolean): string {
     return (this.isRevealed || isFullyRevealed) ? (this.moves[index] || "-") : "???"
   }
@@ -68,6 +78,29 @@ export class TrainerPokemon {
 
   getItemString(isFullyRevealed: boolean): string {
     return (this.isRevealed || isFullyRevealed) ? (this.item || "-") : "???"
+  }
+  
+  canMegaEvolve(): boolean {
+    const item = this.item;
+    if (!item) return false;
+
+    if(this.isMegaEvolved()) {
+      return false;
+    }
+
+    if(this.name === "Rayquaza") {
+      return this.moves.includes("Dragon Ascent");
+    }
+
+    return (
+      // Not exactly a perfect check, but collisions should be super rare
+      item.startsWith(this.name.substring(0, 4)) &&
+      item.split(' ')[0].endsWith("ite")
+    );
+  }
+
+  isMegaEvolved(): boolean {
+    return this.name.includes("-Mega");
   }
 }
 
@@ -133,11 +166,19 @@ export class Trainer {
       res.oldName = oldName;
       res.Pokes = tPokemonList;
     }
+    // Check for Mega Evolutions (and other forms)and add them to Pokes list
+    let megaCopies: TrainerPokemon[] = [];
+    for (let poke of res.Pokes) {
+      if (poke.canMegaEvolve()) {
+        let copy = TrainerPokemon.createMegaCopy(poke);
+        megaCopies.push(copy);
+      }
+    }
+    res.Pokes = [...res.Pokes, ...megaCopies];
     return res;
   }
 
   static loadFromJson(ob: any): Trainer {
-    // throw new Error('Method not implemented.');
     let res = new Trainer();
     res.name = ob?.name ?? '';
     res.class = ob?.class;
@@ -147,5 +188,14 @@ export class Trainer {
         return TrainerPokemon.loadFromJson(tp);
       }) ?? [];
     return res;
+  }
+
+  // Will need to be updated if we add more alternate forms that aren't just mega evolutions
+  getAltFormsOfPokemon(mon_name: string): TrainerPokemon[] {
+    let base_form = this.Pokes.find((poke) => poke.name === mon_name);
+    if(!base_form?.canMegaEvolve()) {
+      return [];
+    }
+    return this.Pokes.filter((poke) =>  poke.name.startsWith(mon_name) && poke.name.endsWith("-Mega"));
   }
 }

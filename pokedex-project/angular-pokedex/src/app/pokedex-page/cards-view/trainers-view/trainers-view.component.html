@@ -1,0 +1,26 @@
+<div id="trainer-view-base">
+  <div class="wireframe" id="trainer-search-zone">
+      <mat-form-field class="search-box wireframe" >
+        <input #searchInput type="text" placeholder="Search For Trainers" aria-label="Number" matInput [formControl]="ctrl"
+            [matAutocomplete]="mm">
+        <mat-autocomplete autoActiveFirstOption #mm="matAutocomplete" >
+          <mat-option *ngFor="let trainer of trainers_filtered_by_text | async" [value]="trainer">
+            {{ trainer.name }}
+          </mat-option>
+        </mat-autocomplete>
+      </mat-form-field>
+
+  </div>
+  <div class="wireframe" id="trainer-details-grid">
+    <div class="wireframe" *ngFor="let i of [0,1,2,3,4,5]">
+      <div *ngIf="trainer_selected && current_trainer!.Pokes[i] && !(current_trainer!.Pokes[i].isMegaEvolved()); else noPokemon">
+        <tp-panel [trainer_pokemon]="current_trainer!.Pokes[i]" [alt_forms]="current_trainer!.getAltFormsOfPokemon(current_trainer!.Pokes[i].name)"></tp-panel>
+
+      </div>
+      <ng-template #noPokemon>
+        No Pokemon
+      </ng-template>
+    </div>
+
+  </div>
+</div>

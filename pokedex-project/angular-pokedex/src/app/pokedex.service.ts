@@ -6,6 +6,7 @@ import { PokedexLoader } from './PokedexLoader';
 import { PokedexContext } from './PokedexContext';
 import { Trainer } from './Trainer';
 import { TUTORIAL_NOTE } from './TutorialNote';
+import { PokedexNavigation } from './PokedexNavigation';
 
 @Injectable({
   providedIn: 'root',
@@ -32,6 +33,7 @@ export class PokedexService {
   hmMoves: string[] = [];
   starters: string[] = [];
   dexLoader = new PokedexLoader();
+  navigation = new PokedexNavigation();
 
   trainers: Trainer[] = [];
   trainersByPokemonName = new Map<string, Trainer[]>();
@@ -41,6 +43,7 @@ export class PokedexService {
   public monSelection = new ReplaySubject<string>(1);
   public filterChanges = new ReplaySubject<Pokemon[]>(1);
   public loadingStatus = new ReplaySubject<boolean>();
+  public trainerSelection = new ReplaySubject<Trainer>(1);
 
   static readonly defaultPkdxName = './assets/data/Default.pkdx';
   static readonly sampleRandomPkdxName = './assets/data/Random.pkdx';

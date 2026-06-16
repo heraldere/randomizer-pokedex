@@ -129,6 +129,7 @@ export class TrainerPokemonSelectorComponent implements OnInit, AfterViewInit {
     if (entry) {
       this.currentTrainer = entry.trainer;
       this.currentTrainerPokemon = entry.pokemon;
+      this.dex.trainerSelection.next(entry.trainer);
     } else {
       this.currentTrainer = undefined;
       this.currentTrainerPokemon = undefined;
