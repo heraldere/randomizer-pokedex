@@ -6,7 +6,7 @@ import {
   OnDestroy,
   OnInit,
 } from '@angular/core';
-import { takeUntil } from 'rxjs/internal/operators/takeUntil';
+import { takeUntil } from 'rxjs/operators';
 import { Subject } from 'rxjs/internal/Subject';
 import { PokedexService } from 'src/app/pokedex.service';
 import { Pokemon } from 'src/app/Pokemon';
@@ -48,6 +48,9 @@ export class TrainerPokemonSelectorComponent implements OnInit, AfterViewInit, O
     ).subscribe((monName) => {
       this.populateTrainerPokemonMap(monName);
       this.maybeUpdateSelection(monName);
+      if(this.currentTrainerPokemon) {
+        this.dex.trainerPokemonSelection.next(this.currentTrainerPokemon);
+      }
       this.cdr.detectChanges();
     });
 
@@ -67,13 +70,16 @@ export class TrainerPokemonSelectorComponent implements OnInit, AfterViewInit, O
     this.dex.trainerPokemonSelection.pipe(
       takeUntil(this.destroy$)
     ).subscribe((trainerPokemon) => {
-      if(this.currentTrainerPokemon === trainerPokemon) {
+      if(this.currentTrainerPokemon === trainerPokemon ) {
         return;
       }
-      this.populateTrainerPokemonMap(trainerPokemon.name);
+      // Hacky way of remembering trainer selection when navigating between mons.
       this.currentTrainer = this.dex.trainersByPokemonName.get(trainerPokemon.name)?.find((t) => t.Pokes.includes(trainerPokemon));
-      console.log(trainerPokemon, this.currentTrainer);
-      this.maybeUpdateSelection(trainerPokemon.name, trainerPokemon);
+      if(this.currentMon?.name === trainerPokemon.name) {
+        this.populateTrainerPokemonMap(trainerPokemon.name);
+        console.log(trainerPokemon, this.currentTrainer);
+        this.maybeUpdateSelection(trainerPokemon.name, trainerPokemon);
+      }
       // this.cdr.detectChanges();
     });
        
@@ -155,7 +161,7 @@ export class TrainerPokemonSelectorComponent implements OnInit, AfterViewInit, O
       }
     }
     this.selectedTrainerKey = '';
-    this.currentTrainer = undefined;
+    // this.currentTrainer = undefined; // If we keep current trainer, we can still return to the same trainer after navigating away.
     this.currentTrainerPokemon = undefined;
     return;
   }
@@ -179,13 +185,15 @@ export class TrainerPokemonSelectorComponent implements OnInit, AfterViewInit, O
   onDropdownChange(newKey: string) {
     const entry = this.trainerPokemonMap.get(newKey);
     if (entry) {
-      this.currentTrainer = entry.trainer;
+      this.currentTrainer = entry.trainer; // Only update currentTrainer when we actually select one.
       this.currentTrainerPokemon = entry.pokemon;
       this.dex.trainerSelection.next(entry.trainer);
       this.dex.trainerPokemonSelection.next(entry.pokemon);
     } else {
       this.currentTrainer = undefined;
       this.currentTrainerPokemon = undefined;
+      this.dex.trainerSelection.next(undefined); // We want to remember our selections, even if they're empty
+      this.dex.trainerPokemonSelection.next(undefined);
     }
   }
 

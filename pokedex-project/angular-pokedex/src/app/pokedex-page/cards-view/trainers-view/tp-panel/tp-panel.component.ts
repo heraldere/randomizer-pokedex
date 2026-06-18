@@ -23,7 +23,6 @@ export class TpPanelComponent implements OnInit {
   navigateToIndividualView(t_pokemon: TrainerPokemon) {
     let mon = this.dex.pokedexByName.get(t_pokemon.name);
     if(mon) {
-      console.log("Starting nav");
       this.dex.navigation.iv_misc_selection = 'trainers';
       this.dex.selectPokemon(t_pokemon.name);
       this.dex.trainerPokemonSelection.next(t_pokemon);

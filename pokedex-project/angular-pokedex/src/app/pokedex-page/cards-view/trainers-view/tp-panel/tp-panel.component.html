@@ -1,4 +1,4 @@
 <div class="element-container">
   <div (click)="navigateToIndividualView(trainer_pokemon)">{{ trainer_pokemon.name }}</div>
-  <div *ngFor="let form of alt_forms">{{ form.name }}</div>
+  <div *ngFor="let form of alt_forms" (click)="navigateToIndividualView(form)">{{ form.name }}</div>
 </div>
