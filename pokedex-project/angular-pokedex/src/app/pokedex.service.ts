@@ -4,7 +4,7 @@ import { Observable, Subject, ReplaySubject } from 'rxjs';
 import { Pokemon, learned_move, tm_move, PokeType } from './Pokemon';
 import { PokedexLoader } from './PokedexLoader';
 import { PokedexContext } from './PokedexContext';
-import { Trainer } from './Trainer';
+import { Trainer, TrainerPokemon } from './Trainer';
 import { TUTORIAL_NOTE } from './TutorialNote';
 import { PokedexNavigation } from './PokedexNavigation';
 
@@ -44,6 +44,8 @@ export class PokedexService {
   public filterChanges = new ReplaySubject<Pokemon[]>(1);
   public loadingStatus = new ReplaySubject<boolean>();
   public trainerSelection = new ReplaySubject<Trainer>(1);
+  public trainerPokemonSelection = new ReplaySubject<TrainerPokemon>(1);
+  public cardNavigationSelection = new Subject<string>();
 
   static readonly defaultPkdxName = './assets/data/Default.pkdx';
   static readonly sampleRandomPkdxName = './assets/data/Random.pkdx';
@@ -51,6 +53,10 @@ export class PokedexService {
   constructor() {
     //TODO: THIS MUST BE COMMENTED OUT BEFORE PRODUCTION
     (window as any).dex = this;
+  }
+
+  public updateCardNavigationSelection(selection: string) {
+    this.cardNavigationSelection.next(selection);
   }
 
   public async loadDefaultData() {

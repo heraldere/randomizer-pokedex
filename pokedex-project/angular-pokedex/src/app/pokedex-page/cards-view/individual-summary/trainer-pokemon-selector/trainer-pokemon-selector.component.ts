@@ -3,8 +3,11 @@ import {
   ChangeDetectorRef,
   Component,
   Input,
+  OnDestroy,
   OnInit,
 } from '@angular/core';
+import { takeUntil } from 'rxjs/internal/operators/takeUntil';
+import { Subject } from 'rxjs/internal/Subject';
 import { PokedexService } from 'src/app/pokedex.service';
 import { Pokemon } from 'src/app/Pokemon';
 import { DEFAULT_SETTINGS } from 'src/app/Settings';
@@ -15,7 +18,7 @@ import { Trainer, TrainerPokemon } from 'src/app/Trainer';
   templateUrl: './trainer-pokemon-selector.component.html',
   styleUrls: ['./trainer-pokemon-selector.component.scss'],
 })
-export class TrainerPokemonSelectorComponent implements OnInit, AfterViewInit {
+export class TrainerPokemonSelectorComponent implements OnInit, AfterViewInit, OnDestroy {
   @Input() currentMon: Pokemon | undefined;
   trainerPokemonMap: Map<
     string,
@@ -27,19 +30,53 @@ export class TrainerPokemonSelectorComponent implements OnInit, AfterViewInit {
   selectedTrainerKey: string = '';
   currentTrainer: Trainer | undefined;
   currentTrainerPokemon: TrainerPokemon | undefined;
+  private destroy$ = new Subject<void>();
 
   constructor(dex: PokedexService, cdr: ChangeDetectorRef) {
     this.dex = dex;
     this.cdr = cdr;
   }
+  ngOnDestroy(): void {
+    this.destroy$.next();
+    this.destroy$.complete();
+  }
   ngAfterViewInit(): void {}
 
   ngOnInit(): void {
-    this.dex.monSelection.subscribe((monName) => {
+    this.dex.monSelection.pipe(
+      takeUntil(this.destroy$)
+    ).subscribe((monName) => {
       this.populateTrainerPokemonMap(monName);
       this.maybeUpdateSelection(monName);
       this.cdr.detectChanges();
     });
+
+    // this.dex.trainerSelection.subscribe((trainer) => {
+    //   if (trainer && this.currentMon) {
+    //     this.currentTrainer = trainer;
+    //     const matchingMon = trainer.Pokes.find(
+    //       (tp) => tp.name === this.currentMon?.name
+    //     );
+    //     if (matchingMon) {
+    //       this.currentTrainerPokemon = matchingMon;
+    //       this.selectedTrainerKey = this.buildTrainerKey(this.currentTrainer, this.currentTrainerPokemon);
+    //     }
+    //   }
+    // });
+
+    this.dex.trainerPokemonSelection.pipe(
+      takeUntil(this.destroy$)
+    ).subscribe((trainerPokemon) => {
+      if(this.currentTrainerPokemon === trainerPokemon) {
+        return;
+      }
+      this.populateTrainerPokemonMap(trainerPokemon.name);
+      this.currentTrainer = this.dex.trainersByPokemonName.get(trainerPokemon.name)?.find((t) => t.Pokes.includes(trainerPokemon));
+      console.log(trainerPokemon, this.currentTrainer);
+      this.maybeUpdateSelection(trainerPokemon.name, trainerPokemon);
+      // this.cdr.detectChanges();
+    });
+       
   }
 
   private populateTrainerPokemonMap(monName: string) {
@@ -92,7 +129,7 @@ export class TrainerPokemonSelectorComponent implements OnInit, AfterViewInit {
     this.trainerPokemonSearchKeys.unshift(''); // for no selection
   }
 
-  private maybeUpdateSelection(monName: string) {
+  private maybeUpdateSelection(monName: string, trainerPokemon?: TrainerPokemon) {
     if (!this.currentMon) {
       this.selectedTrainerKey = '';
       this.currentTrainer = undefined;
@@ -103,18 +140,17 @@ export class TrainerPokemonSelectorComponent implements OnInit, AfterViewInit {
     const trainers = this.dex.trainersByPokemonName.get(monName);
     const matchingTrainer = trainers?.find((t) => t === this.currentTrainer);
     if (matchingTrainer) {
+      if(trainerPokemon) {
+        this.currentTrainerPokemon = trainerPokemon;
+        this.selectedTrainerKey = this.buildTrainerKey(matchingTrainer, this.currentTrainerPokemon);
+        return;
+      }
       const matchingMon = matchingTrainer.Pokes.find(
         (tp) => tp.name === this.currentMon?.name
       );
       if (matchingMon) {
         this.currentTrainerPokemon = matchingMon;
-        this.selectedTrainerKey = `Lv${this.currentTrainerPokemon.level} ${
-          matchingTrainer.name
-        }${
-          matchingTrainer.oldName !== matchingTrainer.name
-            ? ' (' + matchingTrainer.oldName + ')'
-            : ''
-        }`;
+        this.selectedTrainerKey = this.buildTrainerKey(matchingTrainer, this.currentTrainerPokemon);
         return;
       }
     }
@@ -124,12 +160,29 @@ export class TrainerPokemonSelectorComponent implements OnInit, AfterViewInit {
     return;
   }
 
+  private buildTrainerKey(matchingTrainer: Trainer, trainerPokemon: TrainerPokemon): string {
+    let base_string = `Lv${trainerPokemon.level} ${matchingTrainer.name}${matchingTrainer.oldName !== matchingTrainer.name
+        ? ' (' + matchingTrainer.oldName + ')'
+        : ''}`;
+    let index = 0;
+    for(let t_mon of matchingTrainer.Pokes) {
+      if(t_mon.name === trainerPokemon.name) {
+        index++;
+        if(t_mon === trainerPokemon) {
+          break;
+        }
+      }
+    }
+    return base_string + (index > 1 ? ` (${index})` : '');
+  }
+
   onDropdownChange(newKey: string) {
     const entry = this.trainerPokemonMap.get(newKey);
     if (entry) {
       this.currentTrainer = entry.trainer;
       this.currentTrainerPokemon = entry.pokemon;
       this.dex.trainerSelection.next(entry.trainer);
+      this.dex.trainerPokemonSelection.next(entry.pokemon);
     } else {
       this.currentTrainer = undefined;
       this.currentTrainerPokemon = undefined;

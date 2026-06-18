@@ -18,6 +18,9 @@ export class CardsViewComponent implements OnInit {
 
   constructor(dex : PokedexService) { 
     this.dex = dex;
+    this.dex.cardNavigationSelection.subscribe((selection) => {
+      this.selectedTab = selection;
+    });
   }
 
   onFileSelected(e: Event) {
