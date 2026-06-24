@@ -32,17 +32,20 @@ export class PokedexService {
   tmMoves: string[] = [];
   hmMoves: string[] = [];
   starters: string[] = [];
+
+  trainersEncountered = 0;
+
   dexLoader = new PokedexLoader();
   navigation = new PokedexNavigation();
 
   trainers: Trainer[] = [];
   trainersByPokemonName = new Map<string, Trainer[]>();
 
-  public dexChanges = new ReplaySubject<void>();
+  public dexChanges = new ReplaySubject<void>(1);
   public individualChanges = new Subject<Pokemon>();
   public monSelection = new ReplaySubject<string>(1);
   public filterChanges = new ReplaySubject<Pokemon[]>(1);
-  public loadingStatus = new ReplaySubject<boolean>();
+  public loadingStatus = new ReplaySubject<boolean>(1);
   public trainerSelection = new ReplaySubject<Trainer>(1);
   public trainerPokemonSelection = new ReplaySubject<TrainerPokemon>(1);
   public cardNavigationSelection = new Subject<string>();
@@ -139,6 +142,8 @@ export class PokedexService {
         this.trainers.filter((t) => t.contains(mon.name))
       );
     }
+
+    this.trainersEncountered = Math.max(...this.trainers.map(t => t.encounterOrder))
     
     this.dexChanges.next();
 
@@ -362,5 +367,15 @@ export class PokedexService {
 
   public selectPokemon(name: string) {
     this.monSelection.next(name);
+  }
+
+  public bumpTrainerEncounterOrder(trainer: Trainer) {
+    if(trainer.Pokes.some(p => p.isDefeated)) {
+      if(trainer.encounterOrder === 0) {
+        trainer.encounterOrder = ++this.trainersEncountered
+      }
+    } else {
+      trainer.encounterOrder = 0;
+    }
   }
 }

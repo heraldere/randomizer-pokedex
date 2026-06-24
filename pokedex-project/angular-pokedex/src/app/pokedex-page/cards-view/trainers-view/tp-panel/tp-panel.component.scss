@@ -1,0 +1,140 @@
+.tp-panel-base {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  flex-direction: row;
+  font-size: 14px;
+}
+
+.tp-panel-selector-column {
+  flex: 2;
+  height: 100%;
+}
+
+.tp-panel-loadout-column {
+  flex: 3;
+  height: 100%;
+}
+
+.tp-panel-stat-column {
+  flex: 1.5;
+  height: 100%;
+  // display: flex
+}
+
+.tp-stat-bar {
+  height: 4px;
+  border-radius: 2px;
+}
+
+.stat-low {
+  background-color: red;
+}
+.stat-med {
+  background-color: orange;
+}
+.stat-mhi {
+  background-color: yellow;
+}
+.stat-hi {
+  background-color: green;
+}
+.stat-vhi {
+  background-color: blue;
+}
+.stat-vvhi {
+  background-color: purple;
+}
+.stat-vvvhi {
+  background-color: red;
+}
+
+
+.tp-img {
+  max-width: 100%;
+}
+
+.tp-moves {
+  height: 70%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  width: 100%;
+}
+
+.tp-move {
+  flex: 1;
+  width: 95%;
+  outline: 1px solid white;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.tp-no-moves {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-style: italic;
+  color: gray;
+}
+
+.tp-inventory {
+  height: 30%;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
+
+.tp-form-buttons {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  justify-content: flex-start;
+  padding: 3px;
+}
+
+.tp-form-button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: "Roboto", Arial, sans-serif;
+  background-color: #156615;
+  color: #cfcfcf;
+  font-size: 14px;
+  border-radius: 5px;
+  padding: 2px 10px
+}
+
+.tp-defeat-button {
+  --btn-height: 30px;
+  button {
+    height: var(--btn-height);
+    width: calc(var(--btn-height) * 2);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    font-size: 7pt;
+    font-weight: bold;
+    color: white;
+  }
+  button.top {
+    border-radius: var(--btn-height) var(--btn-height) 0 0;
+    background-color: #156615;
+    justify-content: flex-end;
+    border-bottom: solid 1px black;
+  }
+  button.top.toggled {
+    background-color: #858585;
+  }
+  button.bottom {
+    border-radius: 0 0 var(--btn-height) var(--btn-height);
+    background-color: #720000;
+    justify-content: flex-start;
+  }
+  button.bottom.toggled {
+    background-color: #424242;
+  }
+}

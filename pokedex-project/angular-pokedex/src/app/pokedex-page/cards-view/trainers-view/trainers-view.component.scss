@@ -14,16 +14,20 @@
 #trainer-search-zone {
   height: 90px;
   display: flex;
-  flex-direction: column;
+  flex-direction: row;
   align-items: center;
   justify-content: center;
-
 }
 #trainer-search-box {
   width: 200px;
   padding: 5px;
 
 }
+
+mat-form-field {
+  width: 300px;
+}
+
 #trainer-details-grid {
   flex: 1;
   display: grid;
@@ -34,3 +38,92 @@
   box-sizing: border-box;
 
 }
+
+.tp-panel-container {
+  height: 100%;
+  width: 100%;
+  padding: 5px;
+}
+
+.tp-no-pokemon {
+  height: 100%;
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.tv-search {
+    padding: 0px;
+    padding-left: 12px;
+}
+
+.icon-white {
+  max-width: 175px;
+  filter: invert(1) brightness(.3)
+}
+
+.tv-name-plate {
+  margin-left: 10px;
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  width: 350px;
+  height: 65px;
+}
+
+.tv-name {
+  font-size: medium;
+}
+
+button {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  font-size: 8pt;
+  font-weight: bold;
+  color: white;
+}
+
+.tv-spoil-button {
+  height: 50px;
+  width: 50px;
+  border-radius: 25px;
+  margin-left: auto;
+  background-color: #156615;
+  
+}
+.tv-spoil-button.toggled {
+    background-color: #858585;
+}
+
+.tv-defeat-button {
+  margin-left: 5px;
+  height: 50px;
+  width: 50px;
+  border-radius: 25px;
+  background-color: #720000;
+  
+}
+.tv-defeat-button.toggled {
+    background-color: #424242;
+}
+
+  // button.top {
+  //   border-radius: var(--btn-height) var(--btn-height) 0 0;
+  //   background-color: #156615;
+  //   justify-content: flex-end;
+  //   border-bottom: solid 1px black;
+  // }
+  // button.top.toggled {
+  //   background-color: #858585;
+  // }
+  // button.bottom {
+  //   border-radius: 0 0 var(--btn-height) var(--btn-height);
+  //   background-color: #720000;
+  //   justify-content: flex-start;
+  // }
+  // button.bottom.toggled {
+  //   background-color: #424242;
+  // }

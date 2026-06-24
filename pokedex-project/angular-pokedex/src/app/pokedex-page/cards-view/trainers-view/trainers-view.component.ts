@@ -6,6 +6,7 @@ import { MatInput } from '@angular/material/input';
 import { FormControl } from '@angular/forms';
 import { Observable, Subject } from 'rxjs';
 import { startWith, map, takeUntil, ignoreElements, filter } from 'rxjs/operators';
+import { DEFAULT_SETTINGS } from 'src/app/Settings';
 
 @Component({
   selector: 'trainers-view',
@@ -13,6 +14,7 @@ import { startWith, map, takeUntil, ignoreElements, filter } from 'rxjs/operator
   styleUrls: ['./trainers-view.component.scss']
 })
 export class TrainersViewComponent implements OnInit, OnDestroy{
+
 
   ctrl: FormControl = new FormControl();
   trainers_filtered_by_text: Observable<Trainer[]>;
@@ -86,5 +88,41 @@ export class TrainersViewComponent implements OnInit, OnDestroy{
     }
   }
 
+  toggleTeamSpoil() {
+    if(this.current_trainer) {
+      let status = this.current_trainer.Pokes.every(p => p.isRevealed);
+      for(let poke of this.current_trainer.Pokes) {
+        poke.isRevealed = !status;
+      }
+    }
+  }
 
+  toggleTeamDefeat() {
+    if(this.current_trainer) {
+      let isFullTeamDefeated = this.current_trainer.Pokes.every(p => p.isDefeated);
+      for(let poke of this.current_trainer.Pokes) {
+        let mon = this.dex.pokedexByName.get(poke.name)
+        if(mon) {
+          if(isFullTeamDefeated) {
+            if(poke.isDefeated) { // This check should be unnecessary
+              mon.undefeatTrainerPokemon(poke, DEFAULT_SETTINGS);
+              poke.isDefeated = false;
+              poke.isRevealed = false;
+            }
+          } else {
+            if(!poke.isDefeated) {
+              mon.defeatTrainerPokemon(poke, DEFAULT_SETTINGS);
+              poke.isDefeated = true;
+              poke.isRevealed = true;
+            }
+          }
+        }
+      }
+
+      this.dex.bumpTrainerEncounterOrder(this.current_trainer)
+      this.dex.dexChanges.next();
+
+    }
+
+  }
 }

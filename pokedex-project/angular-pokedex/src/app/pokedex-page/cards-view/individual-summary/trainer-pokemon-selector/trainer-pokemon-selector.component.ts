@@ -7,7 +7,7 @@ import {
   OnInit,
 } from '@angular/core';
 import { takeUntil } from 'rxjs/operators';
-import { Subject } from 'rxjs/internal/Subject';
+import { Subject } from 'rxjs';
 import { PokedexService } from 'src/app/pokedex.service';
 import { Pokemon } from 'src/app/Pokemon';
 import { DEFAULT_SETTINGS } from 'src/app/Settings';
@@ -206,15 +206,47 @@ export class TrainerPokemonSelectorComponent implements OnInit, AfterViewInit, O
 
   toggleDefeat() {
     if (this.currentTrainerPokemon && this.currentMon && this.currentTrainer) {
-      if(this.currentTrainerPokemon.isDefeated) {
-        this.currentMon.undefeatTrainerPokemon(this.currentTrainerPokemon.level, DEFAULT_SETTINGS);
-        this.currentTrainerPokemon.isRevealed = false;
-      } else {
-        this.currentMon.defeatTrainerPokemon(this.currentTrainerPokemon.level, DEFAULT_SETTINGS);
-        this.currentTrainerPokemon.isRevealed = true;
+
+      // First we need to see if we need to update any other pokemon in addition to this one
+      let ctp_name = this.currentTrainerPokemon.name;
+      let alt_forms: TrainerPokemon[] = []
+      if( this.currentTrainerPokemon.canMegaEvolve() ) {
+        alt_forms = this.currentTrainer.Pokes.filter(p => p.name.startsWith(ctp_name) && p.name.includes("-Mega")) 
       }
+      else if( this.currentTrainerPokemon.isMegaEvolved()) { //Super hacky, but not sure how to grab otherwise.
+        alt_forms = this.currentTrainer.Pokes.filter( p => p.canMegaEvolve() && p.name.slice(0, 5) === ctp_name.slice(0, 5))
+      }
+      let alt_species = alt_forms.map(f => this.dex.pokedexByName.get(f.name))
+
+      // Then either defeat or undefeat them depending on button state
+      if(this.currentTrainerPokemon.isDefeated) {
+        this.currentMon.undefeatTrainerPokemon(this.currentTrainerPokemon, DEFAULT_SETTINGS);
+        this.currentTrainerPokemon.isRevealed = false;
+        for(let alt of alt_species) {
+          if(alt) {
+            alt.undefeatTrainerPokemon(this.currentTrainerPokemon, DEFAULT_SETTINGS)
+          }
+        }
+      } else {
+        this.currentMon.defeatTrainerPokemon(this.currentTrainerPokemon, DEFAULT_SETTINGS);
+        this.currentTrainerPokemon.isRevealed = true;
+        for(let alt of alt_species) {
+          if(alt) {
+            alt.defeatTrainerPokemon(this.currentTrainerPokemon, DEFAULT_SETTINGS)
+          }
+        }
+      }
+
+      // Update all information to match (alt forms should stay closely coupled with base)
       this.currentTrainerPokemon.isDefeated =
         !this.currentTrainerPokemon.isDefeated;
+
+      for(let alt_tp of alt_forms) {
+        alt_tp.isRevealed = this.currentTrainerPokemon.isRevealed;
+        alt_tp.isDefeated = this.currentTrainerPokemon.isDefeated;
+      }
+
+      this.dex.bumpTrainerEncounterOrder(this.currentTrainer);
       this.dex.individualChanges.next(this.currentMon);
     } else {
       console.log("Couldn't toggle defeat, missing data");

@@ -1,26 +1,76 @@
 <div id="trainer-view-base">
+  <div class="wireframe" id="trainer-details-grid">
+    <div
+      class="wireframe tp-panel-container"
+      *ngFor="let i of [0, 1, 2, 3, 4, 5]"
+    >
+      <tp-panel
+        *ngIf="
+          trainer_selected &&
+            current_trainer!.Pokes[i] &&
+            !current_trainer!.Pokes[i].isMegaEvolved();
+          else noPokemon
+        "
+        [trainer_pokemon]="current_trainer!.Pokes[i]"
+        [alt_forms]="
+          current_trainer!.getAltFormsOfPokemon(current_trainer!.Pokes[i].name)
+        "
+      ></tp-panel>
+
+      <ng-template #noPokemon>
+        <div class="element-container tp-no-pokemon">
+          <img src="assets/images/pokeball-icon.png" class="icon-white" />
+        </div>
+      </ng-template>
+    </div>
+  </div>
   <div class="wireframe" id="trainer-search-zone">
-      <mat-form-field class="search-box wireframe" >
-        <input #searchInput type="text" placeholder="Search For Trainers" aria-label="Number" matInput [formControl]="ctrl"
-            [matAutocomplete]="mm">
-        <mat-autocomplete autoActiveFirstOption #mm="matAutocomplete" >
-          <mat-option *ngFor="let trainer of trainers_filtered_by_text | async" [value]="trainer">
+    <div class="element-container tv-search">
+      <mat-form-field class="wireframe">
+        <input
+          #searchInput
+          type="text"
+          placeholder="Search For Trainers"
+          aria-label="Number"
+          matInput
+          [formControl]="ctrl"
+          [matAutocomplete]="mm"
+        />
+        <mat-autocomplete autoActiveFirstOption #mm="matAutocomplete">
+          <mat-option
+            *ngFor="let trainer of trainers_filtered_by_text | async"
+            [value]="trainer"
+          >
             {{ trainer.name }}
           </mat-option>
         </mat-autocomplete>
       </mat-form-field>
-
-  </div>
-  <div class="wireframe" id="trainer-details-grid">
-    <div class="wireframe" *ngFor="let i of [0,1,2,3,4,5]">
-      <div *ngIf="trainer_selected && current_trainer!.Pokes[i] && !(current_trainer!.Pokes[i].isMegaEvolved()); else noPokemon">
-        <tp-panel [trainer_pokemon]="current_trainer!.Pokes[i]" [alt_forms]="current_trainer!.getAltFormsOfPokemon(current_trainer!.Pokes[i].name)"></tp-panel>
-
-      </div>
-      <ng-template #noPokemon>
-        No Pokemon
-      </ng-template>
     </div>
-
+    <div class="element-container tv-name-plate">
+      <div class="tv-name">
+        {{
+          this.current_trainer
+            ? this.current_trainer.name
+            : "No Trainer Selected"
+        }}
+      </div>
+      <ng-container *ngIf="this.current_trainer">
+        <button
+          class="tv-spoil-button"
+          [disabled]="dex.isFullyRevealed"
+          [class.toggled]="this.current_trainer.isFullTeamRevealed()"
+          (click)="toggleTeamSpoil()"
+        >
+        {{this.current_trainer.isFullTeamRevealed() ? "Unspoil\nTeam" : "Spoil\nTeam"}}
+      </button>
+        <button
+          class="tv-defeat-button"
+          [class.toggled]="this.current_trainer.isFullTeamDefeated()"
+          (click)="toggleTeamDefeat()"
+        >
+        {{this.current_trainer.isFullTeamDefeated() ? "Undefeat\nTeam" : "Defeat\nTeam"}}
+      </button>
+      </ng-container>
+    </div>
   </div>
 </div>
