@@ -1,0 +1,59 @@
+<div class="element-container tp-panel-base">
+  <div class="wireframe tp-panel-selector-column">
+    <div >{{ getFormName() }}</div>
+    <div>Lvl {{trainer_pokemon.level}}</div>
+    <img class="tp-img" src="{{getFormSprite()}}" (click)="navigateToIndividualView(selected_form)">
+    <div class="tp-type" *ngIf="selected_form">
+      <ng-container *ngIf="getTypeSprite() as sprites">
+        <img class="type-box"  [src]="sprites[0]">
+        <img class="type-box" *ngIf="sprites[1]" [src]="sprites[1]">
+      </ng-container>
+
+    </div>
+  </div>
+  <div class="wireframe tp-panel-loadout-column">
+    <ng-container *ngIf="selected_form">
+      <div class="tp-moves" *ngIf="selected_form.moves.length > 0; else noMoves">
+        <div class="tp-move" *ngFor="let i of [0, 1, 2, 3] ">
+          {{selected_form.getMoveString(i, this.dex.isFullyRevealed)}}
+        </div>
+      </div>
+      <ng-template #noMoves>
+        <div class="tp-no-moves">
+          No Moves Found
+        </div>
+      </ng-template>
+      <div class="tp-inventory wireframe">
+        <div>
+          Ability: {{selected_form.getAbilityString(dex.isFullyRevealed)}}
+        </div>
+        <div>
+          Item: {{selected_form.getItemString(dex.isFullyRevealed)}}
+        </div>
+        <div class="tp-form-buttons" *ngIf="(selected_form.canMegaEvolve() && (selected_form.isDefeated || selected_form.isRevealed || this.dex.isFullyRevealed)) || selected_form !== trainer_pokemon">
+          <button class="tp-form-button" (click)="formButtonClicked(form)" *ngFor="let form of alt_forms">{{getFormButtonText(form)}}</button>
+        </div>
+      </div>
+    </ng-container>
+  </div>
+  <div class="wireframe tp-panel-stat-column">
+    <div class="tp-stat" *ngFor="let block of stat_blocks">
+      {{block[0]}}: {{block[1] ? block[1] : '???'}}
+      <div class="tp-stat-bar" [style.width.%]="block[1]/4" 
+      [ngClass]="{
+        'stat-low': block[1] < 25,
+        'stat-med': block[1] >= 25 && block[1] < 75,
+        'stat-mhi': block[1] >= 75 && block[1] < 125,
+        'stat-hi': block[1] >= 125 && block[1] < 200,
+        'stat-vhi': block[1] >= 200 && block[1] < 300,
+        'stat-vvhi': block[1] >=300 && block[1] < 400,
+        'stat-vvvhi': block[1] >=400
+      }"></div>
+    </div>
+    <div class="tp-defeat-button">
+      <button class="top" [class.toggled]="trainer_pokemon.isRevealed" [disabled]="dex.isFullyRevealed" (click)="toggleSpoil()">{{trainer_pokemon.isRevealed ? 'Unspoil' : 'Spoil'}}</button>
+      <button class="bottom" [class.toggled]="trainer_pokemon.isDefeated" (click)="toggleDefeat()">{{trainer_pokemon.isDefeated ? 'Undefeat' : 'Defeat'}}</button>
+    </div>
+  </div>
+  <!-- <div *ngFor="let form of alt_forms" (click)="navigateToIndividualView(form)">{{ form.name }}</div> -->
+</div>

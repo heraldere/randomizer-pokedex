@@ -53,6 +53,12 @@
       height: 20px;
       text-align: left;
     }
+    #view-team-button {
+      height: 30px;
+      width: 100%;
+      display: flex;
+      align-items: center;
+    }
     #button-container {
       width: 100%;
       flex-grow: 1;
@@ -90,6 +96,16 @@
       }
     }
   }
+}
+
+.team-navigation {
+  margin-left: auto;
+  margin-right: auto;
+  color: white;
+  background-color: #156615;
+  --h: 20px; 
+  height: var(--h);
+  border-radius: calc(var(--h) / 2);
 }
 
 .move-table {

@@ -49,9 +49,7 @@ mat-dialog-container {
   }
 
   .wireframe {
-    border-width: 0px;
-    // border-color: red;
-    // border-style: dashed;
+    outline: 0px dashed red;
   }
 
   .mat-autocomplete-panel {

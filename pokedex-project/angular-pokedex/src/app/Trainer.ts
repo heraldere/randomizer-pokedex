@@ -4,6 +4,7 @@ export class TrainerPokemon {
   ability?: string;
   item?: string;
   level: number;
+  ivs: number = 0;
   isRevealed = false;
   isDefeated = false;
   constructor(name: string, level: number) {
@@ -20,7 +21,7 @@ export class TrainerPokemon {
       throw new Error('Invalid Pokémon line: ' + tPokemonString);
     }
 
-    const name = nameItemLevelMatch[1].trim();
+    let name = nameItemLevelMatch[1].trim();
     const item = nameItemLevelMatch[2]?.trim() || undefined;
     const level = parseInt(nameItemLevelMatch[3]);
 
@@ -36,6 +37,12 @@ export class TrainerPokemon {
       .split(',')
       .map((m) => m.trim())
       .filter((m) => m.length > 0);
+
+    if(name.startsWith('Gourgeist')) {
+      name = 'Gourgeist'; // Gen 6+ edge case. Randomizer pretends these are cosmetic (they aren't)
+    } else if (name.startsWith('Pumpkaboo')) {
+      name = 'Pumpkaboo'
+    }
 
     let res = new TrainerPokemon(name, level);
     res.ability = ability;
@@ -55,7 +62,25 @@ export class TrainerPokemon {
     tp.item = ob?.item;
     tp.isRevealed = ob?.isRevealed ?? false;
     tp.isDefeated = ob?.isDefeated ?? false;
+    tp.ivs = ob?.ivs ?? 0;
     return tp;
+  }
+
+  static createMegaCopy(original: TrainerPokemon): TrainerPokemon {
+    let copy_name = original.name + "-Mega";
+    if(original.name !== 'Rayquaza' 
+      && original.item
+      && !original.item.endsWith('ite')) {
+        copy_name = copy_name + '-' + original.item.slice(-1);
+    }
+    let megaCopy = new TrainerPokemon(copy_name, original.level);
+    megaCopy.ability = original.ability; //Ability may change on mega evolution, so we won't copy it by default
+    megaCopy.item = original.item;
+    megaCopy.moves = [...original.moves];
+    megaCopy.isRevealed = original.isRevealed;
+    megaCopy.isDefeated = original.isDefeated;
+    megaCopy.ivs = original.ivs;
+    return megaCopy;
   }
 
   getMoveString(index: number, isFullyRevealed: boolean): string {
@@ -69,6 +94,29 @@ export class TrainerPokemon {
   getItemString(isFullyRevealed: boolean): string {
     return (this.isRevealed || isFullyRevealed) ? (this.item || "-") : "???"
   }
+  
+  canMegaEvolve(): boolean {
+    const item = this.item;
+    if (!item) return false;
+
+    if(this.isMegaEvolved()) {
+      return false;
+    }
+
+    if(this.name === "Rayquaza") {
+      return this.moves.includes("Dragon Ascent");
+    }
+
+    return (
+      // Not exactly a perfect check, but collisions should be super rare
+      item.startsWith(this.name.substring(0, 4)) &&
+      item.split(' ')[0].endsWith("ite")
+    );
+  }
+
+  isMegaEvolved(): boolean {
+    return this.name.includes("-Mega");
+  }
 }
 
 export class Trainer {
@@ -76,6 +124,7 @@ export class Trainer {
   class?: string;
   oldName?: string;
   Pokes: TrainerPokemon[] = [];
+  encounterOrder = 0;
   constructor() {}
 
   contains(mon_name: string): boolean {
@@ -133,11 +182,19 @@ export class Trainer {
       res.oldName = oldName;
       res.Pokes = tPokemonList;
     }
+    // Check for Mega Evolutions (and other forms)and add them to Pokes list
+    let megaCopies: TrainerPokemon[] = [];
+    for (let poke of res.Pokes) {
+      if (poke.canMegaEvolve()) {
+        let copy = TrainerPokemon.createMegaCopy(poke);
+        megaCopies.push(copy);
+      }
+    }
+    res.Pokes = [...res.Pokes, ...megaCopies];
     return res;
   }
 
   static loadFromJson(ob: any): Trainer {
-    // throw new Error('Method not implemented.');
     let res = new Trainer();
     res.name = ob?.name ?? '';
     res.class = ob?.class;
@@ -146,6 +203,24 @@ export class Trainer {
       ob?.Pokes.map((tp: any) => {
         return TrainerPokemon.loadFromJson(tp);
       }) ?? [];
+    res.encounterOrder = ob?.encounterOrder ?? 0;
     return res;
+  }
+
+  // Will need to be updated if we add more alternate forms that aren't just mega evolutions
+  getAltFormsOfPokemon(mon_name: string): TrainerPokemon[] {
+    let base_form = this.Pokes.find((poke) => poke.name === mon_name);
+    if(!base_form?.canMegaEvolve()) {
+      return [];
+    }
+    return this.Pokes.filter((poke) =>  poke.name.startsWith(mon_name) && poke.name.includes("-Mega"));
+  }
+
+  isFullTeamRevealed(): boolean {
+    return this.Pokes.every(p => p.isDefeated || p.isRevealed);
+  }
+
+  isFullTeamDefeated(): boolean {
+    return this.Pokes.every(p => p.isDefeated);
   }
 }
