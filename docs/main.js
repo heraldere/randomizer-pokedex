@@ -162,7 +162,7 @@ __webpack_require__.r(__webpack_exports__);
 /* harmony export */ __webpack_require__.d(__webpack_exports__, {
 /* harmony export */   "PokedexLoader": () => (/* binding */ PokedexLoader)
 /* harmony export */ });
-/* harmony import */ var tslib__WEBPACK_IMPORTED_MODULE_4__ = __webpack_require__(/*! tslib */ 4929);
+/* harmony import */ var tslib__WEBPACK_IMPORTED_MODULE_4__ = __webpack_require__(/*! tslib */ 2321);
 /* harmony import */ var _PokedexContext__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! ./PokedexContext */ 9553);
 /* harmony import */ var _Pokemon__WEBPACK_IMPORTED_MODULE_1__ = __webpack_require__(/*! ./Pokemon */ 5328);
 /* harmony import */ var _Trainer__WEBPACK_IMPORTED_MODULE_2__ = __webpack_require__(/*! ./Trainer */ 5510);
@@ -285,6 +285,9 @@ class PokedexLoader {
                         break;
                 }
             }
+            const { version: gameVersion, generation: gen } = this.getGameAndGenerationFromLog(blocks);
+            this.lastLoadedLogGameVersion = gameVersion;
+            this.lastLoadedLogGeneration = gen;
             if (pokeStrings.length == 0 ||
                 evoStrings.length == 0 ||
                 moveStrings.length == 0 ||
@@ -293,9 +296,6 @@ class PokedexLoader {
                 locationStrings.length == 0 ||
                 trainerStrings.length == 0 ||
                 starterStrings.length == 0) {
-                const { version: gameVersion, generation: gen } = this.getGameAndGenerationFromLog(blocks);
-                this.lastLoadedLogGameVersion = gameVersion;
-                this.lastLoadedLogGeneration = gen;
                 console.log(`Loading default data for ${gameVersion} (Generation ${gen})`);
                 defaultDataContext = yield this.getDefaultDataForGameVersion(gameVersion);
             }
@@ -502,19 +502,49 @@ class PokedexLoader {
         }
     }
     parseTrainers(ctx, trainerStrings, defaultDataContext) {
-        if (trainerStrings.length == 1) {
-            let lines = trainerStrings[0].split('\n');
-            for (let trainerString of trainerStrings[0].split('\n')) {
-                ctx.trainers.push(_Trainer__WEBPACK_IMPORTED_MODULE_2__.Trainer.fromString(trainerString));
-            }
+        let lines;
+        if (trainerStrings.length === 1) {
+            lines = trainerStrings[0].split('\n');
         }
         else if (trainerStrings.length > 1) {
-            for (let trainerString of trainerStrings) {
-                ctx.trainers.push(_Trainer__WEBPACK_IMPORTED_MODULE_2__.Trainer.fromString(trainerString));
-            }
+            lines = trainerStrings;
         }
         else if (defaultDataContext) {
             ctx.trainers = defaultDataContext.trainers;
+            return;
+        }
+        else {
+            return;
+        }
+        for (const trainerString of lines) {
+            const trainer = _Trainer__WEBPACK_IMPORTED_MODULE_2__.Trainer.fromString(trainerString);
+            if (this.lastLoadedLogGeneration >= 6) {
+                // We have to infer what abilities Pokemon will have after mega evolving
+                this.resolveMegaEvolutionAbilities(ctx, trainer);
+            }
+            ctx.trainers.push(trainer);
+        }
+    }
+    resolveMegaEvolutionAbilities(ctx, t) {
+        for (let mega of t.Pokes.filter(p => p.isMegaEvolved())) {
+            let megamon = ctx.pokedex.find(m => m.name === mega.name);
+            if (!(megamon && mega.ability)) {
+                continue;
+            }
+            let base_form_name = megamon.forms[0];
+            let base_form = ctx.pokedex.find(m => m.name === base_form_name);
+            if (!base_form) {
+                continue;
+            }
+            if (mega.ability === base_form.ability1) {
+                mega.ability = megamon.ability1;
+            }
+            else if (mega.ability === base_form.ability2) {
+                mega.ability = megamon.ability2;
+            }
+            else if (mega.ability === base_form.hiddenAbility) {
+                mega.ability = megamon.hiddenAbility;
+            } // Otherwise, mega can just keep whatever it has.
         }
     }
     parseStarters(ctx, starterStrings, defaultDataContext) {
@@ -582,6 +612,28 @@ class PokedexLoader {
         let machineId = parseInt(match ? match[0] : '0');
         let move = token.slice(token.indexOf(' ')).trim();
         return [machineId, move];
+    }
+}
+
+
+/***/ }),
+
+/***/ 6219:
+/*!**************************************!*\
+  !*** ./src/app/PokedexNavigation.ts ***!
+  \**************************************/
+/***/ ((__unused_webpack_module, __webpack_exports__, __webpack_require__) => {
+
+__webpack_require__.r(__webpack_exports__);
+/* harmony export */ __webpack_require__.d(__webpack_exports__, {
+/* harmony export */   "PokedexNavigation": () => (/* binding */ PokedexNavigation)
+/* harmony export */ });
+// import { signal } from '@angular/core';
+class PokedexNavigation {
+    constructor() {
+        this.iv_misc_selection = 'notes';
+        this.iv_move_selection = 'learned';
+        // card_view_selection = signal<'individual' | 'trainers'> ('individual');
     }
 }
 
@@ -959,21 +1011,43 @@ class Pokemon {
     }
     getStatsIfRevealed() {
         if (this.stats_revealed || this.fully_revealed) {
-            if (this.special) {
-                return [this.hp, this.attack, this.defense, this.special, this.speed];
-            }
-            else {
-                return [
-                    this.hp,
-                    this.attack,
-                    this.defense,
-                    this.sp_attack,
-                    this.sp_defense,
-                    this.speed,
-                ];
-            }
+            return this.getStats();
         }
         return [0, 0, 0, 0, 0, 0];
+    }
+    getStats() {
+        if (this.special) {
+            return [this.hp, this.attack, this.defense, this.special, this.speed];
+        }
+        else {
+            return [
+                this.hp,
+                this.attack,
+                this.defense,
+                this.sp_attack,
+                this.sp_defense,
+                this.speed,
+            ];
+        }
+    }
+    calculateFoeStatsAtLevel(level, ivs, retro, checkRevealed = false) {
+        let base_stats = checkRevealed ? this.getStatsIfRevealed() : this.getStats();
+        if (!base_stats[0]) {
+            return base_stats;
+        }
+        let stats;
+        if (retro) {
+            stats = base_stats.map((base, i) => Math.floor(((base + ivs) * 2 * level) / 100) + 5 + ((i == 0) ? (5 + level) : 0));
+        }
+        else {
+            stats = base_stats.map((base, i) => Math.floor(((2 * base + ivs) * level) / 100) + 5 + ((i == 0) ? (5 + level) : 0));
+        }
+        //Nature is random, so we can't calculate that without reading game memory
+        // Gen 7 trainers can have evs, so this estimate will undershoot.
+        if (this.name.toLowerCase() === 'shedinja') {
+            stats[0] = 1;
+        }
+        return stats;
     }
     getAbilitiesIfRevealed() {
         let res = [];
@@ -1034,12 +1108,12 @@ class Pokemon {
             .replace('\u2642', 'm')
             .toLowerCase();
     }
-    defeatTrainerPokemon(trainerPokemonLevel, settings) {
-        this.levels_defeated_at.push(trainerPokemonLevel);
+    defeatTrainerPokemon(trainerPokemon, settings, canMegaEvolve = false) {
+        this.levels_defeated_at.push(trainerPokemon.level);
         this.recalculateReveals(settings);
     }
-    undefeatTrainerPokemon(trainerPokemonLevel, settings) {
-        const idx = this.levels_defeated_at.indexOf(trainerPokemonLevel);
+    undefeatTrainerPokemon(trainerPokemon, settings, canMegaEvolve = false) {
+        const idx = this.levels_defeated_at.indexOf(trainerPokemon.level);
         if (idx >= 0) {
             this.levels_defeated_at.splice(idx, 1);
         }
@@ -1057,10 +1131,12 @@ class Pokemon {
                 const maxLevel = Math.max(...this.levels_defeated_at);
                 this.learned_moves_revealed_idx = this.learn_levels.filter(l => l <= maxLevel).length;
             }
-            if (settings.revealPrevEvoOnDefeat)
+            if (settings.revealPrevEvoOnDefeat) {
                 this.prev_evos_revealed = this.prev_evos.map((e, i) => i);
-            if (settings.revealNextEvoOnDefeat)
+            }
+            if (settings.revealNextEvoOnDefeat) {
                 this.next_evos_revealed = this.next_evos.map((e, i) => i);
+            }
             if (settings.revealTMMovesOnDefeat)
                 this.tm_indexes_learned = this.tms.map((t, i) => i);
             if (settings.revealLocationsOnDefeat)
@@ -1125,6 +1201,7 @@ __webpack_require__.r(__webpack_exports__);
 class TrainerPokemon {
     constructor(name, level) {
         this.moves = [];
+        this.ivs = 0;
         this.isRevealed = false;
         this.isDefeated = false;
         this.name = name;
@@ -1137,7 +1214,7 @@ class TrainerPokemon {
         if (!nameItemLevelMatch) {
             throw new Error('Invalid Pokémon line: ' + tPokemonString);
         }
-        const name = nameItemLevelMatch[1].trim();
+        let name = nameItemLevelMatch[1].trim();
         const item = ((_a = nameItemLevelMatch[2]) === null || _a === void 0 ? void 0 : _a.trim()) || undefined;
         const level = parseInt(nameItemLevelMatch[3]);
         // Match ability (optional)
@@ -1150,6 +1227,12 @@ class TrainerPokemon {
             .split(',')
             .map((m) => m.trim())
             .filter((m) => m.length > 0);
+        if (name.startsWith('Gourgeist')) {
+            name = 'Gourgeist'; // Gen 6+ edge case. Randomizer pretends these are cosmetic (they aren't)
+        }
+        else if (name.startsWith('Pumpkaboo')) {
+            name = 'Pumpkaboo';
+        }
         let res = new TrainerPokemon(name, level);
         res.ability = ability;
         res.item = item;
@@ -1157,7 +1240,7 @@ class TrainerPokemon {
         return res;
     }
     static loadFromJson(ob) {
-        var _a, _b, _c;
+        var _a, _b, _c, _d;
         if (!ob.name || !ob.level) {
             throw new Error("Couldn't load Pokemon" + ob);
         }
@@ -1167,7 +1250,24 @@ class TrainerPokemon {
         tp.item = ob === null || ob === void 0 ? void 0 : ob.item;
         tp.isRevealed = (_b = ob === null || ob === void 0 ? void 0 : ob.isRevealed) !== null && _b !== void 0 ? _b : false;
         tp.isDefeated = (_c = ob === null || ob === void 0 ? void 0 : ob.isDefeated) !== null && _c !== void 0 ? _c : false;
+        tp.ivs = (_d = ob === null || ob === void 0 ? void 0 : ob.ivs) !== null && _d !== void 0 ? _d : 0;
         return tp;
+    }
+    static createMegaCopy(original) {
+        let copy_name = original.name + "-Mega";
+        if (original.name !== 'Rayquaza'
+            && original.item
+            && !original.item.endsWith('ite')) {
+            copy_name = copy_name + '-' + original.item.slice(-1);
+        }
+        let megaCopy = new TrainerPokemon(copy_name, original.level);
+        megaCopy.ability = original.ability; //Ability may change on mega evolution, so we won't copy it by default
+        megaCopy.item = original.item;
+        megaCopy.moves = [...original.moves];
+        megaCopy.isRevealed = original.isRevealed;
+        megaCopy.isDefeated = original.isDefeated;
+        megaCopy.ivs = original.ivs;
+        return megaCopy;
     }
     getMoveString(index, isFullyRevealed) {
         return (this.isRevealed || isFullyRevealed) ? (this.moves[index] || "-") : "???";
@@ -1178,11 +1278,30 @@ class TrainerPokemon {
     getItemString(isFullyRevealed) {
         return (this.isRevealed || isFullyRevealed) ? (this.item || "-") : "???";
     }
+    canMegaEvolve() {
+        const item = this.item;
+        if (!item)
+            return false;
+        if (this.isMegaEvolved()) {
+            return false;
+        }
+        if (this.name === "Rayquaza") {
+            return this.moves.includes("Dragon Ascent");
+        }
+        return (
+        // Not exactly a perfect check, but collisions should be super rare
+        item.startsWith(this.name.substring(0, 4)) &&
+            item.split(' ')[0].endsWith("ite"));
+    }
+    isMegaEvolved() {
+        return this.name.includes("-Mega");
+    }
 }
 class Trainer {
     constructor() {
         this.name = '';
         this.Pokes = [];
+        this.encounterOrder = 0;
     }
     contains(mon_name) {
         return this.Pokes.some((poke) => (poke.name === mon_name));
@@ -1232,11 +1351,19 @@ class Trainer {
             res.oldName = oldName;
             res.Pokes = tPokemonList;
         }
+        // Check for Mega Evolutions (and other forms)and add them to Pokes list
+        let megaCopies = [];
+        for (let poke of res.Pokes) {
+            if (poke.canMegaEvolve()) {
+                let copy = TrainerPokemon.createMegaCopy(poke);
+                megaCopies.push(copy);
+            }
+        }
+        res.Pokes = [...res.Pokes, ...megaCopies];
         return res;
     }
     static loadFromJson(ob) {
-        var _a, _b;
-        // throw new Error('Method not implemented.');
+        var _a, _b, _c;
         let res = new Trainer();
         res.name = (_a = ob === null || ob === void 0 ? void 0 : ob.name) !== null && _a !== void 0 ? _a : '';
         res.class = ob === null || ob === void 0 ? void 0 : ob.class;
@@ -1245,7 +1372,22 @@ class Trainer {
             (_b = ob === null || ob === void 0 ? void 0 : ob.Pokes.map((tp) => {
                 return TrainerPokemon.loadFromJson(tp);
             })) !== null && _b !== void 0 ? _b : [];
+        res.encounterOrder = (_c = ob === null || ob === void 0 ? void 0 : ob.encounterOrder) !== null && _c !== void 0 ? _c : 0;
         return res;
+    }
+    // Will need to be updated if we add more alternate forms that aren't just mega evolutions
+    getAltFormsOfPokemon(mon_name) {
+        let base_form = this.Pokes.find((poke) => poke.name === mon_name);
+        if (!(base_form === null || base_form === void 0 ? void 0 : base_form.canMegaEvolve())) {
+            return [];
+        }
+        return this.Pokes.filter((poke) => poke.name.startsWith(mon_name) && poke.name.includes("-Mega"));
+    }
+    isFullTeamRevealed() {
+        return this.Pokes.every(p => p.isDefeated || p.isRevealed);
+    }
+    isFullTeamDefeated() {
+        return this.Pokes.every(p => p.isDefeated);
     }
 }
 
@@ -1490,15 +1632,15 @@ __webpack_require__.r(__webpack_exports__);
 /* harmony export */ __webpack_require__.d(__webpack_exports__, {
 /* harmony export */   "AppModule": () => (/* binding */ AppModule)
 /* harmony export */ });
-/* harmony import */ var _angular_platform_browser__WEBPACK_IMPORTED_MODULE_17__ = __webpack_require__(/*! @angular/platform-browser */ 318);
-/* harmony import */ var _angular_forms__WEBPACK_IMPORTED_MODULE_18__ = __webpack_require__(/*! @angular/forms */ 587);
-/* harmony import */ var _angular_material_dialog__WEBPACK_IMPORTED_MODULE_20__ = __webpack_require__(/*! @angular/material/dialog */ 5758);
-/* harmony import */ var _angular_material_select__WEBPACK_IMPORTED_MODULE_23__ = __webpack_require__(/*! @angular/material/select */ 1434);
-/* harmony import */ var _angular_material_menu__WEBPACK_IMPORTED_MODULE_27__ = __webpack_require__(/*! @angular/material/menu */ 2796);
-/* harmony import */ var _angular_material_autocomplete__WEBPACK_IMPORTED_MODULE_24__ = __webpack_require__(/*! @angular/material/autocomplete */ 3188);
-/* harmony import */ var _angular_material_input__WEBPACK_IMPORTED_MODULE_25__ = __webpack_require__(/*! @angular/material/input */ 3365);
-/* harmony import */ var _angular_material_form_field__WEBPACK_IMPORTED_MODULE_26__ = __webpack_require__(/*! @angular/material/form-field */ 4770);
-/* harmony import */ var _angular_material_tabs__WEBPACK_IMPORTED_MODULE_21__ = __webpack_require__(/*! @angular/material/tabs */ 2379);
+/* harmony import */ var _angular_platform_browser__WEBPACK_IMPORTED_MODULE_19__ = __webpack_require__(/*! @angular/platform-browser */ 318);
+/* harmony import */ var _angular_forms__WEBPACK_IMPORTED_MODULE_20__ = __webpack_require__(/*! @angular/forms */ 587);
+/* harmony import */ var _angular_material_dialog__WEBPACK_IMPORTED_MODULE_22__ = __webpack_require__(/*! @angular/material/dialog */ 5758);
+/* harmony import */ var _angular_material_select__WEBPACK_IMPORTED_MODULE_25__ = __webpack_require__(/*! @angular/material/select */ 1434);
+/* harmony import */ var _angular_material_menu__WEBPACK_IMPORTED_MODULE_29__ = __webpack_require__(/*! @angular/material/menu */ 2796);
+/* harmony import */ var _angular_material_autocomplete__WEBPACK_IMPORTED_MODULE_26__ = __webpack_require__(/*! @angular/material/autocomplete */ 3188);
+/* harmony import */ var _angular_material_input__WEBPACK_IMPORTED_MODULE_27__ = __webpack_require__(/*! @angular/material/input */ 3365);
+/* harmony import */ var _angular_material_form_field__WEBPACK_IMPORTED_MODULE_28__ = __webpack_require__(/*! @angular/material/form-field */ 4770);
+/* harmony import */ var _angular_material_tabs__WEBPACK_IMPORTED_MODULE_23__ = __webpack_require__(/*! @angular/material/tabs */ 2379);
 /* harmony import */ var _app_routing_module__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! ./app-routing.module */ 158);
 /* harmony import */ var _app_component__WEBPACK_IMPORTED_MODULE_1__ = __webpack_require__(/*! ./app.component */ 5041);
 /* harmony import */ var _header_header_component__WEBPACK_IMPORTED_MODULE_2__ = __webpack_require__(/*! ./header/header.component */ 3482);
@@ -1506,10 +1648,10 @@ __webpack_require__.r(__webpack_exports__);
 /* harmony import */ var _pokedex_page_pokedex_page_component__WEBPACK_IMPORTED_MODULE_4__ = __webpack_require__(/*! ./pokedex-page/pokedex-page.component */ 1644);
 /* harmony import */ var _pokedex_page_table_view_table_view_component__WEBPACK_IMPORTED_MODULE_5__ = __webpack_require__(/*! ./pokedex-page/table-view/table-view.component */ 4130);
 /* harmony import */ var _pokedex_page_cards_view_cards_view_component__WEBPACK_IMPORTED_MODULE_6__ = __webpack_require__(/*! ./pokedex-page/cards-view/cards-view.component */ 8053);
-/* harmony import */ var ngx_easy_table__WEBPACK_IMPORTED_MODULE_19__ = __webpack_require__(/*! ngx-easy-table */ 1994);
+/* harmony import */ var ngx_easy_table__WEBPACK_IMPORTED_MODULE_21__ = __webpack_require__(/*! ngx-easy-table */ 1994);
 /* harmony import */ var _pokedex_page_table_view_filter_dialog_content_filter_dialog_content_component__WEBPACK_IMPORTED_MODULE_7__ = __webpack_require__(/*! ./pokedex-page/table-view/filter-dialog-content/filter-dialog-content.component */ 7792);
 /* harmony import */ var angular2_query_builder__WEBPACK_IMPORTED_MODULE_8__ = __webpack_require__(/*! angular2-query-builder */ 1054);
-/* harmony import */ var _angular_platform_browser_animations__WEBPACK_IMPORTED_MODULE_22__ = __webpack_require__(/*! @angular/platform-browser/animations */ 3598);
+/* harmony import */ var _angular_platform_browser_animations__WEBPACK_IMPORTED_MODULE_24__ = __webpack_require__(/*! @angular/platform-browser/animations */ 3598);
 /* harmony import */ var _pokedex_page_cards_view_individual_summary_individual_summary_component__WEBPACK_IMPORTED_MODULE_9__ = __webpack_require__(/*! ./pokedex-page/cards-view/individual-summary/individual-summary.component */ 9122);
 /* harmony import */ var _pokedex_page_cards_view_team_builder_team_builder_component__WEBPACK_IMPORTED_MODULE_10__ = __webpack_require__(/*! ./pokedex-page/cards-view/team-builder/team-builder.component */ 2301);
 /* harmony import */ var _pokedex_page_cards_view_vs_summary_vs_summary_component__WEBPACK_IMPORTED_MODULE_11__ = __webpack_require__(/*! ./pokedex-page/cards-view/vs-summary/vs-summary.component */ 53);
@@ -1517,7 +1659,11 @@ __webpack_require__.r(__webpack_exports__);
 /* harmony import */ var _about_page_about_page_component__WEBPACK_IMPORTED_MODULE_13__ = __webpack_require__(/*! ./about-page/about-page.component */ 8696);
 /* harmony import */ var _pokedex_page_cards_view_world_view_world_view_component__WEBPACK_IMPORTED_MODULE_14__ = __webpack_require__(/*! ./pokedex-page/cards-view/world-view/world-view.component */ 474);
 /* harmony import */ var _pokedex_page_cards_view_individual_summary_trainer_pokemon_selector_trainer_pokemon_selector_component__WEBPACK_IMPORTED_MODULE_15__ = __webpack_require__(/*! ./pokedex-page/cards-view/individual-summary/trainer-pokemon-selector/trainer-pokemon-selector.component */ 857);
-/* harmony import */ var _angular_core__WEBPACK_IMPORTED_MODULE_16__ = __webpack_require__(/*! @angular/core */ 3184);
+/* harmony import */ var _pokedex_page_cards_view_trainers_view_trainers_view_component__WEBPACK_IMPORTED_MODULE_16__ = __webpack_require__(/*! ./pokedex-page/cards-view/trainers-view/trainers-view.component */ 5153);
+/* harmony import */ var _pokedex_page_cards_view_trainers_view_tp_panel_tp_panel_component__WEBPACK_IMPORTED_MODULE_17__ = __webpack_require__(/*! ./pokedex-page/cards-view/trainers-view/tp-panel/tp-panel.component */ 8712);
+/* harmony import */ var _angular_core__WEBPACK_IMPORTED_MODULE_18__ = __webpack_require__(/*! @angular/core */ 3184);
+
+
 
 
 
@@ -1549,24 +1695,24 @@ __webpack_require__.r(__webpack_exports__);
 class AppModule {
 }
 AppModule.ɵfac = function AppModule_Factory(t) { return new (t || AppModule)(); };
-AppModule.ɵmod = /*@__PURE__*/ _angular_core__WEBPACK_IMPORTED_MODULE_16__["ɵɵdefineNgModule"]({ type: AppModule, bootstrap: [_app_component__WEBPACK_IMPORTED_MODULE_1__.AppComponent] });
-AppModule.ɵinj = /*@__PURE__*/ _angular_core__WEBPACK_IMPORTED_MODULE_16__["ɵɵdefineInjector"]({ providers: [], imports: [[
-            _angular_platform_browser__WEBPACK_IMPORTED_MODULE_17__.BrowserModule,
+AppModule.ɵmod = /*@__PURE__*/ _angular_core__WEBPACK_IMPORTED_MODULE_18__["ɵɵdefineNgModule"]({ type: AppModule, bootstrap: [_app_component__WEBPACK_IMPORTED_MODULE_1__.AppComponent] });
+AppModule.ɵinj = /*@__PURE__*/ _angular_core__WEBPACK_IMPORTED_MODULE_18__["ɵɵdefineInjector"]({ providers: [], imports: [[
+            _angular_platform_browser__WEBPACK_IMPORTED_MODULE_19__.BrowserModule,
             _app_routing_module__WEBPACK_IMPORTED_MODULE_0__.AppRoutingModule,
-            _angular_forms__WEBPACK_IMPORTED_MODULE_18__.FormsModule,
-            _angular_forms__WEBPACK_IMPORTED_MODULE_18__.ReactiveFormsModule,
-            ngx_easy_table__WEBPACK_IMPORTED_MODULE_19__.TableModule,
-            _angular_material_dialog__WEBPACK_IMPORTED_MODULE_20__.MatDialogModule,
-            _angular_material_tabs__WEBPACK_IMPORTED_MODULE_21__.MatTabsModule,
-            _angular_platform_browser_animations__WEBPACK_IMPORTED_MODULE_22__.BrowserAnimationsModule,
+            _angular_forms__WEBPACK_IMPORTED_MODULE_20__.FormsModule,
+            _angular_forms__WEBPACK_IMPORTED_MODULE_20__.ReactiveFormsModule,
+            ngx_easy_table__WEBPACK_IMPORTED_MODULE_21__.TableModule,
+            _angular_material_dialog__WEBPACK_IMPORTED_MODULE_22__.MatDialogModule,
+            _angular_material_tabs__WEBPACK_IMPORTED_MODULE_23__.MatTabsModule,
+            _angular_platform_browser_animations__WEBPACK_IMPORTED_MODULE_24__.BrowserAnimationsModule,
             angular2_query_builder__WEBPACK_IMPORTED_MODULE_8__.QueryBuilderModule,
-            _angular_material_select__WEBPACK_IMPORTED_MODULE_23__.MatSelectModule,
-            _angular_material_autocomplete__WEBPACK_IMPORTED_MODULE_24__.MatAutocompleteModule,
-            _angular_material_input__WEBPACK_IMPORTED_MODULE_25__.MatInputModule,
-            _angular_material_form_field__WEBPACK_IMPORTED_MODULE_26__.MatFormFieldModule,
-            _angular_material_menu__WEBPACK_IMPORTED_MODULE_27__.MatMenuModule
+            _angular_material_select__WEBPACK_IMPORTED_MODULE_25__.MatSelectModule,
+            _angular_material_autocomplete__WEBPACK_IMPORTED_MODULE_26__.MatAutocompleteModule,
+            _angular_material_input__WEBPACK_IMPORTED_MODULE_27__.MatInputModule,
+            _angular_material_form_field__WEBPACK_IMPORTED_MODULE_28__.MatFormFieldModule,
+            _angular_material_menu__WEBPACK_IMPORTED_MODULE_29__.MatMenuModule
         ], angular2_query_builder__WEBPACK_IMPORTED_MODULE_8__.QueryBuilderModule] });
-(function () { (typeof ngJitMode === "undefined" || ngJitMode) && _angular_core__WEBPACK_IMPORTED_MODULE_16__["ɵɵsetNgModuleScope"](AppModule, { declarations: [_app_component__WEBPACK_IMPORTED_MODULE_1__.AppComponent,
+(function () { (typeof ngJitMode === "undefined" || ngJitMode) && _angular_core__WEBPACK_IMPORTED_MODULE_18__["ɵɵsetNgModuleScope"](AppModule, { declarations: [_app_component__WEBPACK_IMPORTED_MODULE_1__.AppComponent,
         _header_header_component__WEBPACK_IMPORTED_MODULE_2__.HeaderComponent,
         _home_home_component__WEBPACK_IMPORTED_MODULE_3__.HomeComponent,
         _pokedex_page_pokedex_page_component__WEBPACK_IMPORTED_MODULE_4__.PokedexPageComponent,
@@ -1579,20 +1725,22 @@ AppModule.ɵinj = /*@__PURE__*/ _angular_core__WEBPACK_IMPORTED_MODULE_16__["ɵ�
         _pokedex_page_cards_view_card_card_component__WEBPACK_IMPORTED_MODULE_12__.CardComponent,
         _about_page_about_page_component__WEBPACK_IMPORTED_MODULE_13__.AboutPageComponent,
         _pokedex_page_cards_view_world_view_world_view_component__WEBPACK_IMPORTED_MODULE_14__.WorldViewComponent,
-        _pokedex_page_cards_view_individual_summary_trainer_pokemon_selector_trainer_pokemon_selector_component__WEBPACK_IMPORTED_MODULE_15__.TrainerPokemonSelectorComponent], imports: [_angular_platform_browser__WEBPACK_IMPORTED_MODULE_17__.BrowserModule,
+        _pokedex_page_cards_view_individual_summary_trainer_pokemon_selector_trainer_pokemon_selector_component__WEBPACK_IMPORTED_MODULE_15__.TrainerPokemonSelectorComponent,
+        _pokedex_page_cards_view_trainers_view_trainers_view_component__WEBPACK_IMPORTED_MODULE_16__.TrainersViewComponent,
+        _pokedex_page_cards_view_trainers_view_tp_panel_tp_panel_component__WEBPACK_IMPORTED_MODULE_17__.TpPanelComponent], imports: [_angular_platform_browser__WEBPACK_IMPORTED_MODULE_19__.BrowserModule,
         _app_routing_module__WEBPACK_IMPORTED_MODULE_0__.AppRoutingModule,
-        _angular_forms__WEBPACK_IMPORTED_MODULE_18__.FormsModule,
-        _angular_forms__WEBPACK_IMPORTED_MODULE_18__.ReactiveFormsModule,
-        ngx_easy_table__WEBPACK_IMPORTED_MODULE_19__.TableModule,
-        _angular_material_dialog__WEBPACK_IMPORTED_MODULE_20__.MatDialogModule,
-        _angular_material_tabs__WEBPACK_IMPORTED_MODULE_21__.MatTabsModule,
-        _angular_platform_browser_animations__WEBPACK_IMPORTED_MODULE_22__.BrowserAnimationsModule,
+        _angular_forms__WEBPACK_IMPORTED_MODULE_20__.FormsModule,
+        _angular_forms__WEBPACK_IMPORTED_MODULE_20__.ReactiveFormsModule,
+        ngx_easy_table__WEBPACK_IMPORTED_MODULE_21__.TableModule,
+        _angular_material_dialog__WEBPACK_IMPORTED_MODULE_22__.MatDialogModule,
+        _angular_material_tabs__WEBPACK_IMPORTED_MODULE_23__.MatTabsModule,
+        _angular_platform_browser_animations__WEBPACK_IMPORTED_MODULE_24__.BrowserAnimationsModule,
         angular2_query_builder__WEBPACK_IMPORTED_MODULE_8__.QueryBuilderModule,
-        _angular_material_select__WEBPACK_IMPORTED_MODULE_23__.MatSelectModule,
-        _angular_material_autocomplete__WEBPACK_IMPORTED_MODULE_24__.MatAutocompleteModule,
-        _angular_material_input__WEBPACK_IMPORTED_MODULE_25__.MatInputModule,
-        _angular_material_form_field__WEBPACK_IMPORTED_MODULE_26__.MatFormFieldModule,
-        _angular_material_menu__WEBPACK_IMPORTED_MODULE_27__.MatMenuModule], exports: [angular2_query_builder__WEBPACK_IMPORTED_MODULE_8__.QueryBuilderModule] }); })();
+        _angular_material_select__WEBPACK_IMPORTED_MODULE_25__.MatSelectModule,
+        _angular_material_autocomplete__WEBPACK_IMPORTED_MODULE_26__.MatAutocompleteModule,
+        _angular_material_input__WEBPACK_IMPORTED_MODULE_27__.MatInputModule,
+        _angular_material_form_field__WEBPACK_IMPORTED_MODULE_28__.MatFormFieldModule,
+        _angular_material_menu__WEBPACK_IMPORTED_MODULE_29__.MatMenuModule], exports: [angular2_query_builder__WEBPACK_IMPORTED_MODULE_8__.QueryBuilderModule] }); })();
 
 
 /***/ }),
@@ -1636,7 +1784,7 @@ HeaderComponent.ɵcmp = /*@__PURE__*/ _angular_core__WEBPACK_IMPORTED_MODULE_1__
         _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵelementStart"](0, "div")(1, "div", 0)(2, "h1", 1);
         _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵtext"](3, "Randomizer Pokedex ");
         _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵelementStart"](4, "span", 2);
-        _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵtext"](5, "(v2.2.0)");
+        _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵtext"](5, "(v2.3.0)");
         _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵelementEnd"]()()();
         _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵelementStart"](6, "div", 3)(7, "a", 4)(8, "i", 5);
         _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵtext"](9, "home");
@@ -1819,14 +1967,16 @@ __webpack_require__.r(__webpack_exports__);
 /* harmony export */ __webpack_require__.d(__webpack_exports__, {
 /* harmony export */   "CardsViewComponent": () => (/* binding */ CardsViewComponent)
 /* harmony export */ });
-/* harmony import */ var _angular_core__WEBPACK_IMPORTED_MODULE_5__ = __webpack_require__(/*! @angular/core */ 3184);
+/* harmony import */ var _angular_core__WEBPACK_IMPORTED_MODULE_6__ = __webpack_require__(/*! @angular/core */ 3184);
 /* harmony import */ var src_app_pokedex_service__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! src/app/pokedex.service */ 4044);
-/* harmony import */ var _angular_common__WEBPACK_IMPORTED_MODULE_6__ = __webpack_require__(/*! @angular/common */ 6362);
-/* harmony import */ var _angular_material_menu__WEBPACK_IMPORTED_MODULE_7__ = __webpack_require__(/*! @angular/material/menu */ 2796);
+/* harmony import */ var _angular_common__WEBPACK_IMPORTED_MODULE_7__ = __webpack_require__(/*! @angular/common */ 6362);
+/* harmony import */ var _angular_material_menu__WEBPACK_IMPORTED_MODULE_8__ = __webpack_require__(/*! @angular/material/menu */ 2796);
 /* harmony import */ var _individual_summary_individual_summary_component__WEBPACK_IMPORTED_MODULE_1__ = __webpack_require__(/*! ./individual-summary/individual-summary.component */ 9122);
 /* harmony import */ var _world_view_world_view_component__WEBPACK_IMPORTED_MODULE_2__ = __webpack_require__(/*! ./world-view/world-view.component */ 474);
-/* harmony import */ var _team_builder_team_builder_component__WEBPACK_IMPORTED_MODULE_3__ = __webpack_require__(/*! ./team-builder/team-builder.component */ 2301);
-/* harmony import */ var _vs_summary_vs_summary_component__WEBPACK_IMPORTED_MODULE_4__ = __webpack_require__(/*! ./vs-summary/vs-summary.component */ 53);
+/* harmony import */ var _trainers_view_trainers_view_component__WEBPACK_IMPORTED_MODULE_3__ = __webpack_require__(/*! ./trainers-view/trainers-view.component */ 5153);
+/* harmony import */ var _team_builder_team_builder_component__WEBPACK_IMPORTED_MODULE_4__ = __webpack_require__(/*! ./team-builder/team-builder.component */ 2301);
+/* harmony import */ var _vs_summary_vs_summary_component__WEBPACK_IMPORTED_MODULE_5__ = __webpack_require__(/*! ./vs-summary/vs-summary.component */ 53);
+
 
 
 
@@ -1836,75 +1986,87 @@ __webpack_require__.r(__webpack_exports__);
 
 
 const _c0 = ["downloadButton"];
-function CardsViewComponent_a_14_Template(rf, ctx) { if (rf & 1) {
-    const _r12 = _angular_core__WEBPACK_IMPORTED_MODULE_5__["ɵɵgetCurrentView"]();
-    _angular_core__WEBPACK_IMPORTED_MODULE_5__["ɵɵelementStart"](0, "a", 13, 14)(2, "button", 15);
-    _angular_core__WEBPACK_IMPORTED_MODULE_5__["ɵɵlistener"]("click", function CardsViewComponent_a_14_Template_button_click_2_listener() { _angular_core__WEBPACK_IMPORTED_MODULE_5__["ɵɵrestoreView"](_r12); const ctx_r11 = _angular_core__WEBPACK_IMPORTED_MODULE_5__["ɵɵnextContext"](); return ctx_r11.save(); });
-    _angular_core__WEBPACK_IMPORTED_MODULE_5__["ɵɵtext"](3, "Save");
-    _angular_core__WEBPACK_IMPORTED_MODULE_5__["ɵɵelementEnd"]()();
+function CardsViewComponent_a_18_Template(rf, ctx) { if (rf & 1) {
+    const _r13 = _angular_core__WEBPACK_IMPORTED_MODULE_6__["ɵɵgetCurrentView"]();
+    _angular_core__WEBPACK_IMPORTED_MODULE_6__["ɵɵelementStart"](0, "a", 13, 14)(2, "button", 15);
+    _angular_core__WEBPACK_IMPORTED_MODULE_6__["ɵɵlistener"]("click", function CardsViewComponent_a_18_Template_button_click_2_listener() { _angular_core__WEBPACK_IMPORTED_MODULE_6__["ɵɵrestoreView"](_r13); const ctx_r12 = _angular_core__WEBPACK_IMPORTED_MODULE_6__["ɵɵnextContext"](); return ctx_r12.save(); });
+    _angular_core__WEBPACK_IMPORTED_MODULE_6__["ɵɵtext"](3, "Save");
+    _angular_core__WEBPACK_IMPORTED_MODULE_6__["ɵɵelementEnd"]()();
 } }
-function CardsViewComponent_button_15_Template(rf, ctx) { if (rf & 1) {
-    const _r14 = _angular_core__WEBPACK_IMPORTED_MODULE_5__["ɵɵgetCurrentView"]();
-    _angular_core__WEBPACK_IMPORTED_MODULE_5__["ɵɵelementStart"](0, "button", 16);
-    _angular_core__WEBPACK_IMPORTED_MODULE_5__["ɵɵlistener"]("click", function CardsViewComponent_button_15_Template_button_click_0_listener() { _angular_core__WEBPACK_IMPORTED_MODULE_5__["ɵɵrestoreView"](_r14); const ctx_r13 = _angular_core__WEBPACK_IMPORTED_MODULE_5__["ɵɵnextContext"](); return ctx_r13.spoil(); });
-    _angular_core__WEBPACK_IMPORTED_MODULE_5__["ɵɵtext"](1);
-    _angular_core__WEBPACK_IMPORTED_MODULE_5__["ɵɵelementEnd"]();
+function CardsViewComponent_button_19_Template(rf, ctx) { if (rf & 1) {
+    const _r15 = _angular_core__WEBPACK_IMPORTED_MODULE_6__["ɵɵgetCurrentView"]();
+    _angular_core__WEBPACK_IMPORTED_MODULE_6__["ɵɵelementStart"](0, "button", 16);
+    _angular_core__WEBPACK_IMPORTED_MODULE_6__["ɵɵlistener"]("click", function CardsViewComponent_button_19_Template_button_click_0_listener() { _angular_core__WEBPACK_IMPORTED_MODULE_6__["ɵɵrestoreView"](_r15); const ctx_r14 = _angular_core__WEBPACK_IMPORTED_MODULE_6__["ɵɵnextContext"](); return ctx_r14.spoil(); });
+    _angular_core__WEBPACK_IMPORTED_MODULE_6__["ɵɵtext"](1);
+    _angular_core__WEBPACK_IMPORTED_MODULE_6__["ɵɵelementEnd"]();
 } if (rf & 2) {
-    const ctx_r2 = _angular_core__WEBPACK_IMPORTED_MODULE_5__["ɵɵnextContext"]();
-    _angular_core__WEBPACK_IMPORTED_MODULE_5__["ɵɵadvance"](1);
-    _angular_core__WEBPACK_IMPORTED_MODULE_5__["ɵɵtextInterpolate"](ctx_r2.dex.isFullyRevealed ? "Unspoil" : "Spoil");
+    const ctx_r2 = _angular_core__WEBPACK_IMPORTED_MODULE_6__["ɵɵnextContext"]();
+    _angular_core__WEBPACK_IMPORTED_MODULE_6__["ɵɵadvance"](1);
+    _angular_core__WEBPACK_IMPORTED_MODULE_6__["ɵɵtextInterpolate"](ctx_r2.dex.isFullyRevealed ? "Unspoil" : "Spoil");
 } }
-function CardsViewComponent_button_16_Template(rf, ctx) { if (rf & 1) {
-    _angular_core__WEBPACK_IMPORTED_MODULE_5__["ɵɵelementStart"](0, "button", 17)(1, "i", 2);
-    _angular_core__WEBPACK_IMPORTED_MODULE_5__["ɵɵtext"](2, " arrow_drop_down ");
-    _angular_core__WEBPACK_IMPORTED_MODULE_5__["ɵɵelementEnd"]()();
+function CardsViewComponent_button_20_Template(rf, ctx) { if (rf & 1) {
+    _angular_core__WEBPACK_IMPORTED_MODULE_6__["ɵɵelementStart"](0, "button", 17)(1, "i", 2);
+    _angular_core__WEBPACK_IMPORTED_MODULE_6__["ɵɵtext"](2, " arrow_drop_down ");
+    _angular_core__WEBPACK_IMPORTED_MODULE_6__["ɵɵelementEnd"]()();
 } if (rf & 2) {
-    _angular_core__WEBPACK_IMPORTED_MODULE_5__["ɵɵnextContext"]();
-    const _r4 = _angular_core__WEBPACK_IMPORTED_MODULE_5__["ɵɵreference"](18);
-    _angular_core__WEBPACK_IMPORTED_MODULE_5__["ɵɵproperty"]("matMenuTriggerFor", _r4);
+    _angular_core__WEBPACK_IMPORTED_MODULE_6__["ɵɵnextContext"]();
+    const _r4 = _angular_core__WEBPACK_IMPORTED_MODULE_6__["ɵɵreference"](22);
+    _angular_core__WEBPACK_IMPORTED_MODULE_6__["ɵɵproperty"]("matMenuTriggerFor", _r4);
 } }
-function CardsViewComponent_span_35_Template(rf, ctx) { if (rf & 1) {
-    _angular_core__WEBPACK_IMPORTED_MODULE_5__["ɵɵelementStart"](0, "span");
-    _angular_core__WEBPACK_IMPORTED_MODULE_5__["ɵɵtext"](1);
-    _angular_core__WEBPACK_IMPORTED_MODULE_5__["ɵɵelementEnd"]();
+function CardsViewComponent_span_39_Template(rf, ctx) { if (rf & 1) {
+    _angular_core__WEBPACK_IMPORTED_MODULE_6__["ɵɵelementStart"](0, "span");
+    _angular_core__WEBPACK_IMPORTED_MODULE_6__["ɵɵtext"](1);
+    _angular_core__WEBPACK_IMPORTED_MODULE_6__["ɵɵelementEnd"]();
 } if (rf & 2) {
-    const ctx_r5 = _angular_core__WEBPACK_IMPORTED_MODULE_5__["ɵɵnextContext"]();
-    _angular_core__WEBPACK_IMPORTED_MODULE_5__["ɵɵadvance"](1);
-    _angular_core__WEBPACK_IMPORTED_MODULE_5__["ɵɵtextInterpolate"](ctx_r5.dex.logFileName);
+    const ctx_r5 = _angular_core__WEBPACK_IMPORTED_MODULE_6__["ɵɵnextContext"]();
+    _angular_core__WEBPACK_IMPORTED_MODULE_6__["ɵɵadvance"](1);
+    _angular_core__WEBPACK_IMPORTED_MODULE_6__["ɵɵtextInterpolate"](ctx_r5.dex.logFileName);
 } }
-function CardsViewComponent_div_36_individual_card_1_Template(rf, ctx) { if (rf & 1) {
-    _angular_core__WEBPACK_IMPORTED_MODULE_5__["ɵɵelement"](0, "individual-card");
+function CardsViewComponent_div_40_individual_card_1_Template(rf, ctx) { if (rf & 1) {
+    _angular_core__WEBPACK_IMPORTED_MODULE_6__["ɵɵelement"](0, "individual-card");
 } }
-function CardsViewComponent_div_36_Template(rf, ctx) { if (rf & 1) {
-    _angular_core__WEBPACK_IMPORTED_MODULE_5__["ɵɵelementStart"](0, "div");
-    _angular_core__WEBPACK_IMPORTED_MODULE_5__["ɵɵtemplate"](1, CardsViewComponent_div_36_individual_card_1_Template, 1, 0, "individual-card", 12);
-    _angular_core__WEBPACK_IMPORTED_MODULE_5__["ɵɵelementEnd"]();
+function CardsViewComponent_div_40_Template(rf, ctx) { if (rf & 1) {
+    _angular_core__WEBPACK_IMPORTED_MODULE_6__["ɵɵelementStart"](0, "div");
+    _angular_core__WEBPACK_IMPORTED_MODULE_6__["ɵɵtemplate"](1, CardsViewComponent_div_40_individual_card_1_Template, 1, 0, "individual-card", 12);
+    _angular_core__WEBPACK_IMPORTED_MODULE_6__["ɵɵelementEnd"]();
 } if (rf & 2) {
-    const ctx_r6 = _angular_core__WEBPACK_IMPORTED_MODULE_5__["ɵɵnextContext"]();
-    _angular_core__WEBPACK_IMPORTED_MODULE_5__["ɵɵadvance"](1);
-    _angular_core__WEBPACK_IMPORTED_MODULE_5__["ɵɵproperty"]("ngIf", ctx_r6.dex.validDexUploaded);
+    const ctx_r6 = _angular_core__WEBPACK_IMPORTED_MODULE_6__["ɵɵnextContext"]();
+    _angular_core__WEBPACK_IMPORTED_MODULE_6__["ɵɵadvance"](1);
+    _angular_core__WEBPACK_IMPORTED_MODULE_6__["ɵɵproperty"]("ngIf", ctx_r6.dex.validDexUploaded);
 } }
-function CardsViewComponent_div_37_world_view_1_Template(rf, ctx) { if (rf & 1) {
-    _angular_core__WEBPACK_IMPORTED_MODULE_5__["ɵɵelement"](0, "world-view");
+function CardsViewComponent_div_41_world_view_1_Template(rf, ctx) { if (rf & 1) {
+    _angular_core__WEBPACK_IMPORTED_MODULE_6__["ɵɵelement"](0, "world-view");
 } }
-function CardsViewComponent_div_37_Template(rf, ctx) { if (rf & 1) {
-    _angular_core__WEBPACK_IMPORTED_MODULE_5__["ɵɵelementStart"](0, "div");
-    _angular_core__WEBPACK_IMPORTED_MODULE_5__["ɵɵtemplate"](1, CardsViewComponent_div_37_world_view_1_Template, 1, 0, "world-view", 12);
-    _angular_core__WEBPACK_IMPORTED_MODULE_5__["ɵɵelementEnd"]();
+function CardsViewComponent_div_41_Template(rf, ctx) { if (rf & 1) {
+    _angular_core__WEBPACK_IMPORTED_MODULE_6__["ɵɵelementStart"](0, "div");
+    _angular_core__WEBPACK_IMPORTED_MODULE_6__["ɵɵtemplate"](1, CardsViewComponent_div_41_world_view_1_Template, 1, 0, "world-view", 12);
+    _angular_core__WEBPACK_IMPORTED_MODULE_6__["ɵɵelementEnd"]();
 } if (rf & 2) {
-    const ctx_r7 = _angular_core__WEBPACK_IMPORTED_MODULE_5__["ɵɵnextContext"]();
-    _angular_core__WEBPACK_IMPORTED_MODULE_5__["ɵɵadvance"](1);
-    _angular_core__WEBPACK_IMPORTED_MODULE_5__["ɵɵproperty"]("ngIf", ctx_r7.dex.validDexUploaded);
+    const ctx_r7 = _angular_core__WEBPACK_IMPORTED_MODULE_6__["ɵɵnextContext"]();
+    _angular_core__WEBPACK_IMPORTED_MODULE_6__["ɵɵadvance"](1);
+    _angular_core__WEBPACK_IMPORTED_MODULE_6__["ɵɵproperty"]("ngIf", ctx_r7.dex.validDexUploaded);
 } }
-function CardsViewComponent_div_38_Template(rf, ctx) { if (rf & 1) {
-    _angular_core__WEBPACK_IMPORTED_MODULE_5__["ɵɵelementStart"](0, "div");
-    _angular_core__WEBPACK_IMPORTED_MODULE_5__["ɵɵelement"](1, "team-builder");
-    _angular_core__WEBPACK_IMPORTED_MODULE_5__["ɵɵelementEnd"]();
+function CardsViewComponent_div_42_trainers_view_1_Template(rf, ctx) { if (rf & 1) {
+    _angular_core__WEBPACK_IMPORTED_MODULE_6__["ɵɵelement"](0, "trainers-view");
 } }
-function CardsViewComponent_div_39_Template(rf, ctx) { if (rf & 1) {
-    _angular_core__WEBPACK_IMPORTED_MODULE_5__["ɵɵelementStart"](0, "div");
-    _angular_core__WEBPACK_IMPORTED_MODULE_5__["ɵɵelement"](1, "vs-summary");
-    _angular_core__WEBPACK_IMPORTED_MODULE_5__["ɵɵelementEnd"]();
+function CardsViewComponent_div_42_Template(rf, ctx) { if (rf & 1) {
+    _angular_core__WEBPACK_IMPORTED_MODULE_6__["ɵɵelementStart"](0, "div");
+    _angular_core__WEBPACK_IMPORTED_MODULE_6__["ɵɵtemplate"](1, CardsViewComponent_div_42_trainers_view_1_Template, 1, 0, "trainers-view", 12);
+    _angular_core__WEBPACK_IMPORTED_MODULE_6__["ɵɵelementEnd"]();
+} if (rf & 2) {
+    const ctx_r8 = _angular_core__WEBPACK_IMPORTED_MODULE_6__["ɵɵnextContext"]();
+    _angular_core__WEBPACK_IMPORTED_MODULE_6__["ɵɵadvance"](1);
+    _angular_core__WEBPACK_IMPORTED_MODULE_6__["ɵɵproperty"]("ngIf", ctx_r8.dex.validDexUploaded);
+} }
+function CardsViewComponent_div_43_Template(rf, ctx) { if (rf & 1) {
+    _angular_core__WEBPACK_IMPORTED_MODULE_6__["ɵɵelementStart"](0, "div");
+    _angular_core__WEBPACK_IMPORTED_MODULE_6__["ɵɵelement"](1, "team-builder");
+    _angular_core__WEBPACK_IMPORTED_MODULE_6__["ɵɵelementEnd"]();
+} }
+function CardsViewComponent_div_44_Template(rf, ctx) { if (rf & 1) {
+    _angular_core__WEBPACK_IMPORTED_MODULE_6__["ɵɵelementStart"](0, "div");
+    _angular_core__WEBPACK_IMPORTED_MODULE_6__["ɵɵelement"](1, "vs-summary");
+    _angular_core__WEBPACK_IMPORTED_MODULE_6__["ɵɵelementEnd"]();
 } }
 class CardsViewComponent {
     constructor(dex) {
@@ -1913,6 +2075,9 @@ class CardsViewComponent {
         this.showC = false;
         this.selectedTab = 'summaryTab';
         this.dex = dex;
+        this.dex.cardNavigationSelection.subscribe((selection) => {
+            this.selectedTab = selection;
+        });
     }
     onFileSelected(e) {
         const target = e.target;
@@ -2012,113 +2177,125 @@ class CardsViewComponent {
     ngOnInit() {
     }
 }
-CardsViewComponent.ɵfac = function CardsViewComponent_Factory(t) { return new (t || CardsViewComponent)(_angular_core__WEBPACK_IMPORTED_MODULE_5__["ɵɵdirectiveInject"](src_app_pokedex_service__WEBPACK_IMPORTED_MODULE_0__.PokedexService)); };
-CardsViewComponent.ɵcmp = /*@__PURE__*/ _angular_core__WEBPACK_IMPORTED_MODULE_5__["ɵɵdefineComponent"]({ type: CardsViewComponent, selectors: [["app-cards-view"]], viewQuery: function CardsViewComponent_Query(rf, ctx) { if (rf & 1) {
-        _angular_core__WEBPACK_IMPORTED_MODULE_5__["ɵɵviewQuery"](_c0, 5);
+CardsViewComponent.ɵfac = function CardsViewComponent_Factory(t) { return new (t || CardsViewComponent)(_angular_core__WEBPACK_IMPORTED_MODULE_6__["ɵɵdirectiveInject"](src_app_pokedex_service__WEBPACK_IMPORTED_MODULE_0__.PokedexService)); };
+CardsViewComponent.ɵcmp = /*@__PURE__*/ _angular_core__WEBPACK_IMPORTED_MODULE_6__["ɵɵdefineComponent"]({ type: CardsViewComponent, selectors: [["app-cards-view"]], viewQuery: function CardsViewComponent_Query(rf, ctx) { if (rf & 1) {
+        _angular_core__WEBPACK_IMPORTED_MODULE_6__["ɵɵviewQuery"](_c0, 5);
     } if (rf & 2) {
         let _t;
-        _angular_core__WEBPACK_IMPORTED_MODULE_5__["ɵɵqueryRefresh"](_t = _angular_core__WEBPACK_IMPORTED_MODULE_5__["ɵɵloadQuery"]()) && (ctx.downloadRef = _t.first);
-    } }, decls: 40, vars: 20, consts: [[1, "tabs"], [1, "tab", 3, "click"], [1, "material-icons"], ["type", "file", "id", "dex-file-input", "accept", ".log,.pkdx", 1, "tab-file-input", 3, "change"], ["fileUpload", ""], ["for", "dex-file-input", "tabindex", "0", 1, "tab-button"], ["download", "mons.pkdx", 4, "ngIf"], ["class", "tab-button", "id", "spoil-button", 3, "click", 4, "ngIf"], ["mat-button", "", "class", "tab-button", "id", "power-options", 3, "matMenuTriggerFor", 4, "ngIf"], ["backdropClass", "spoil-option", "xPosition", "before"], ["powerSpoilMenu", "matMenu"], ["mat-menu-item", "", 3, "click"], [4, "ngIf"], ["download", "mons.pkdx"], ["downloadButton", ""], ["id", "saveButton", "title", "Save notes and revealed status of Pokemon", 1, "tab-button", 3, "click"], ["id", "spoil-button", 1, "tab-button", 3, "click"], ["mat-button", "", "id", "power-options", 1, "tab-button", 3, "matMenuTriggerFor"]], template: function CardsViewComponent_Template(rf, ctx) { if (rf & 1) {
-        _angular_core__WEBPACK_IMPORTED_MODULE_5__["ɵɵelementStart"](0, "div", 0)(1, "a", 1);
-        _angular_core__WEBPACK_IMPORTED_MODULE_5__["ɵɵlistener"]("click", function CardsViewComponent_Template_a_click_1_listener() { return ctx.selectedTab = "summaryTab"; });
-        _angular_core__WEBPACK_IMPORTED_MODULE_5__["ɵɵelementStart"](2, "i", 2);
-        _angular_core__WEBPACK_IMPORTED_MODULE_5__["ɵɵtext"](3, "wysiwyg");
-        _angular_core__WEBPACK_IMPORTED_MODULE_5__["ɵɵelementEnd"]();
-        _angular_core__WEBPACK_IMPORTED_MODULE_5__["ɵɵtext"](4, "Pokemon");
-        _angular_core__WEBPACK_IMPORTED_MODULE_5__["ɵɵelementEnd"]();
-        _angular_core__WEBPACK_IMPORTED_MODULE_5__["ɵɵelementStart"](5, "a", 1);
-        _angular_core__WEBPACK_IMPORTED_MODULE_5__["ɵɵlistener"]("click", function CardsViewComponent_Template_a_click_5_listener() { return ctx.selectedTab = "worldTab"; });
-        _angular_core__WEBPACK_IMPORTED_MODULE_5__["ɵɵelementStart"](6, "i", 2);
-        _angular_core__WEBPACK_IMPORTED_MODULE_5__["ɵɵtext"](7, "public");
-        _angular_core__WEBPACK_IMPORTED_MODULE_5__["ɵɵelementEnd"]();
-        _angular_core__WEBPACK_IMPORTED_MODULE_5__["ɵɵtext"](8, "World");
-        _angular_core__WEBPACK_IMPORTED_MODULE_5__["ɵɵelementEnd"]();
-        _angular_core__WEBPACK_IMPORTED_MODULE_5__["ɵɵelement"](9, "span");
-        _angular_core__WEBPACK_IMPORTED_MODULE_5__["ɵɵelementStart"](10, "input", 3, 4);
-        _angular_core__WEBPACK_IMPORTED_MODULE_5__["ɵɵlistener"]("change", function CardsViewComponent_Template_input_change_10_listener($event) { return ctx.onFileSelected($event); });
-        _angular_core__WEBPACK_IMPORTED_MODULE_5__["ɵɵelementEnd"]();
-        _angular_core__WEBPACK_IMPORTED_MODULE_5__["ɵɵelementStart"](12, "label", 5);
-        _angular_core__WEBPACK_IMPORTED_MODULE_5__["ɵɵtext"](13, "Upload");
-        _angular_core__WEBPACK_IMPORTED_MODULE_5__["ɵɵelementEnd"]();
-        _angular_core__WEBPACK_IMPORTED_MODULE_5__["ɵɵtemplate"](14, CardsViewComponent_a_14_Template, 4, 0, "a", 6);
-        _angular_core__WEBPACK_IMPORTED_MODULE_5__["ɵɵtemplate"](15, CardsViewComponent_button_15_Template, 2, 1, "button", 7);
-        _angular_core__WEBPACK_IMPORTED_MODULE_5__["ɵɵtemplate"](16, CardsViewComponent_button_16_Template, 3, 1, "button", 8);
-        _angular_core__WEBPACK_IMPORTED_MODULE_5__["ɵɵelementStart"](17, "mat-menu", 9, 10)(19, "button", 11);
-        _angular_core__WEBPACK_IMPORTED_MODULE_5__["ɵɵlistener"]("click", function CardsViewComponent_Template_button_click_19_listener() { return ctx.spoilTypes(); });
-        _angular_core__WEBPACK_IMPORTED_MODULE_5__["ɵɵtext"](20);
-        _angular_core__WEBPACK_IMPORTED_MODULE_5__["ɵɵelementEnd"]();
-        _angular_core__WEBPACK_IMPORTED_MODULE_5__["ɵɵelementStart"](21, "button", 11);
-        _angular_core__WEBPACK_IMPORTED_MODULE_5__["ɵɵlistener"]("click", function CardsViewComponent_Template_button_click_21_listener() { return ctx.spoilBSTs(); });
-        _angular_core__WEBPACK_IMPORTED_MODULE_5__["ɵɵtext"](22);
-        _angular_core__WEBPACK_IMPORTED_MODULE_5__["ɵɵelementEnd"]();
-        _angular_core__WEBPACK_IMPORTED_MODULE_5__["ɵɵelementStart"](23, "button", 11);
-        _angular_core__WEBPACK_IMPORTED_MODULE_5__["ɵɵlistener"]("click", function CardsViewComponent_Template_button_click_23_listener() { return ctx.spoilStats(); });
-        _angular_core__WEBPACK_IMPORTED_MODULE_5__["ɵɵtext"](24);
-        _angular_core__WEBPACK_IMPORTED_MODULE_5__["ɵɵelementEnd"]();
-        _angular_core__WEBPACK_IMPORTED_MODULE_5__["ɵɵelementStart"](25, "button", 11);
-        _angular_core__WEBPACK_IMPORTED_MODULE_5__["ɵɵlistener"]("click", function CardsViewComponent_Template_button_click_25_listener() { return ctx.spoilAbilities(); });
-        _angular_core__WEBPACK_IMPORTED_MODULE_5__["ɵɵtext"](26);
-        _angular_core__WEBPACK_IMPORTED_MODULE_5__["ɵɵelementEnd"]();
-        _angular_core__WEBPACK_IMPORTED_MODULE_5__["ɵɵelementStart"](27, "button", 11);
-        _angular_core__WEBPACK_IMPORTED_MODULE_5__["ɵɵlistener"]("click", function CardsViewComponent_Template_button_click_27_listener() { return ctx.spoilEvolutions(); });
-        _angular_core__WEBPACK_IMPORTED_MODULE_5__["ɵɵtext"](28);
-        _angular_core__WEBPACK_IMPORTED_MODULE_5__["ɵɵelementEnd"]();
-        _angular_core__WEBPACK_IMPORTED_MODULE_5__["ɵɵelementStart"](29, "button", 11);
-        _angular_core__WEBPACK_IMPORTED_MODULE_5__["ɵɵlistener"]("click", function CardsViewComponent_Template_button_click_29_listener() { return ctx.spoilMoves(); });
-        _angular_core__WEBPACK_IMPORTED_MODULE_5__["ɵɵtext"](30);
-        _angular_core__WEBPACK_IMPORTED_MODULE_5__["ɵɵelementEnd"]();
-        _angular_core__WEBPACK_IMPORTED_MODULE_5__["ɵɵelementStart"](31, "button", 11);
-        _angular_core__WEBPACK_IMPORTED_MODULE_5__["ɵɵlistener"]("click", function CardsViewComponent_Template_button_click_31_listener() { return ctx.spoilLocations(); });
-        _angular_core__WEBPACK_IMPORTED_MODULE_5__["ɵɵtext"](32);
-        _angular_core__WEBPACK_IMPORTED_MODULE_5__["ɵɵelementEnd"]();
-        _angular_core__WEBPACK_IMPORTED_MODULE_5__["ɵɵelementStart"](33, "button", 11);
-        _angular_core__WEBPACK_IMPORTED_MODULE_5__["ɵɵlistener"]("click", function CardsViewComponent_Template_button_click_33_listener() { return ctx.spoilTrainers(); });
-        _angular_core__WEBPACK_IMPORTED_MODULE_5__["ɵɵtext"](34);
-        _angular_core__WEBPACK_IMPORTED_MODULE_5__["ɵɵelementEnd"]()();
-        _angular_core__WEBPACK_IMPORTED_MODULE_5__["ɵɵtemplate"](35, CardsViewComponent_span_35_Template, 2, 1, "span", 12);
-        _angular_core__WEBPACK_IMPORTED_MODULE_5__["ɵɵelementEnd"]();
-        _angular_core__WEBPACK_IMPORTED_MODULE_5__["ɵɵtemplate"](36, CardsViewComponent_div_36_Template, 2, 1, "div", 12);
-        _angular_core__WEBPACK_IMPORTED_MODULE_5__["ɵɵtemplate"](37, CardsViewComponent_div_37_Template, 2, 1, "div", 12);
-        _angular_core__WEBPACK_IMPORTED_MODULE_5__["ɵɵtemplate"](38, CardsViewComponent_div_38_Template, 2, 0, "div", 12);
-        _angular_core__WEBPACK_IMPORTED_MODULE_5__["ɵɵtemplate"](39, CardsViewComponent_div_39_Template, 2, 0, "div", 12);
+        _angular_core__WEBPACK_IMPORTED_MODULE_6__["ɵɵqueryRefresh"](_t = _angular_core__WEBPACK_IMPORTED_MODULE_6__["ɵɵloadQuery"]()) && (ctx.downloadRef = _t.first);
+    } }, decls: 45, vars: 23, consts: [[1, "tabs"], [1, "tab", 3, "click"], [1, "material-icons"], ["type", "file", "id", "dex-file-input", "accept", ".log,.pkdx", 1, "tab-file-input", 3, "change"], ["fileUpload", ""], ["for", "dex-file-input", "tabindex", "0", 1, "tab-button"], ["download", "mons.pkdx", 4, "ngIf"], ["class", "tab-button", "id", "spoil-button", 3, "click", 4, "ngIf"], ["mat-button", "", "class", "tab-button", "id", "power-options", 3, "matMenuTriggerFor", 4, "ngIf"], ["backdropClass", "spoil-option", "xPosition", "before"], ["powerSpoilMenu", "matMenu"], ["mat-menu-item", "", 3, "click"], [4, "ngIf"], ["download", "mons.pkdx"], ["downloadButton", ""], ["id", "saveButton", "title", "Save notes and revealed status of Pokemon", 1, "tab-button", 3, "click"], ["id", "spoil-button", 1, "tab-button", 3, "click"], ["mat-button", "", "id", "power-options", 1, "tab-button", 3, "matMenuTriggerFor"]], template: function CardsViewComponent_Template(rf, ctx) { if (rf & 1) {
+        _angular_core__WEBPACK_IMPORTED_MODULE_6__["ɵɵelementStart"](0, "div", 0)(1, "a", 1);
+        _angular_core__WEBPACK_IMPORTED_MODULE_6__["ɵɵlistener"]("click", function CardsViewComponent_Template_a_click_1_listener() { return ctx.selectedTab = "summaryTab"; });
+        _angular_core__WEBPACK_IMPORTED_MODULE_6__["ɵɵelementStart"](2, "i", 2);
+        _angular_core__WEBPACK_IMPORTED_MODULE_6__["ɵɵtext"](3, "wysiwyg");
+        _angular_core__WEBPACK_IMPORTED_MODULE_6__["ɵɵelementEnd"]();
+        _angular_core__WEBPACK_IMPORTED_MODULE_6__["ɵɵtext"](4, "Pokemon");
+        _angular_core__WEBPACK_IMPORTED_MODULE_6__["ɵɵelementEnd"]();
+        _angular_core__WEBPACK_IMPORTED_MODULE_6__["ɵɵelementStart"](5, "a", 1);
+        _angular_core__WEBPACK_IMPORTED_MODULE_6__["ɵɵlistener"]("click", function CardsViewComponent_Template_a_click_5_listener() { return ctx.selectedTab = "worldTab"; });
+        _angular_core__WEBPACK_IMPORTED_MODULE_6__["ɵɵelementStart"](6, "i", 2);
+        _angular_core__WEBPACK_IMPORTED_MODULE_6__["ɵɵtext"](7, "public");
+        _angular_core__WEBPACK_IMPORTED_MODULE_6__["ɵɵelementEnd"]();
+        _angular_core__WEBPACK_IMPORTED_MODULE_6__["ɵɵtext"](8, "World");
+        _angular_core__WEBPACK_IMPORTED_MODULE_6__["ɵɵelementEnd"]();
+        _angular_core__WEBPACK_IMPORTED_MODULE_6__["ɵɵelementStart"](9, "a", 1);
+        _angular_core__WEBPACK_IMPORTED_MODULE_6__["ɵɵlistener"]("click", function CardsViewComponent_Template_a_click_9_listener() { return ctx.selectedTab = "trainersTab"; });
+        _angular_core__WEBPACK_IMPORTED_MODULE_6__["ɵɵelementStart"](10, "i", 2);
+        _angular_core__WEBPACK_IMPORTED_MODULE_6__["ɵɵtext"](11, "view_cozy");
+        _angular_core__WEBPACK_IMPORTED_MODULE_6__["ɵɵelementEnd"]();
+        _angular_core__WEBPACK_IMPORTED_MODULE_6__["ɵɵtext"](12, "Trainers");
+        _angular_core__WEBPACK_IMPORTED_MODULE_6__["ɵɵelementEnd"]();
+        _angular_core__WEBPACK_IMPORTED_MODULE_6__["ɵɵelement"](13, "span");
+        _angular_core__WEBPACK_IMPORTED_MODULE_6__["ɵɵelementStart"](14, "input", 3, 4);
+        _angular_core__WEBPACK_IMPORTED_MODULE_6__["ɵɵlistener"]("change", function CardsViewComponent_Template_input_change_14_listener($event) { return ctx.onFileSelected($event); });
+        _angular_core__WEBPACK_IMPORTED_MODULE_6__["ɵɵelementEnd"]();
+        _angular_core__WEBPACK_IMPORTED_MODULE_6__["ɵɵelementStart"](16, "label", 5);
+        _angular_core__WEBPACK_IMPORTED_MODULE_6__["ɵɵtext"](17, "Upload");
+        _angular_core__WEBPACK_IMPORTED_MODULE_6__["ɵɵelementEnd"]();
+        _angular_core__WEBPACK_IMPORTED_MODULE_6__["ɵɵtemplate"](18, CardsViewComponent_a_18_Template, 4, 0, "a", 6);
+        _angular_core__WEBPACK_IMPORTED_MODULE_6__["ɵɵtemplate"](19, CardsViewComponent_button_19_Template, 2, 1, "button", 7);
+        _angular_core__WEBPACK_IMPORTED_MODULE_6__["ɵɵtemplate"](20, CardsViewComponent_button_20_Template, 3, 1, "button", 8);
+        _angular_core__WEBPACK_IMPORTED_MODULE_6__["ɵɵelementStart"](21, "mat-menu", 9, 10)(23, "button", 11);
+        _angular_core__WEBPACK_IMPORTED_MODULE_6__["ɵɵlistener"]("click", function CardsViewComponent_Template_button_click_23_listener() { return ctx.spoilTypes(); });
+        _angular_core__WEBPACK_IMPORTED_MODULE_6__["ɵɵtext"](24);
+        _angular_core__WEBPACK_IMPORTED_MODULE_6__["ɵɵelementEnd"]();
+        _angular_core__WEBPACK_IMPORTED_MODULE_6__["ɵɵelementStart"](25, "button", 11);
+        _angular_core__WEBPACK_IMPORTED_MODULE_6__["ɵɵlistener"]("click", function CardsViewComponent_Template_button_click_25_listener() { return ctx.spoilBSTs(); });
+        _angular_core__WEBPACK_IMPORTED_MODULE_6__["ɵɵtext"](26);
+        _angular_core__WEBPACK_IMPORTED_MODULE_6__["ɵɵelementEnd"]();
+        _angular_core__WEBPACK_IMPORTED_MODULE_6__["ɵɵelementStart"](27, "button", 11);
+        _angular_core__WEBPACK_IMPORTED_MODULE_6__["ɵɵlistener"]("click", function CardsViewComponent_Template_button_click_27_listener() { return ctx.spoilStats(); });
+        _angular_core__WEBPACK_IMPORTED_MODULE_6__["ɵɵtext"](28);
+        _angular_core__WEBPACK_IMPORTED_MODULE_6__["ɵɵelementEnd"]();
+        _angular_core__WEBPACK_IMPORTED_MODULE_6__["ɵɵelementStart"](29, "button", 11);
+        _angular_core__WEBPACK_IMPORTED_MODULE_6__["ɵɵlistener"]("click", function CardsViewComponent_Template_button_click_29_listener() { return ctx.spoilAbilities(); });
+        _angular_core__WEBPACK_IMPORTED_MODULE_6__["ɵɵtext"](30);
+        _angular_core__WEBPACK_IMPORTED_MODULE_6__["ɵɵelementEnd"]();
+        _angular_core__WEBPACK_IMPORTED_MODULE_6__["ɵɵelementStart"](31, "button", 11);
+        _angular_core__WEBPACK_IMPORTED_MODULE_6__["ɵɵlistener"]("click", function CardsViewComponent_Template_button_click_31_listener() { return ctx.spoilEvolutions(); });
+        _angular_core__WEBPACK_IMPORTED_MODULE_6__["ɵɵtext"](32);
+        _angular_core__WEBPACK_IMPORTED_MODULE_6__["ɵɵelementEnd"]();
+        _angular_core__WEBPACK_IMPORTED_MODULE_6__["ɵɵelementStart"](33, "button", 11);
+        _angular_core__WEBPACK_IMPORTED_MODULE_6__["ɵɵlistener"]("click", function CardsViewComponent_Template_button_click_33_listener() { return ctx.spoilMoves(); });
+        _angular_core__WEBPACK_IMPORTED_MODULE_6__["ɵɵtext"](34);
+        _angular_core__WEBPACK_IMPORTED_MODULE_6__["ɵɵelementEnd"]();
+        _angular_core__WEBPACK_IMPORTED_MODULE_6__["ɵɵelementStart"](35, "button", 11);
+        _angular_core__WEBPACK_IMPORTED_MODULE_6__["ɵɵlistener"]("click", function CardsViewComponent_Template_button_click_35_listener() { return ctx.spoilLocations(); });
+        _angular_core__WEBPACK_IMPORTED_MODULE_6__["ɵɵtext"](36);
+        _angular_core__WEBPACK_IMPORTED_MODULE_6__["ɵɵelementEnd"]();
+        _angular_core__WEBPACK_IMPORTED_MODULE_6__["ɵɵelementStart"](37, "button", 11);
+        _angular_core__WEBPACK_IMPORTED_MODULE_6__["ɵɵlistener"]("click", function CardsViewComponent_Template_button_click_37_listener() { return ctx.spoilTrainers(); });
+        _angular_core__WEBPACK_IMPORTED_MODULE_6__["ɵɵtext"](38);
+        _angular_core__WEBPACK_IMPORTED_MODULE_6__["ɵɵelementEnd"]()();
+        _angular_core__WEBPACK_IMPORTED_MODULE_6__["ɵɵtemplate"](39, CardsViewComponent_span_39_Template, 2, 1, "span", 12);
+        _angular_core__WEBPACK_IMPORTED_MODULE_6__["ɵɵelementEnd"]();
+        _angular_core__WEBPACK_IMPORTED_MODULE_6__["ɵɵtemplate"](40, CardsViewComponent_div_40_Template, 2, 1, "div", 12);
+        _angular_core__WEBPACK_IMPORTED_MODULE_6__["ɵɵtemplate"](41, CardsViewComponent_div_41_Template, 2, 1, "div", 12);
+        _angular_core__WEBPACK_IMPORTED_MODULE_6__["ɵɵtemplate"](42, CardsViewComponent_div_42_Template, 2, 1, "div", 12);
+        _angular_core__WEBPACK_IMPORTED_MODULE_6__["ɵɵtemplate"](43, CardsViewComponent_div_43_Template, 2, 0, "div", 12);
+        _angular_core__WEBPACK_IMPORTED_MODULE_6__["ɵɵtemplate"](44, CardsViewComponent_div_44_Template, 2, 0, "div", 12);
     } if (rf & 2) {
-        _angular_core__WEBPACK_IMPORTED_MODULE_5__["ɵɵadvance"](1);
-        _angular_core__WEBPACK_IMPORTED_MODULE_5__["ɵɵclassProp"]("selected", ctx.selectedTab === "summaryTab");
-        _angular_core__WEBPACK_IMPORTED_MODULE_5__["ɵɵadvance"](4);
-        _angular_core__WEBPACK_IMPORTED_MODULE_5__["ɵɵclassProp"]("selected", ctx.selectedTab === "worldTab");
-        _angular_core__WEBPACK_IMPORTED_MODULE_5__["ɵɵadvance"](9);
-        _angular_core__WEBPACK_IMPORTED_MODULE_5__["ɵɵproperty"]("ngIf", ctx.dex.validDexUploaded);
-        _angular_core__WEBPACK_IMPORTED_MODULE_5__["ɵɵadvance"](1);
-        _angular_core__WEBPACK_IMPORTED_MODULE_5__["ɵɵproperty"]("ngIf", ctx.dex.validDexUploaded);
-        _angular_core__WEBPACK_IMPORTED_MODULE_5__["ɵɵadvance"](1);
-        _angular_core__WEBPACK_IMPORTED_MODULE_5__["ɵɵproperty"]("ngIf", ctx.dex.validDexUploaded);
-        _angular_core__WEBPACK_IMPORTED_MODULE_5__["ɵɵadvance"](4);
-        _angular_core__WEBPACK_IMPORTED_MODULE_5__["ɵɵtextInterpolate"](ctx.dex.allTypesRevealed ? "Unspoil Types" : "Spoil Types");
-        _angular_core__WEBPACK_IMPORTED_MODULE_5__["ɵɵadvance"](2);
-        _angular_core__WEBPACK_IMPORTED_MODULE_5__["ɵɵtextInterpolate"](ctx.dex.allBSTRevealed ? "Unspoil BSTs" : "Spoil BSTs");
-        _angular_core__WEBPACK_IMPORTED_MODULE_5__["ɵɵadvance"](2);
-        _angular_core__WEBPACK_IMPORTED_MODULE_5__["ɵɵtextInterpolate"](ctx.dex.allStatsRevealed ? "Unspoil Stats" : "Spoil Stats");
-        _angular_core__WEBPACK_IMPORTED_MODULE_5__["ɵɵadvance"](2);
-        _angular_core__WEBPACK_IMPORTED_MODULE_5__["ɵɵtextInterpolate"](ctx.dex.allAbilitiesRevealed ? "Unspoil Abilities" : "Spoil Abilities");
-        _angular_core__WEBPACK_IMPORTED_MODULE_5__["ɵɵadvance"](2);
-        _angular_core__WEBPACK_IMPORTED_MODULE_5__["ɵɵtextInterpolate"](ctx.dex.allEvolutionsRevealed ? "Unspoil Evolutions" : "Spoil Evolutions");
-        _angular_core__WEBPACK_IMPORTED_MODULE_5__["ɵɵadvance"](2);
-        _angular_core__WEBPACK_IMPORTED_MODULE_5__["ɵɵtextInterpolate"](ctx.dex.allMovesRevealed ? "Unspoil Moves" : "Spoil Moves");
-        _angular_core__WEBPACK_IMPORTED_MODULE_5__["ɵɵadvance"](2);
-        _angular_core__WEBPACK_IMPORTED_MODULE_5__["ɵɵtextInterpolate"](ctx.dex.allLocationsRevealed ? "Unspoil Locations" : "Spoil Locations");
-        _angular_core__WEBPACK_IMPORTED_MODULE_5__["ɵɵadvance"](2);
-        _angular_core__WEBPACK_IMPORTED_MODULE_5__["ɵɵtextInterpolate"](ctx.dex.allTrainersRevealed ? "Unspoil Trainers" : "Spoil Trainers");
-        _angular_core__WEBPACK_IMPORTED_MODULE_5__["ɵɵadvance"](1);
-        _angular_core__WEBPACK_IMPORTED_MODULE_5__["ɵɵproperty"]("ngIf", ctx.dex.logFileName);
-        _angular_core__WEBPACK_IMPORTED_MODULE_5__["ɵɵadvance"](1);
-        _angular_core__WEBPACK_IMPORTED_MODULE_5__["ɵɵproperty"]("ngIf", ctx.selectedTab === "summaryTab");
-        _angular_core__WEBPACK_IMPORTED_MODULE_5__["ɵɵadvance"](1);
-        _angular_core__WEBPACK_IMPORTED_MODULE_5__["ɵɵproperty"]("ngIf", ctx.selectedTab === "worldTab");
-        _angular_core__WEBPACK_IMPORTED_MODULE_5__["ɵɵadvance"](1);
-        _angular_core__WEBPACK_IMPORTED_MODULE_5__["ɵɵproperty"]("ngIf", ctx.selectedTab === "teamTab");
-        _angular_core__WEBPACK_IMPORTED_MODULE_5__["ɵɵadvance"](1);
-        _angular_core__WEBPACK_IMPORTED_MODULE_5__["ɵɵproperty"]("ngIf", ctx.selectedTab === "vsTab");
-    } }, directives: [_angular_common__WEBPACK_IMPORTED_MODULE_6__.NgIf, _angular_material_menu__WEBPACK_IMPORTED_MODULE_7__.MatMenuTrigger, _angular_material_menu__WEBPACK_IMPORTED_MODULE_7__.MatMenu, _angular_material_menu__WEBPACK_IMPORTED_MODULE_7__.MatMenuItem, _individual_summary_individual_summary_component__WEBPACK_IMPORTED_MODULE_1__.IndividualSummaryComponent, _world_view_world_view_component__WEBPACK_IMPORTED_MODULE_2__.WorldViewComponent, _team_builder_team_builder_component__WEBPACK_IMPORTED_MODULE_3__.TeamBuilderComponent, _vs_summary_vs_summary_component__WEBPACK_IMPORTED_MODULE_4__.VsSummaryComponent], styles: [".tabs[_ngcontent-%COMP%] {\n  border-bottom: 5px #9c9c9c solid;\n  color: #2c2c2c;\n  display: flex;\n  flex-direction: row;\n  align-items: center;\n}\n.tabs[_ngcontent-%COMP%]   *[_ngcontent-%COMP%] {\n  margin-bottom: 0px;\n}\n.tabs[_ngcontent-%COMP%]   a.tab[_ngcontent-%COMP%] {\n  background-color: #e7e7e7;\n  display: inline-flex;\n  align-items: center;\n  padding: 8px 16px;\n  font-size: 14px;\n  cursor: pointer;\n  color: #2c2c2c;\n  border: none;\n  border-top-left-radius: 10px;\n  border-top-right-radius: 10px;\n}\n.tabs[_ngcontent-%COMP%]   a.tab[_ngcontent-%COMP%]   i.material-icons[_ngcontent-%COMP%] {\n  color: #2c2c2c;\n}\n.tabs[_ngcontent-%COMP%]   a.tab[_ngcontent-%COMP%]:hover {\n  background-color: #cecece;\n  font-weight: 300;\n}\n.tabs[_ngcontent-%COMP%]   a.tab.selected[_ngcontent-%COMP%] {\n  background-color: #9c9c9c;\n}\n.tabs[_ngcontent-%COMP%]   a.tab.selected[_ngcontent-%COMP%]:hover {\n  background-color: dimgray;\n}\n.tabs[_ngcontent-%COMP%]   a.tab.disabled[_ngcontent-%COMP%] {\n  pointer-events: none;\n  cursor: default;\n}\n.tabs[_ngcontent-%COMP%]   span[_ngcontent-%COMP%] {\n  margin-left: 5px;\n}\n.tabs[_ngcontent-%COMP%]   .tab-file-input[_ngcontent-%COMP%] {\n  height: 0;\n  width: 0;\n  display: none;\n}\n.tabs[_ngcontent-%COMP%]   #spoil-button[_ngcontent-%COMP%] {\n  border-radius: 10px 0px 0px 10px;\n}\n.tabs[_ngcontent-%COMP%]   #power-options[_ngcontent-%COMP%] {\n  border-radius: 0px 10px 10px 0px;\n  border-left: solid 1px green;\n  width: 25px;\n  height: 30px;\n  padding: 0px;\n  margin-left: 0px;\n}\n.tabs[_ngcontent-%COMP%]   .tab-button[_ngcontent-%COMP%] {\n  font-family: \"Roboto\", Arial, sans-serif;\n  color: #cfcfcf;\n  background-color: #156615;\n  border-radius: 10px;\n  display: inline-flex;\n  align-items: center;\n  padding: 8px 16px;\n  font-size: 12px;\n  font-weight: bold;\n  margin-left: 5px;\n}\n.tabs[_ngcontent-%COMP%]   .tab-button[_ngcontent-%COMP%]:hover {\n  background-color: #0c3c0c;\n}\n.tabs[_ngcontent-%COMP%]   .tab[_ngcontent-%COMP%] {\n  margin-top: 6px;\n}\n/*# sourceMappingURL=data:application/json;base64,eyJ2ZXJzaW9uIjozLCJzb3VyY2VzIjpbImNhcmRzLXZpZXcuY29tcG9uZW50LnNjc3MiXSwibmFtZXMiOltdLCJtYXBwaW5ncyI6IkFBS0E7RUFDSSxnQ0FBQTtFQUlBLGNBUlc7RUFTWCxhQUFBO0VBQ0EsbUJBQUE7RUFDQSxtQkFBQTtBQVBKO0FBQ0k7RUFDSSxrQkFBQTtBQUNSO0FBS0k7RUFDSSx5QkFBQTtFQUVBLG9CQUFBO0VBQ0EsbUJBQUE7RUFDQSxpQkFBQTtFQUVBLGVBQUE7RUFDQSxlQUFBO0VBQ0EsY0FyQk87RUFzQlAsWUFBQTtFQUNBLDRCQUFBO0VBQ0EsNkJBQUE7QUFMUjtBQU1RO0VBQ0ksY0ExQkc7QUFzQmY7QUFNUTtFQUNJLHlCQUFBO0VBQ0EsZ0JBQUE7QUFKWjtBQU1RO0VBQ0kseUJBbkNRO0FBK0JwQjtBQUtZO0VBQ0kseUJBQUE7QUFIaEI7QUFNUTtFQUNJLG9CQUFBO0VBQ0EsZUFBQTtBQUpaO0FBT0k7RUFDSSxnQkFBQTtBQUxSO0FBUUk7RUFDSSxTQUFBO0VBQ0EsUUFBQTtFQUNBLGFBQUE7QUFOUjtBQVNJO0VBQ0ksZ0NBQUE7QUFQUjtBQVVJO0VBQ0ksZ0NBQUE7RUFDQSw0QkFBQTtFQUNBLFdBQUE7RUFDQSxZQUFBO0VBQ0EsWUFBQTtFQUNBLGdCQUFBO0FBUlI7QUFlSTtFQUNJLHdDQUFBO0VBQ0EsY0FBQTtFQUNBLHlCQXhFTztFQXlFUCxtQkFBQTtFQUNBLG9CQUFBO0VBQ0EsbUJBQUE7RUFDQSxpQkFBQTtFQUNBLGVBQUE7RUFDQSxpQkFBQTtFQUNBLGdCQUFBO0FBYlI7QUFjUTtFQUNJLHlCQUFBO0FBWlo7QUFpQkk7RUFDSSxlQUFBO0FBZlIiLCJmaWxlIjoiY2FyZHMtdmlldy5jb21wb25lbnQuc2NzcyIsInNvdXJjZXNDb250ZW50IjpbIiRzZWxlY3RlZFRhYkNvbG9yIDogcmdiKDE1NiwgMTU2LCAxNTYpO1xyXG4kdGFiQ29sb3IgOiByZ2IoMjMxLCAyMzEsIDIzMSk7XHJcbiR0YWJGb250Q29sb3I6IHJnYig0NCwgNDQsIDQ0KTtcclxuJGJ1dHRvbkNvbG9yIDogcmdiKDIxLCAxMDIsIDIxKTtcclxuXHJcbi50YWJzIHtcclxuICAgIGJvcmRlci1ib3R0b206IDVweCAkc2VsZWN0ZWRUYWJDb2xvciBzb2xpZDtcclxuICAgICoge1xyXG4gICAgICAgIG1hcmdpbi1ib3R0b206IDBweDtcclxuICAgIH1cclxuICAgIGNvbG9yOiAkdGFiRm9udENvbG9yO1xyXG4gICAgZGlzcGxheTogZmxleDtcclxuICAgIGZsZXgtZGlyZWN0aW9uOnJvdztcclxuICAgIGFsaWduLWl0ZW1zOiBjZW50ZXI7XHJcbiAgICBhLnRhYiB7XHJcbiAgICAgICAgYmFja2dyb3VuZC1jb2xvcjogcmdiKDIzMSwgMjMxLCAyMzEpO1xyXG4gICAgXHJcbiAgICAgICAgZGlzcGxheTogaW5saW5lLWZsZXg7XHJcbiAgICAgICAgYWxpZ24taXRlbXM6IGNlbnRlcjtcclxuICAgICAgICBwYWRkaW5nOiA4cHggMTZweDtcclxuICAgICAgICAvLyBib3JkZXItcmFkaXVzOiAycHg7XHJcbiAgICAgICAgZm9udC1zaXplOiAxNHB4O1xyXG4gICAgICAgIGN1cnNvcjogcG9pbnRlcjtcclxuICAgICAgICBjb2xvcjogJHRhYkZvbnRDb2xvcjtcclxuICAgICAgICBib3JkZXI6IG5vbmU7XHJcbiAgICAgICAgYm9yZGVyLXRvcC1sZWZ0LXJhZGl1czogMTBweDtcclxuICAgICAgICBib3JkZXItdG9wLXJpZ2h0LXJhZGl1czogMTBweDtcclxuICAgICAgICBpLm1hdGVyaWFsLWljb25zIHtcclxuICAgICAgICAgICAgY29sb3I6ICR0YWJGb250Q29sb3I7XHJcbiAgICAgICAgfVxyXG4gICAgICAgICY6aG92ZXIge1xyXG4gICAgICAgICAgICBiYWNrZ3JvdW5kLWNvbG9yOiBkYXJrZW4oJGNvbG9yOiAkdGFiQ29sb3IsICRhbW91bnQ6IDEwKTtcclxuICAgICAgICAgICAgZm9udC13ZWlnaHQ6IDMwMDtcclxuICAgICAgICB9XHJcbiAgICAgICAgJi5zZWxlY3RlZCB7XHJcbiAgICAgICAgICAgIGJhY2tncm91bmQtY29sb3I6ICRzZWxlY3RlZFRhYkNvbG9yO1xyXG4gICAgICAgICAgICAmOmhvdmVyIHtcclxuICAgICAgICAgICAgICAgIGJhY2tncm91bmQtY29sb3I6IGRhcmtlbigkY29sb3I6ICRzZWxlY3RlZFRhYkNvbG9yLCAkYW1vdW50OiAyMCk7XHJcbiAgICAgICAgICAgIH1cclxuICAgICAgICB9XHJcbiAgICAgICAgJi5kaXNhYmxlZCB7XHJcbiAgICAgICAgICAgIHBvaW50ZXItZXZlbnRzOiBub25lO1xyXG4gICAgICAgICAgICBjdXJzb3I6IGRlZmF1bHQ7XHJcbiAgICAgICAgfVxyXG4gICAgfVxyXG4gICAgc3BhbiB7XHJcbiAgICAgICAgbWFyZ2luLWxlZnQ6IDVweDtcclxuICAgIH1cclxuXHJcbiAgICAudGFiLWZpbGUtaW5wdXQge1xyXG4gICAgICAgIGhlaWdodDogMDtcclxuICAgICAgICB3aWR0aDogMDtcclxuICAgICAgICBkaXNwbGF5OiBub25lICAgICAgICAgICA7XHJcbiAgICB9XHJcblxyXG4gICAgI3Nwb2lsLWJ1dHRvbiB7XHJcbiAgICAgICAgYm9yZGVyLXJhZGl1czogMTBweCAwcHggMHB4IDEwcHg7XHJcbiAgICB9XHJcblxyXG4gICAgI3Bvd2VyLW9wdGlvbnMge1xyXG4gICAgICAgIGJvcmRlci1yYWRpdXM6IDBweCAxMHB4IDEwcHggMHB4O1xyXG4gICAgICAgIGJvcmRlci1sZWZ0OiBzb2xpZCAxcHggZ3JlZW47XHJcbiAgICAgICAgd2lkdGg6IDI1cHg7XHJcbiAgICAgICAgaGVpZ2h0OiAzMHB4O1xyXG4gICAgICAgIHBhZGRpbmc6IDBweDtcclxuICAgICAgICBtYXJnaW4tbGVmdDogMHB4O1xyXG4gICAgfVxyXG5cclxuXHJcblxyXG5cclxuXHJcbiAgICAudGFiLWJ1dHRvbiB7XHJcbiAgICAgICAgZm9udC1mYW1pbHk6IFwiUm9ib3RvXCIsIEFyaWFsLCBzYW5zLXNlcmlmO1xyXG4gICAgICAgIGNvbG9yOiAjY2ZjZmNmO1xyXG4gICAgICAgIGJhY2tncm91bmQtY29sb3I6ICRidXR0b25Db2xvcjtcclxuICAgICAgICBib3JkZXItcmFkaXVzOiAxMHB4O1xyXG4gICAgICAgIGRpc3BsYXk6IGlubGluZS1mbGV4O1xyXG4gICAgICAgIGFsaWduLWl0ZW1zOiBjZW50ZXI7XHJcbiAgICAgICAgcGFkZGluZzogOHB4IDE2cHg7XHJcbiAgICAgICAgZm9udC1zaXplOiAxMnB4O1xyXG4gICAgICAgIGZvbnQtd2VpZ2h0OiBib2xkO1xyXG4gICAgICAgIG1hcmdpbi1sZWZ0OiA1cHg7XHJcbiAgICAgICAgJjpob3ZlciB7XHJcbiAgICAgICAgICAgIGJhY2tncm91bmQtY29sb3I6IGRhcmtlbigkY29sb3I6ICRidXR0b25Db2xvciwgJGFtb3VudDogMTApO1xyXG4gICAgICAgICAgICAvLyBmb250LXdlaWdodDogMzAwO1xyXG4gICAgICAgIH1cclxuICAgIH1cclxuXHJcbiAgICAudGFiIHtcclxuICAgICAgICBtYXJnaW4tdG9wOiA2cHg7XHJcbiAgICB9XHJcbn1cclxuXHJcblxyXG5cclxuXHJcbiJdfQ== */"] });
+        _angular_core__WEBPACK_IMPORTED_MODULE_6__["ɵɵadvance"](1);
+        _angular_core__WEBPACK_IMPORTED_MODULE_6__["ɵɵclassProp"]("selected", ctx.selectedTab === "summaryTab");
+        _angular_core__WEBPACK_IMPORTED_MODULE_6__["ɵɵadvance"](4);
+        _angular_core__WEBPACK_IMPORTED_MODULE_6__["ɵɵclassProp"]("selected", ctx.selectedTab === "worldTab");
+        _angular_core__WEBPACK_IMPORTED_MODULE_6__["ɵɵadvance"](4);
+        _angular_core__WEBPACK_IMPORTED_MODULE_6__["ɵɵclassProp"]("selected", ctx.selectedTab === "trainersTab");
+        _angular_core__WEBPACK_IMPORTED_MODULE_6__["ɵɵadvance"](9);
+        _angular_core__WEBPACK_IMPORTED_MODULE_6__["ɵɵproperty"]("ngIf", ctx.dex.validDexUploaded);
+        _angular_core__WEBPACK_IMPORTED_MODULE_6__["ɵɵadvance"](1);
+        _angular_core__WEBPACK_IMPORTED_MODULE_6__["ɵɵproperty"]("ngIf", ctx.dex.validDexUploaded);
+        _angular_core__WEBPACK_IMPORTED_MODULE_6__["ɵɵadvance"](1);
+        _angular_core__WEBPACK_IMPORTED_MODULE_6__["ɵɵproperty"]("ngIf", ctx.dex.validDexUploaded);
+        _angular_core__WEBPACK_IMPORTED_MODULE_6__["ɵɵadvance"](4);
+        _angular_core__WEBPACK_IMPORTED_MODULE_6__["ɵɵtextInterpolate"](ctx.dex.allTypesRevealed ? "Unspoil Types" : "Spoil Types");
+        _angular_core__WEBPACK_IMPORTED_MODULE_6__["ɵɵadvance"](2);
+        _angular_core__WEBPACK_IMPORTED_MODULE_6__["ɵɵtextInterpolate"](ctx.dex.allBSTRevealed ? "Unspoil BSTs" : "Spoil BSTs");
+        _angular_core__WEBPACK_IMPORTED_MODULE_6__["ɵɵadvance"](2);
+        _angular_core__WEBPACK_IMPORTED_MODULE_6__["ɵɵtextInterpolate"](ctx.dex.allStatsRevealed ? "Unspoil Stats" : "Spoil Stats");
+        _angular_core__WEBPACK_IMPORTED_MODULE_6__["ɵɵadvance"](2);
+        _angular_core__WEBPACK_IMPORTED_MODULE_6__["ɵɵtextInterpolate"](ctx.dex.allAbilitiesRevealed ? "Unspoil Abilities" : "Spoil Abilities");
+        _angular_core__WEBPACK_IMPORTED_MODULE_6__["ɵɵadvance"](2);
+        _angular_core__WEBPACK_IMPORTED_MODULE_6__["ɵɵtextInterpolate"](ctx.dex.allEvolutionsRevealed ? "Unspoil Evolutions" : "Spoil Evolutions");
+        _angular_core__WEBPACK_IMPORTED_MODULE_6__["ɵɵadvance"](2);
+        _angular_core__WEBPACK_IMPORTED_MODULE_6__["ɵɵtextInterpolate"](ctx.dex.allMovesRevealed ? "Unspoil Moves" : "Spoil Moves");
+        _angular_core__WEBPACK_IMPORTED_MODULE_6__["ɵɵadvance"](2);
+        _angular_core__WEBPACK_IMPORTED_MODULE_6__["ɵɵtextInterpolate"](ctx.dex.allLocationsRevealed ? "Unspoil Locations" : "Spoil Locations");
+        _angular_core__WEBPACK_IMPORTED_MODULE_6__["ɵɵadvance"](2);
+        _angular_core__WEBPACK_IMPORTED_MODULE_6__["ɵɵtextInterpolate"](ctx.dex.allTrainersRevealed ? "Unspoil Trainers" : "Spoil Trainers");
+        _angular_core__WEBPACK_IMPORTED_MODULE_6__["ɵɵadvance"](1);
+        _angular_core__WEBPACK_IMPORTED_MODULE_6__["ɵɵproperty"]("ngIf", ctx.dex.logFileName);
+        _angular_core__WEBPACK_IMPORTED_MODULE_6__["ɵɵadvance"](1);
+        _angular_core__WEBPACK_IMPORTED_MODULE_6__["ɵɵproperty"]("ngIf", ctx.selectedTab === "summaryTab");
+        _angular_core__WEBPACK_IMPORTED_MODULE_6__["ɵɵadvance"](1);
+        _angular_core__WEBPACK_IMPORTED_MODULE_6__["ɵɵproperty"]("ngIf", ctx.selectedTab === "worldTab");
+        _angular_core__WEBPACK_IMPORTED_MODULE_6__["ɵɵadvance"](1);
+        _angular_core__WEBPACK_IMPORTED_MODULE_6__["ɵɵproperty"]("ngIf", ctx.selectedTab === "trainersTab");
+        _angular_core__WEBPACK_IMPORTED_MODULE_6__["ɵɵadvance"](1);
+        _angular_core__WEBPACK_IMPORTED_MODULE_6__["ɵɵproperty"]("ngIf", ctx.selectedTab === "teamTab");
+        _angular_core__WEBPACK_IMPORTED_MODULE_6__["ɵɵadvance"](1);
+        _angular_core__WEBPACK_IMPORTED_MODULE_6__["ɵɵproperty"]("ngIf", ctx.selectedTab === "vsTab");
+    } }, directives: [_angular_common__WEBPACK_IMPORTED_MODULE_7__.NgIf, _angular_material_menu__WEBPACK_IMPORTED_MODULE_8__.MatMenuTrigger, _angular_material_menu__WEBPACK_IMPORTED_MODULE_8__.MatMenu, _angular_material_menu__WEBPACK_IMPORTED_MODULE_8__.MatMenuItem, _individual_summary_individual_summary_component__WEBPACK_IMPORTED_MODULE_1__.IndividualSummaryComponent, _world_view_world_view_component__WEBPACK_IMPORTED_MODULE_2__.WorldViewComponent, _trainers_view_trainers_view_component__WEBPACK_IMPORTED_MODULE_3__.TrainersViewComponent, _team_builder_team_builder_component__WEBPACK_IMPORTED_MODULE_4__.TeamBuilderComponent, _vs_summary_vs_summary_component__WEBPACK_IMPORTED_MODULE_5__.VsSummaryComponent], styles: [".tabs[_ngcontent-%COMP%] {\n  border-bottom: 5px #9c9c9c solid;\n  color: #2c2c2c;\n  display: flex;\n  flex-direction: row;\n  align-items: center;\n}\n.tabs[_ngcontent-%COMP%]   *[_ngcontent-%COMP%] {\n  margin-bottom: 0px;\n}\n.tabs[_ngcontent-%COMP%]   a.tab[_ngcontent-%COMP%] {\n  background-color: #e7e7e7;\n  display: inline-flex;\n  align-items: center;\n  padding: 8px 16px;\n  font-size: 14px;\n  cursor: pointer;\n  color: #2c2c2c;\n  border: none;\n  border-top-left-radius: 10px;\n  border-top-right-radius: 10px;\n}\n.tabs[_ngcontent-%COMP%]   a.tab[_ngcontent-%COMP%]   i.material-icons[_ngcontent-%COMP%] {\n  color: #2c2c2c;\n}\n.tabs[_ngcontent-%COMP%]   a.tab[_ngcontent-%COMP%]:hover {\n  background-color: #cecece;\n  font-weight: 300;\n}\n.tabs[_ngcontent-%COMP%]   a.tab.selected[_ngcontent-%COMP%] {\n  background-color: #9c9c9c;\n}\n.tabs[_ngcontent-%COMP%]   a.tab.selected[_ngcontent-%COMP%]:hover {\n  background-color: dimgray;\n}\n.tabs[_ngcontent-%COMP%]   a.tab.disabled[_ngcontent-%COMP%] {\n  pointer-events: none;\n  cursor: default;\n}\n.tabs[_ngcontent-%COMP%]   span[_ngcontent-%COMP%] {\n  margin-left: 5px;\n}\n.tabs[_ngcontent-%COMP%]   .tab-file-input[_ngcontent-%COMP%] {\n  height: 0;\n  width: 0;\n  display: none;\n}\n.tabs[_ngcontent-%COMP%]   #spoil-button[_ngcontent-%COMP%] {\n  border-radius: 10px 0px 0px 10px;\n}\n.tabs[_ngcontent-%COMP%]   #power-options[_ngcontent-%COMP%] {\n  border-radius: 0px 10px 10px 0px;\n  border-left: solid 1px green;\n  width: 25px;\n  height: 30px;\n  padding: 0px;\n  margin-left: 0px;\n}\n.tabs[_ngcontent-%COMP%]   .tab-button[_ngcontent-%COMP%] {\n  font-family: \"Roboto\", Arial, sans-serif;\n  color: #cfcfcf;\n  background-color: #156615;\n  border-radius: 10px;\n  display: inline-flex;\n  align-items: center;\n  padding: 8px 16px;\n  font-size: 12px;\n  font-weight: bold;\n  margin-left: 5px;\n}\n.tabs[_ngcontent-%COMP%]   .tab-button[_ngcontent-%COMP%]:hover {\n  background-color: #0c3c0c;\n}\n.tabs[_ngcontent-%COMP%]   .tab[_ngcontent-%COMP%] {\n  margin-top: 6px;\n}\n/*# sourceMappingURL=data:application/json;base64,eyJ2ZXJzaW9uIjozLCJzb3VyY2VzIjpbImNhcmRzLXZpZXcuY29tcG9uZW50LnNjc3MiXSwibmFtZXMiOltdLCJtYXBwaW5ncyI6IkFBS0E7RUFDSSxnQ0FBQTtFQUlBLGNBUlc7RUFTWCxhQUFBO0VBQ0EsbUJBQUE7RUFDQSxtQkFBQTtBQVBKO0FBQ0k7RUFDSSxrQkFBQTtBQUNSO0FBS0k7RUFDSSx5QkFBQTtFQUVBLG9CQUFBO0VBQ0EsbUJBQUE7RUFDQSxpQkFBQTtFQUVBLGVBQUE7RUFDQSxlQUFBO0VBQ0EsY0FyQk87RUFzQlAsWUFBQTtFQUNBLDRCQUFBO0VBQ0EsNkJBQUE7QUFMUjtBQU1RO0VBQ0ksY0ExQkc7QUFzQmY7QUFNUTtFQUNJLHlCQUFBO0VBQ0EsZ0JBQUE7QUFKWjtBQU1RO0VBQ0kseUJBbkNRO0FBK0JwQjtBQUtZO0VBQ0kseUJBQUE7QUFIaEI7QUFNUTtFQUNJLG9CQUFBO0VBQ0EsZUFBQTtBQUpaO0FBT0k7RUFDSSxnQkFBQTtBQUxSO0FBUUk7RUFDSSxTQUFBO0VBQ0EsUUFBQTtFQUNBLGFBQUE7QUFOUjtBQVNJO0VBQ0ksZ0NBQUE7QUFQUjtBQVVJO0VBQ0ksZ0NBQUE7RUFDQSw0QkFBQTtFQUNBLFdBQUE7RUFDQSxZQUFBO0VBQ0EsWUFBQTtFQUNBLGdCQUFBO0FBUlI7QUFlSTtFQUNJLHdDQUFBO0VBQ0EsY0FBQTtFQUNBLHlCQXhFTztFQXlFUCxtQkFBQTtFQUNBLG9CQUFBO0VBQ0EsbUJBQUE7RUFDQSxpQkFBQTtFQUNBLGVBQUE7RUFDQSxpQkFBQTtFQUNBLGdCQUFBO0FBYlI7QUFjUTtFQUNJLHlCQUFBO0FBWlo7QUFpQkk7RUFDSSxlQUFBO0FBZlIiLCJmaWxlIjoiY2FyZHMtdmlldy5jb21wb25lbnQuc2NzcyIsInNvdXJjZXNDb250ZW50IjpbIiRzZWxlY3RlZFRhYkNvbG9yIDogcmdiKDE1NiwgMTU2LCAxNTYpO1xyXG4kdGFiQ29sb3IgOiByZ2IoMjMxLCAyMzEsIDIzMSk7XHJcbiR0YWJGb250Q29sb3I6IHJnYig0NCwgNDQsIDQ0KTtcclxuJGJ1dHRvbkNvbG9yIDogcmdiKDIxLCAxMDIsIDIxKTtcclxuXHJcbi50YWJzIHtcclxuICAgIGJvcmRlci1ib3R0b206IDVweCAkc2VsZWN0ZWRUYWJDb2xvciBzb2xpZDtcclxuICAgICoge1xyXG4gICAgICAgIG1hcmdpbi1ib3R0b206IDBweDtcclxuICAgIH1cclxuICAgIGNvbG9yOiAkdGFiRm9udENvbG9yO1xyXG4gICAgZGlzcGxheTogZmxleDtcclxuICAgIGZsZXgtZGlyZWN0aW9uOnJvdztcclxuICAgIGFsaWduLWl0ZW1zOiBjZW50ZXI7XHJcbiAgICBhLnRhYiB7XHJcbiAgICAgICAgYmFja2dyb3VuZC1jb2xvcjogcmdiKDIzMSwgMjMxLCAyMzEpO1xyXG4gICAgXHJcbiAgICAgICAgZGlzcGxheTogaW5saW5lLWZsZXg7XHJcbiAgICAgICAgYWxpZ24taXRlbXM6IGNlbnRlcjtcclxuICAgICAgICBwYWRkaW5nOiA4cHggMTZweDtcclxuICAgICAgICAvLyBib3JkZXItcmFkaXVzOiAycHg7XHJcbiAgICAgICAgZm9udC1zaXplOiAxNHB4O1xyXG4gICAgICAgIGN1cnNvcjogcG9pbnRlcjtcclxuICAgICAgICBjb2xvcjogJHRhYkZvbnRDb2xvcjtcclxuICAgICAgICBib3JkZXI6IG5vbmU7XHJcbiAgICAgICAgYm9yZGVyLXRvcC1sZWZ0LXJhZGl1czogMTBweDtcclxuICAgICAgICBib3JkZXItdG9wLXJpZ2h0LXJhZGl1czogMTBweDtcclxuICAgICAgICBpLm1hdGVyaWFsLWljb25zIHtcclxuICAgICAgICAgICAgY29sb3I6ICR0YWJGb250Q29sb3I7XHJcbiAgICAgICAgfVxyXG4gICAgICAgICY6aG92ZXIge1xyXG4gICAgICAgICAgICBiYWNrZ3JvdW5kLWNvbG9yOiBkYXJrZW4oJGNvbG9yOiAkdGFiQ29sb3IsICRhbW91bnQ6IDEwKTtcclxuICAgICAgICAgICAgZm9udC13ZWlnaHQ6IDMwMDtcclxuICAgICAgICB9XHJcbiAgICAgICAgJi5zZWxlY3RlZCB7XHJcbiAgICAgICAgICAgIGJhY2tncm91bmQtY29sb3I6ICRzZWxlY3RlZFRhYkNvbG9yO1xyXG4gICAgICAgICAgICAmOmhvdmVyIHtcclxuICAgICAgICAgICAgICAgIGJhY2tncm91bmQtY29sb3I6IGRhcmtlbigkY29sb3I6ICRzZWxlY3RlZFRhYkNvbG9yLCAkYW1vdW50OiAyMCk7XHJcbiAgICAgICAgICAgIH1cclxuICAgICAgICB9XHJcbiAgICAgICAgJi5kaXNhYmxlZCB7XHJcbiAgICAgICAgICAgIHBvaW50ZXItZXZlbnRzOiBub25lO1xyXG4gICAgICAgICAgICBjdXJzb3I6IGRlZmF1bHQ7XHJcbiAgICAgICAgfVxyXG4gICAgfVxyXG4gICAgc3BhbiB7XHJcbiAgICAgICAgbWFyZ2luLWxlZnQ6IDVweDtcclxuICAgIH1cclxuXHJcbiAgICAudGFiLWZpbGUtaW5wdXQge1xyXG4gICAgICAgIGhlaWdodDogMDtcclxuICAgICAgICB3aWR0aDogMDtcclxuICAgICAgICBkaXNwbGF5OiBub25lICAgICAgICAgICA7XHJcbiAgICB9XHJcblxyXG4gICAgI3Nwb2lsLWJ1dHRvbiB7XHJcbiAgICAgICAgYm9yZGVyLXJhZGl1czogMTBweCAwcHggMHB4IDEwcHg7XHJcbiAgICB9XHJcblxyXG4gICAgI3Bvd2VyLW9wdGlvbnMge1xyXG4gICAgICAgIGJvcmRlci1yYWRpdXM6IDBweCAxMHB4IDEwcHggMHB4O1xyXG4gICAgICAgIGJvcmRlci1sZWZ0OiBzb2xpZCAxcHggZ3JlZW47XHJcbiAgICAgICAgd2lkdGg6IDI1cHg7XHJcbiAgICAgICAgaGVpZ2h0OiAzMHB4O1xyXG4gICAgICAgIHBhZGRpbmc6IDBweDtcclxuICAgICAgICBtYXJnaW4tbGVmdDogMHB4O1xyXG4gICAgfVxyXG5cclxuXHJcblxyXG5cclxuXHJcbiAgICAudGFiLWJ1dHRvbiB7XHJcbiAgICAgICAgZm9udC1mYW1pbHk6IFwiUm9ib3RvXCIsIEFyaWFsLCBzYW5zLXNlcmlmO1xyXG4gICAgICAgIGNvbG9yOiAjY2ZjZmNmO1xyXG4gICAgICAgIGJhY2tncm91bmQtY29sb3I6ICRidXR0b25Db2xvcjtcclxuICAgICAgICBib3JkZXItcmFkaXVzOiAxMHB4O1xyXG4gICAgICAgIGRpc3BsYXk6IGlubGluZS1mbGV4O1xyXG4gICAgICAgIGFsaWduLWl0ZW1zOiBjZW50ZXI7XHJcbiAgICAgICAgcGFkZGluZzogOHB4IDE2cHg7XHJcbiAgICAgICAgZm9udC1zaXplOiAxMnB4O1xyXG4gICAgICAgIGZvbnQtd2VpZ2h0OiBib2xkO1xyXG4gICAgICAgIG1hcmdpbi1sZWZ0OiA1cHg7XHJcbiAgICAgICAgJjpob3ZlciB7XHJcbiAgICAgICAgICAgIGJhY2tncm91bmQtY29sb3I6IGRhcmtlbigkY29sb3I6ICRidXR0b25Db2xvciwgJGFtb3VudDogMTApO1xyXG4gICAgICAgICAgICAvLyBmb250LXdlaWdodDogMzAwO1xyXG4gICAgICAgIH1cclxuICAgIH1cclxuXHJcbiAgICAudGFiIHtcclxuICAgICAgICBtYXJnaW4tdG9wOiA2cHg7XHJcbiAgICB9XHJcbn1cclxuXHJcblxyXG5cclxuXHJcbiJdfQ== */"] });
 
 
 /***/ }),
@@ -2138,7 +2315,7 @@ __webpack_require__.r(__webpack_exports__);
 /* harmony import */ var rxjs_operators__WEBPACK_IMPORTED_MODULE_7__ = __webpack_require__(/*! rxjs/operators */ 5722);
 /* harmony import */ var rxjs_operators__WEBPACK_IMPORTED_MODULE_9__ = __webpack_require__(/*! rxjs/operators */ 5921);
 /* harmony import */ var rxjs_operators__WEBPACK_IMPORTED_MODULE_8__ = __webpack_require__(/*! rxjs/operators */ 6942);
-/* harmony import */ var chart_js__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! chart.js */ 177);
+/* harmony import */ var chart_js__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! chart.js */ 3905);
 /* harmony import */ var _stat_summary_config__WEBPACK_IMPORTED_MODULE_1__ = __webpack_require__(/*! ./stat-summary.config */ 6974);
 /* harmony import */ var _angular_core__WEBPACK_IMPORTED_MODULE_4__ = __webpack_require__(/*! @angular/core */ 3184);
 /* harmony import */ var src_app_pokedex_service__WEBPACK_IMPORTED_MODULE_2__ = __webpack_require__(/*! src/app/pokedex.service */ 4044);
@@ -2595,12 +2772,12 @@ class IndividualSummaryComponent {
         this.ctrl = new _angular_forms__WEBPACK_IMPORTED_MODULE_5__.FormControl();
         this.mon_selected = false;
         this.tms_shown = false;
-        this.noteSelector = 'notes';
         this.fishingControl = new _angular_forms__WEBPACK_IMPORTED_MODULE_5__.FormControl(false);
         this.miscLocationsControl = new _angular_forms__WEBPACK_IMPORTED_MODULE_5__.FormControl(false);
         this.destroy$ = new rxjs__WEBPACK_IMPORTED_MODULE_6__.Subject();
         this.dex = dex;
         this.pokes_filtered_by_text = this.ctrl.valueChanges.pipe((0,rxjs_operators__WEBPACK_IMPORTED_MODULE_7__.startWith)(''), (0,rxjs_operators__WEBPACK_IMPORTED_MODULE_8__.map)((search_text) => this.searchMons(search_text)));
+        this.noteSelector = this.dex.navigation.iv_misc_selection;
     }
     searchMons(search_text) {
         return this.dex.pokedex
@@ -2667,6 +2844,7 @@ class IndividualSummaryComponent {
     }
     toggleNotes(selection) {
         this.noteSelector = selection;
+        this.dex.navigation.iv_misc_selection = selection;
     }
     filterLocations() {
         if (this.current_mon) {
@@ -2808,7 +2986,7 @@ IndividualSummaryComponent.ɵcmp = /*@__PURE__*/ _angular_core__WEBPACK_IMPORTED
         _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵtemplate"](0, IndividualSummaryComponent_div_0_Template, 41, 17, "div", 0);
     } if (rf & 2) {
         _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵproperty"]("ngIf", ctx.dex.validDexUploaded);
-    } }, directives: [_angular_common__WEBPACK_IMPORTED_MODULE_10__.NgIf, _angular_forms__WEBPACK_IMPORTED_MODULE_5__["ɵNgNoValidate"], _angular_forms__WEBPACK_IMPORTED_MODULE_5__.NgControlStatusGroup, _angular_forms__WEBPACK_IMPORTED_MODULE_5__.NgForm, _angular_material_form_field__WEBPACK_IMPORTED_MODULE_11__.MatFormField, _angular_material_input__WEBPACK_IMPORTED_MODULE_12__.MatInput, _angular_forms__WEBPACK_IMPORTED_MODULE_5__.DefaultValueAccessor, _angular_material_autocomplete__WEBPACK_IMPORTED_MODULE_13__.MatAutocompleteTrigger, _angular_forms__WEBPACK_IMPORTED_MODULE_5__.NgControlStatus, _angular_forms__WEBPACK_IMPORTED_MODULE_5__.FormControlDirective, _angular_material_autocomplete__WEBPACK_IMPORTED_MODULE_13__.MatAutocomplete, _angular_common__WEBPACK_IMPORTED_MODULE_10__.NgForOf, _angular_material_core__WEBPACK_IMPORTED_MODULE_14__.MatOption, _angular_forms__WEBPACK_IMPORTED_MODULE_5__.CheckboxControlValueAccessor, _angular_forms__WEBPACK_IMPORTED_MODULE_5__.NgModel, _trainer_pokemon_selector_trainer_pokemon_selector_component__WEBPACK_IMPORTED_MODULE_3__.TrainerPokemonSelectorComponent], pipes: [_angular_common__WEBPACK_IMPORTED_MODULE_10__.AsyncPipe], styles: ["#main-card[_ngcontent-%COMP%] {\n  display: flex;\n  flex-direction: row;\n  min-height: 600px;\n  max-height: 600px;\n  min-width: 1200px;\n  max-width: 1300px;\n  margin-top: 20px;\n  margin-left: auto;\n  margin-right: auto;\n  margin-bottom: 10px;\n}\n\n#search-col[_ngcontent-%COMP%] {\n  max-width: 220px;\n  display: flex;\n  flex-direction: column;\n}\n\n#search-col[_ngcontent-%COMP%]   #search-slot[_ngcontent-%COMP%] {\n  height: 50%;\n}\n\n#search-col[_ngcontent-%COMP%]   #dex-summary-slot[_ngcontent-%COMP%] {\n  height: 50%;\n}\n\n#profile-col[_ngcontent-%COMP%] {\n  width: 25%;\n  display: flex;\n  flex-direction: column;\n}\n\n#profile-col[_ngcontent-%COMP%]   #name-slot[_ngcontent-%COMP%] {\n  height: 10%;\n  display: flex;\n  align-items: center;\n  justify-content: center;\n  box-sizing: border-box;\n  padding: 6px;\n}\n\n#profile-col[_ngcontent-%COMP%]   #sprite-slot[_ngcontent-%COMP%] {\n  height: 40%;\n  display: flex;\n  padding: 6px;\n  align-items: center;\n  justify-content: center;\n  box-sizing: border-box;\n}\n\n#profile-col[_ngcontent-%COMP%]   #ability-slot[_ngcontent-%COMP%] {\n  height: 20%;\n  display: flex;\n  padding: 6px;\n  justify-content: center;\n  box-sizing: border-box;\n}\n\n#profile-col[_ngcontent-%COMP%]   #ability-slot[_ngcontent-%COMP%]   #ability-container[_ngcontent-%COMP%] {\n  line-height: 1.1;\n  text-align: center;\n  height: -moz-fit-content;\n  height: fit-content;\n}\n\n#profile-col[_ngcontent-%COMP%]   #type-slot[_ngcontent-%COMP%] {\n  height: 15%;\n  display: flex;\n  padding: 6px;\n  align-items: center;\n  justify-content: center;\n  box-sizing: border-box;\n}\n\n#profile-col[_ngcontent-%COMP%]   #search2-slot[_ngcontent-%COMP%] {\n  display: flex;\n  align-items: center;\n  justify-content: center;\n  height: 15%;\n}\n\n#stat-col[_ngcontent-%COMP%] {\n  width: 50%;\n  max-width: 50%;\n  display: flex;\n  flex-direction: column;\n}\n\n#stat-col[_ngcontent-%COMP%]   #chart-slot[_ngcontent-%COMP%] {\n  height: 52%;\n  position: relative;\n}\n\n#stat-col[_ngcontent-%COMP%]   #evolutions-slot[_ngcontent-%COMP%] {\n  height: 20%;\n  padding: 0px;\n  width: 100%;\n  max-width: 100%;\n  display: flex;\n  flex-direction: row;\n  align-items: center;\n  justify-content: center;\n  box-sizing: border-box;\n}\n\n#stat-col[_ngcontent-%COMP%]   #evolutions-slot[_ngcontent-%COMP%]   .evolution-chart[_ngcontent-%COMP%] {\n  height: 95%;\n  max-height: 95%;\n  width: -moz-fit-content;\n  width: fit-content;\n  max-width: 646px;\n  background-color: #19181a;\n  border-radius: 10px;\n  padding: 10px;\n  margin-left: 5px;\n  margin-right: 5px;\n  margin-bottom: 5px;\n  text-align: center;\n  line-height: 1.1;\n  box-sizing: border-box;\n}\n\n#stat-col[_ngcontent-%COMP%]   #evolutions-slot[_ngcontent-%COMP%]   .evolution-chart[_ngcontent-%COMP%]   .evo-list[_ngcontent-%COMP%] {\n  height: 65%;\n  width: auto;\n  display: flex;\n  flex-direction: row;\n  align-items: center;\n  justify-content: center;\n}\n\n#stat-col[_ngcontent-%COMP%]   #notes-slot[_ngcontent-%COMP%] {\n  height: 28%;\n  width: 100%;\n}\n\n#moves-col[_ngcontent-%COMP%] {\n  width: 25%;\n  display: flex;\n  flex-direction: column;\n  align-items: center;\n  padding: 6px;\n}\n\n#moves-col[_ngcontent-%COMP%]   #move-table[_ngcontent-%COMP%] {\n  max-height: 90%;\n  width: 80%;\n  display: flex;\n  flex-direction: column;\n  align-items: center;\n  \n}\n\n#moves-col[_ngcontent-%COMP%]   #move-table[_ngcontent-%COMP%]   #LvlTMSelector[_ngcontent-%COMP%] {\n  display: flex;\n  flex-direction: row;\n  justify-content: center;\n  margin-bottom: 5px;\n}\n\n#moves-col[_ngcontent-%COMP%]   #move-table[_ngcontent-%COMP%]   .move-list[_ngcontent-%COMP%] {\n  overflow-y: auto;\n  scrollbar-width: none;\n  width: 100%;\n  max-height: 100%;\n}\n\n#moves-col[_ngcontent-%COMP%]   #move-table[_ngcontent-%COMP%]   .move-list[_ngcontent-%COMP%]   .left-table[_ngcontent-%COMP%] {\n  border-right: 1px solid #a7a3a8;\n  padding-right: 5px;\n  padding-left: 25px;\n  text-align: right;\n}\n\n#moves-col[_ngcontent-%COMP%]   #move-table[_ngcontent-%COMP%]   .move-list[_ngcontent-%COMP%]   .right-table[_ngcontent-%COMP%] {\n  padding-left: 25px;\n  cursor: pointer;\n}\n\n#moves-col[_ngcontent-%COMP%]   #move-table[_ngcontent-%COMP%]   .move-list[_ngcontent-%COMP%]::-webkit-scrollbar {\n  width: 0px;\n  \n}\n\n#moves-col[_ngcontent-%COMP%]   #move-table[_ngcontent-%COMP%]   .move-list[_ngcontent-%COMP%]:hover {\n  scrollbar-width: thin;\n  \n}\n\n#moves-col[_ngcontent-%COMP%]   #move-table[_ngcontent-%COMP%]   .move-list[_ngcontent-%COMP%]:hover::-webkit-scrollbar {\n  width: 6px;\n  background-color: transparent;\n  \n}\n\n#background[_ngcontent-%COMP%] {\n  border-radius: 0px 0px 10px 10px;\n  width: 100%;\n  min-width: 600px;\n  overflow: auto;\n}\n\n.left[_ngcontent-%COMP%] {\n  width: 50%;\n  float: left;\n}\n\n.sprite[_ngcontent-%COMP%] {\n  width: 40%;\n  position: relative;\n  max-height: 450px;\n  display: flex;\n  flex-direction: column;\n  align-items: center;\n}\n\n.right[_ngcontent-%COMP%] {\n  width: 50%;\n  float: right;\n}\n\n.stat-graph[_ngcontent-%COMP%] {\n  width: 60%;\n  height: 385px;\n}\n\n.sprite-background[_ngcontent-%COMP%] {\n  display: flex;\n  height: 100%;\n  overflow: hidden;\n  align-items: center;\n  justify-content: center;\n  aspect-ratio: 1/1;\n  border-radius: 30%;\n  background-color: #19181a;\n}\n\n#chart-wrapper[_ngcontent-%COMP%] {\n  position: relative;\n  width: 100%;\n  max-width: 600px;\n  aspect-ratio: 2/1;\n  margin: 5px;\n  \n  cursor: pointer;\n}\n\n#stat-chart[_ngcontent-%COMP%], #stat-chart-overlay[_ngcontent-%COMP%] {\n  position: absolute;\n  top: 0;\n  left: 0;\n  width: 100%;\n  height: 100%;\n  border-radius: 10px;\n  margin: 0;\n}\n\n#stat-chart[_ngcontent-%COMP%] {\n  background-color: #19181a;\n  z-index: 1;\n}\n\n#stat-chart-overlay[_ngcontent-%COMP%] {\n  background-color: rgba(0, 0, 0, 0.5);\n  pointer-events: none;\n  display: flex;\n  align-items: center;\n  justify-content: center;\n  color: white;\n  font-weight: bold;\n  z-index: 2;\n}\n\n.overlay-text[_ngcontent-%COMP%] {\n  pointer-events: none;\n}\n\n.search-box[_ngcontent-%COMP%] {\n  border-radius: 10px;\n  padding-left: 12px;\n  width: 100%;\n  background-color: #19181a;\n  display: block;\n}\n\n.type-box[_ngcontent-%COMP%] {\n  width: 64px;\n  height: auto;\n  max-height: 24px;\n  margin-left: 2px;\n  margin-right: 2px;\n  margin-top: 2px;\n}\n\n#type-container[_ngcontent-%COMP%] {\n  display: flex;\n  flex-direction: row;\n  justify-content: center;\n}\n\n.reveal-button[_ngcontent-%COMP%] {\n  width: -moz-fit-content;\n  width: fit-content;\n  margin-top: 15px;\n}\n\n#notes-parent[_ngcontent-%COMP%] {\n  display: flex;\n  flex-direction: row;\n  align-items: center;\n  height: 100%;\n  width: 100%;\n  font-size: 11pt;\n}\n\n#notes-parent[_ngcontent-%COMP%]   #notes-selector[_ngcontent-%COMP%] {\n  display: flex;\n  height: 100%;\n  width: 12%;\n  flex-direction: column;\n  align-items: flex-end;\n  justify-content: flex-start;\n}\n\n#location-parent[_ngcontent-%COMP%] {\n  height: 100%;\n  flex-grow: 1;\n  position: relative;\n}\n\n#location-section[_ngcontent-%COMP%] {\n  height: 100%;\n  width: 100%;\n  display: flex;\n  flex-direction: column;\n  gap: 4px;\n  align-items: center;\n  overflow-y: scroll;\n  scrollbar-width: none;\n}\n\n#location-overlay[_ngcontent-%COMP%] {\n  position: absolute;\n  top: 50%;\n  left: 50%;\n  transform: translate(-50%, -50%);\n  background-color: rgba(0, 0, 0, 0.5);\n  display: flex;\n  align-items: center;\n  justify-content: center;\n  color: white;\n  font-weight: bold;\n  z-index: 2;\n  padding: 40px;\n  border-radius: 10px;\n  cursor: pointer;\n}\n\n#no-locations[_ngcontent-%COMP%] {\n  display: flex;\n  align-items: center;\n  justify-content: center;\n  height: 100%;\n  width: 100%;\n  font-style: italic;\n  color: gray;\n}\n\n.row[_ngcontent-%COMP%] {\n  display: flex;\n  flex-direction: row;\n  align-items: flex-start;\n}\n\n.column[_ngcontent-%COMP%] {\n  display: flex;\n  flex-direction: column;\n  align-items: flex-start;\n}\n\n.notes-section[_ngcontent-%COMP%] {\n  resize: none;\n  font-size: 11pt;\n  background-color: #19181a;\n  border: none;\n  flex-grow: 1;\n  height: 100%;\n}\n\n.notes-section[_ngcontent-%COMP%]   [_ngcontent-%COMP%]::placeholder {\n  color: gray;\n  font-style: italic;\n}\n\n#notes-options[_ngcontent-%COMP%] {\n  flex-grow: 1;\n  width: 100%;\n}\n\n#notes-options[_ngcontent-%COMP%]   #location-options[_ngcontent-%COMP%] {\n  display: flex;\n  width: 100%;\n  height: 100%;\n  flex-direction: column;\n  align-items: flex-end;\n  justify-content: center;\n  font-size: 8pt;\n}\n\n#notes-options[_ngcontent-%COMP%]   .note-option[_ngcontent-%COMP%] {\n  display: flex;\n  flex-direction: row;\n  align-items: center;\n  justify-content: flex-end;\n}\n\n.vertical-bar[_ngcontent-%COMP%] {\n  width: 1px;\n  height: 100%;\n  background-color: #cfcfcf;\n  margin: 0 5px;\n}\n\n#ability-parent[_ngcontent-%COMP%] {\n  padding: 10px;\n  display: flex;\n  flex-direction: column;\n  align-items: center;\n}\n\n.ability-collection[_ngcontent-%COMP%] {\n  padding: 10px;\n  display: flex;\n  justify-content: center;\n  height: -moz-fit-content;\n  height: fit-content;\n}\n\n.ability-panel[_ngcontent-%COMP%] {\n  background-color: #19181a;\n  border-radius: 10px;\n  padding: 15px;\n  margin-left: 10px;\n}\n\n.tabSelected[_ngcontent-%COMP%] {\n  text-decoration: underline;\n  font-weight: bold;\n  pointer-events: none;\n}\n\n.tabUnselected[_ngcontent-%COMP%] {\n  text-decoration: none;\n  font-weight: normal;\n  pointer-events: auto;\n  cursor: pointer;\n}\n\n.default-tm-message[_ngcontent-%COMP%] {\n  height: 300px;\n  width: 100%;\n  display: flex;\n  align-items: center;\n  justify-content: center;\n}\n/*# sourceMappingURL=data:application/json;base64,eyJ2ZXJzaW9uIjozLCJzb3VyY2VzIjpbImluZGl2aWR1YWwtc3VtbWFyeS5jb21wb25lbnQuc2NzcyJdLCJuYW1lcyI6W10sIm1hcHBpbmdzIjoiQUFFQTtFQUNJLGFBQUE7RUFDQSxtQkFBQTtFQUVBLGlCQUFBO0VBQ0EsaUJBQUE7RUFDQSxpQkFBQTtFQUNBLGlCQUFBO0VBQ0EsZ0JBQUE7RUFDQSxpQkFBQTtFQUNBLGtCQUFBO0VBQ0EsbUJBQUE7QUFGSjs7QUFPQTtFQUlJLGdCQUFBO0VBQ0EsYUFBQTtFQUNBLHNCQUFBO0FBUEo7O0FBUUk7RUFDSSxXQUFBO0FBTlI7O0FBUUk7RUFDSSxXQUFBO0FBTlI7O0FBVUE7RUFDSSxVQUFBO0VBR0EsYUFBQTtFQUNBLHNCQUFBO0FBVEo7O0FBVUk7RUFDSSxXQUFBO0VBQ0EsYUFBQTtFQUNBLG1CQUFBO0VBQ0EsdUJBQUE7RUFDQSxzQkFBQTtFQUNBLFlBQUE7QUFSUjs7QUFVSTtFQUNJLFdBQUE7RUFDQSxhQUFBO0VBQ0EsWUFBQTtFQUNBLG1CQUFBO0VBQ0EsdUJBQUE7RUFDQSxzQkFBQTtBQVJSOztBQVVJO0VBQ0ksV0FBQTtFQUNBLGFBQUE7RUFDQSxZQUFBO0VBQ0EsdUJBQUE7RUFDQSxzQkFBQTtBQVJSOztBQVNRO0VBQ0ksZ0JBQUE7RUFDQSxrQkFBQTtFQUNBLHdCQUFBO0VBQUEsbUJBQUE7QUFQWjs7QUFVSTtFQUNJLFdBQUE7RUFDQSxhQUFBO0VBQ0EsWUFBQTtFQUNBLG1CQUFBO0VBQ0EsdUJBQUE7RUFDQSxzQkFBQTtBQVJSOztBQVVJO0VBQ0ksYUFBQTtFQUNBLG1CQUFBO0VBQ0EsdUJBQUE7RUFDQSxXQUFBO0FBUlI7O0FBWUE7RUFDSSxVQUFBO0VBR0EsY0FBQTtFQUNBLGFBQUE7RUFDQSxzQkFBQTtBQVhKOztBQVlJO0VBQ0ksV0FBQTtFQUNBLGtCQUFBO0FBVlI7O0FBWUk7RUFDSSxXQUFBO0VBQ0EsWUFBQTtFQUNBLFdBQUE7RUFDQSxlQUFBO0VBQ0EsYUFBQTtFQUNBLG1CQUFBO0VBQ0EsbUJBQUE7RUFDQSx1QkFBQTtFQUNBLHNCQUFBO0FBVlI7O0FBV1E7RUFDSSxXQUFBO0VBQ0EsZUFBQTtFQUNBLHVCQUFBO0VBQUEsa0JBQUE7RUFDQSxnQkFBQTtFQUNBLHlCQUFBO0VBQ0EsbUJBQUE7RUFDQSxhQUFBO0VBQ0EsZ0JBQUE7RUFDQSxpQkFBQTtFQUNBLGtCQUFBO0VBQ0Esa0JBQUE7RUFDQSxnQkFBQTtFQUNBLHNCQUFBO0FBVFo7O0FBVVk7RUFDSSxXQUFBO0VBQ0EsV0FBQTtFQUNBLGFBQUE7RUFDQSxtQkFBQTtFQUNBLG1CQUFBO0VBQ0EsdUJBQUE7QUFSaEI7O0FBWUk7RUFDSSxXQUFBO0VBQ0EsV0FBQTtBQVZSOztBQWNBO0VBQ0ksVUFBQTtFQUdBLGFBQUE7RUFDQSxzQkFBQTtFQUNBLG1CQUFBO0VBQ0EsWUFBQTtBQWJKOztBQWNJO0VBQ0ksZUFBQTtFQUNBLFVBQUE7RUFDQSxhQUFBO0VBQ0Esc0JBQUE7RUFDQSxtQkFBQTtFQThCQSx5QkFBQTtBQXpDUjs7QUFZUTtFQUNJLGFBQUE7RUFDQSxtQkFBQTtFQUNBLHVCQUFBO0VBQ0Esa0JBQUE7QUFWWjs7QUFZUTtFQUNJLGdCQUFBO0VBQ0EscUJBQUE7RUFDQSxXQUFBO0VBQ0EsZ0JBQUE7QUFWWjs7QUFXWTtFQUNJLCtCQUFBO0VBQ0Esa0JBQUE7RUFDQSxrQkFBQTtFQUNBLGlCQUFBO0FBVGhCOztBQVdZO0VBQ0ksa0JBQUE7RUFDQSxlQUFBO0FBVGhCOztBQVlRO0VBQ0ksVUFBQTtFQUFtQixrQkFBQTtBQVQvQjs7QUFXUTtFQUNJLHFCQUFBO0VBQW1DLFlBQUE7QUFSL0M7O0FBWVE7RUFDSSxVQUFBO0VBQ0EsNkJBQUE7RUFBbUMsc0JBQUE7QUFUL0M7O0FBZUE7RUFHSSxnQ0FBQTtFQUNBLFdBQUE7RUFDQSxnQkFBQTtFQUNBLGNBQUE7QUFkSjs7QUF1QkE7RUFDSSxVQUFBO0VBQ0EsV0FBQTtBQXBCSjs7QUF5QkE7RUFDSSxVQUFBO0VBQ0Esa0JBQUE7RUFDQSxpQkFBQTtFQUNBLGFBQUE7RUFDQSxzQkFBQTtFQUNBLG1CQUFBO0FBdEJKOztBQTBCQTtFQUNJLFVBQUE7RUFDQSxZQUFBO0FBdkJKOztBQTZCQTtFQUNJLFVBQUE7RUFDQSxhQUFBO0FBMUJKOztBQThCQTtFQUNJLGFBQUE7RUFDQSxZQUFBO0VBQ0EsZ0JBQUE7RUFDQSxtQkFBQTtFQUNBLHVCQUFBO0VBQ0EsaUJBQUE7RUFFQSxrQkFBQTtFQUNBLHlCQUFBO0FBNUJKOztBQWlDQTtFQUNJLGtCQUFBO0VBQ0EsV0FBQTtFQUNBLGdCQUFBO0VBQ0EsaUJBQUE7RUFDQSxXQUFBO0VBQWEscUJBQUE7RUFDYixlQUFBO0FBN0JKOztBQWdDQTs7RUFFRSxrQkFBQTtFQUNBLE1BQUE7RUFDQSxPQUFBO0VBQ0EsV0FBQTtFQUNBLFlBQUE7RUFDQSxtQkFBQTtFQUNBLFNBQUE7QUE3QkY7O0FBaUNBO0VBQ0kseUJBQUE7RUFDQSxVQUFBO0FBOUJKOztBQWlDQTtFQUNJLG9DQUFBO0VBQ0Esb0JBQUE7RUFDQSxhQUFBO0VBQ0EsbUJBQUE7RUFDQSx1QkFBQTtFQUNBLFlBQUE7RUFDQSxpQkFBQTtFQUVBLFVBQUE7QUEvQko7O0FBa0NBO0VBQ0Usb0JBQUE7QUEvQkY7O0FBa0NBO0VBS0ksbUJBQUE7RUFDQSxrQkFBQTtFQUNBLFdBQUE7RUFFQSx5QkFBQTtFQUVBLGNBQUE7QUFyQ0o7O0FBd0NBO0VBQ0ksV0FBQTtFQUNBLFlBQUE7RUFDQSxnQkFBQTtFQUNBLGdCQUFBO0VBQ0EsaUJBQUE7RUFDQSxlQUFBO0FBckNKOztBQXlDQTtFQUNJLGFBQUE7RUFDQSxtQkFBQTtFQUNBLHVCQUFBO0FBdENKOztBQTJDQTtFQUNJLHVCQUFBO0VBQUEsa0JBQUE7RUFDQSxnQkFBQTtBQXhDSjs7QUE0Q0E7RUFDSSxhQUFBO0VBQ0EsbUJBQUE7RUFDQSxtQkFBQTtFQUNBLFlBQUE7RUFDQSxXQUFBO0VBQ0EsZUFBQTtBQXpDSjs7QUEwQ0k7RUFDSSxhQUFBO0VBQ0EsWUFBQTtFQUNBLFVBQUE7RUFDQSxzQkFBQTtFQUNBLHFCQUFBO0VBQ0EsMkJBQUE7QUF4Q1I7O0FBNENBO0VBQ0ksWUFBQTtFQUNBLFlBQUE7RUFDQSxrQkFBQTtBQXpDSjs7QUE0Q0E7RUFDSSxZQUFBO0VBQ0EsV0FBQTtFQUNBLGFBQUE7RUFDQSxzQkFBQTtFQUNBLFFBQUE7RUFDQSxtQkFBQTtFQUNBLGtCQUFBO0VBQ0EscUJBQUE7QUF6Q0o7O0FBNENBO0VBQ0ksa0JBQUE7RUFDQSxRQUFBO0VBQ0EsU0FBQTtFQUNBLGdDQUFBO0VBQ0Esb0NBQUE7RUFDQSxhQUFBO0VBQ0EsbUJBQUE7RUFDQSx1QkFBQTtFQUNBLFlBQUE7RUFDQSxpQkFBQTtFQUNBLFVBQUE7RUFDQSxhQUFBO0VBQ0EsbUJBQUE7RUFDQSxlQUFBO0FBekNKOztBQTRDQTtFQUNJLGFBQUE7RUFDQSxtQkFBQTtFQUNBLHVCQUFBO0VBQ0EsWUFBQTtFQUNBLFdBQUE7RUFDQSxrQkFBQTtFQUNBLFdBQUE7QUF6Q0o7O0FBNENBO0VBQ0ksYUFBQTtFQUNBLG1CQUFBO0VBQ0EsdUJBQUE7QUF6Q0o7O0FBNENBO0VBQ0ksYUFBQTtFQUNBLHNCQUFBO0VBQ0EsdUJBQUE7QUF6Q0o7O0FBNENBO0VBQ0ksWUFBQTtFQUNBLGVBQUE7RUFDQSx5QkFBQTtFQUNBLFlBQUE7RUFDQSxZQUFBO0VBQ0EsWUFBQTtBQXpDSjs7QUEyQ0k7RUFDSSxXQUFBO0VBQ0Esa0JBQUE7QUF6Q1I7O0FBNkNBO0VBQ0ksWUFBQTtFQUNBLFdBQUE7QUExQ0o7O0FBMkNJO0VBQ0ksYUFBQTtFQUNBLFdBQUE7RUFDQSxZQUFBO0VBQ0Esc0JBQUE7RUFDQSxxQkFBQTtFQUNBLHVCQUFBO0VBQ0EsY0FBQTtBQXpDUjs7QUEyQ0k7RUFDSSxhQUFBO0VBQ0EsbUJBQUE7RUFDQSxtQkFBQTtFQUNBLHlCQUFBO0FBekNSOztBQTZDQTtFQUNFLFVBQUE7RUFDQSxZQUFBO0VBQ0EseUJBQUE7RUFDQSxhQUFBO0FBMUNGOztBQTZDQTtFQUNJLGFBQUE7RUFDQSxhQUFBO0VBQ0Esc0JBQUE7RUFDQSxtQkFBQTtBQTFDSjs7QUE4Q0E7RUFDSSxhQUFBO0VBQ0EsYUFBQTtFQUNBLHVCQUFBO0VBQ0Esd0JBQUE7RUFBQSxtQkFBQTtBQTNDSjs7QUE4Q0E7RUFDSSx5QkFBQTtFQUNBLG1CQUFBO0VBQ0EsYUFBQTtFQUNBLGlCQUFBO0FBM0NKOztBQThDQTtFQUNJLDBCQUFBO0VBQ0EsaUJBQUE7RUFDQSxvQkFBQTtBQTNDSjs7QUE4Q0E7RUFDSSxxQkFBQTtFQUNBLG1CQUFBO0VBQ0Esb0JBQUE7RUFDQSxlQUFBO0FBM0NKOztBQThDQTtFQUNJLGFBQUE7RUFDQSxXQUFBO0VBQ0EsYUFBQTtFQUNBLG1CQUFBO0VBQ0EsdUJBQUE7QUEzQ0oiLCJmaWxlIjoiaW5kaXZpZHVhbC1zdW1tYXJ5LmNvbXBvbmVudC5zY3NzIiwic291cmNlc0NvbnRlbnQiOlsiXHJcbi8vIE5ldyBMYXlvdXQgU2VjdGlvblxyXG4jbWFpbi1jYXJkIHtcclxuICAgIGRpc3BsYXk6ZmxleDtcclxuICAgIGZsZXgtZGlyZWN0aW9uOiByb3c7XHJcbiAgICAvLyBhbGlnbi1pdGVtczogZmxleC1zdGFydDtcclxuICAgIG1pbi1oZWlnaHQ6IDYwMHB4O1xyXG4gICAgbWF4LWhlaWdodDogNjAwcHg7XHJcbiAgICBtaW4td2lkdGg6IDEyMDBweDtcclxuICAgIG1heC13aWR0aDogMTMwMHB4O1xyXG4gICAgbWFyZ2luLXRvcDogMjBweDtcclxuICAgIG1hcmdpbi1sZWZ0OiBhdXRvO1xyXG4gICAgbWFyZ2luLXJpZ2h0OiBhdXRvO1xyXG4gICAgbWFyZ2luLWJvdHRvbTogMTBweDtcclxufVxyXG5cclxuLy8gTGV2ZWwgMVxyXG5cclxuI3NlYXJjaC1jb2wge1xyXG4gICAgLy8gd2lkdGg6IDI1JTtcclxuICAgIC8vIGZsZXgtZ3JvdzogMTtcclxuICAgIC8vIGZsZXg6MTtcclxuICAgIG1heC13aWR0aDogMjIwcHg7XHJcbiAgICBkaXNwbGF5OiBmbGV4O1xyXG4gICAgZmxleC1kaXJlY3Rpb246IGNvbHVtbjtcclxuICAgICNzZWFyY2gtc2xvdCB7XHJcbiAgICAgICAgaGVpZ2h0OiA1MCU7XHJcbiAgICB9XHJcbiAgICAjZGV4LXN1bW1hcnktc2xvdCB7XHJcbiAgICAgICAgaGVpZ2h0OiA1MCU7XHJcbiAgICB9XHJcbn1cclxuXHJcbiNwcm9maWxlLWNvbCB7XHJcbiAgICB3aWR0aDogMjUlO1xyXG4gICAgLy8gZmxleC1ncm93OiAxO1xyXG4gICAgLy8gZmxleDoxO1xyXG4gICAgZGlzcGxheTogZmxleDtcclxuICAgIGZsZXgtZGlyZWN0aW9uOiBjb2x1bW47XHJcbiAgICAjbmFtZS1zbG90IHtcclxuICAgICAgICBoZWlnaHQ6IDEwJTtcclxuICAgICAgICBkaXNwbGF5OiBmbGV4O1xyXG4gICAgICAgIGFsaWduLWl0ZW1zOiBjZW50ZXI7XHJcbiAgICAgICAganVzdGlmeS1jb250ZW50OiBjZW50ZXI7XHJcbiAgICAgICAgYm94LXNpemluZzogYm9yZGVyLWJveDtcclxuICAgICAgICBwYWRkaW5nOiA2cHg7XHJcbiAgICB9XHJcbiAgICAjc3ByaXRlLXNsb3Qge1xyXG4gICAgICAgIGhlaWdodDogNDAlO1xyXG4gICAgICAgIGRpc3BsYXk6IGZsZXg7XHJcbiAgICAgICAgcGFkZGluZzogNnB4O1xyXG4gICAgICAgIGFsaWduLWl0ZW1zOiBjZW50ZXI7XHJcbiAgICAgICAganVzdGlmeS1jb250ZW50OiBjZW50ZXI7ICBcclxuICAgICAgICBib3gtc2l6aW5nOiBib3JkZXItYm94O1xyXG4gICAgfVxyXG4gICAgI2FiaWxpdHktc2xvdHtcclxuICAgICAgICBoZWlnaHQ6IDIwJTtcclxuICAgICAgICBkaXNwbGF5OiBmbGV4O1xyXG4gICAgICAgIHBhZGRpbmc6IDZweDtcclxuICAgICAgICBqdXN0aWZ5LWNvbnRlbnQ6IGNlbnRlcjsgICBcclxuICAgICAgICBib3gtc2l6aW5nOiBib3JkZXItYm94O1xyXG4gICAgICAgICNhYmlsaXR5LWNvbnRhaW5lciB7XHJcbiAgICAgICAgICAgIGxpbmUtaGVpZ2h0OiAxLjE7XHJcbiAgICAgICAgICAgIHRleHQtYWxpZ246IGNlbnRlcjtcclxuICAgICAgICAgICAgaGVpZ2h0OiBmaXQtY29udGVudDtcclxuICAgICAgICB9XHJcbiAgICB9XHJcbiAgICAjdHlwZS1zbG90IHtcclxuICAgICAgICBoZWlnaHQ6IDE1JTtcclxuICAgICAgICBkaXNwbGF5OiBmbGV4O1xyXG4gICAgICAgIHBhZGRpbmc6IDZweDtcclxuICAgICAgICBhbGlnbi1pdGVtczogY2VudGVyO1xyXG4gICAgICAgIGp1c3RpZnktY29udGVudDogY2VudGVyOyAgIFxyXG4gICAgICAgIGJveC1zaXppbmc6IGJvcmRlci1ib3g7XHJcbiAgICB9XHJcbiAgICAjc2VhcmNoMi1zbG90IHtcclxuICAgICAgICBkaXNwbGF5OiBmbGV4O1xyXG4gICAgICAgIGFsaWduLWl0ZW1zOiBjZW50ZXI7XHJcbiAgICAgICAganVzdGlmeS1jb250ZW50OiBjZW50ZXI7ICAgXHJcbiAgICAgICAgaGVpZ2h0OiAxNSU7XHJcbiAgICB9XHJcbn1cclxuXHJcbiNzdGF0LWNvbCB7XHJcbiAgICB3aWR0aDogNTAlO1xyXG4gICAgLy8gZmxleC1ncm93OiAyO1xyXG4gICAgLy8gZmxleDoyO1xyXG4gICAgbWF4LXdpZHRoOiA1MCU7XHJcbiAgICBkaXNwbGF5OiBmbGV4O1xyXG4gICAgZmxleC1kaXJlY3Rpb246IGNvbHVtbjtcclxuICAgICNjaGFydC1zbG90IHtcclxuICAgICAgICBoZWlnaHQ6IDUyJTtcclxuICAgICAgICBwb3NpdGlvbjogcmVsYXRpdmU7XHJcbiAgICB9XHJcbiAgICAjZXZvbHV0aW9ucy1zbG90IHtcclxuICAgICAgICBoZWlnaHQ6IDIwJTtcclxuICAgICAgICBwYWRkaW5nOiAwcHg7XHJcbiAgICAgICAgd2lkdGg6IDEwMCU7XHJcbiAgICAgICAgbWF4LXdpZHRoOiAxMDAlO1xyXG4gICAgICAgIGRpc3BsYXk6IGZsZXg7XHJcbiAgICAgICAgZmxleC1kaXJlY3Rpb246IHJvdztcclxuICAgICAgICBhbGlnbi1pdGVtczogY2VudGVyO1xyXG4gICAgICAgIGp1c3RpZnktY29udGVudDogY2VudGVyO1xyXG4gICAgICAgIGJveC1zaXppbmc6IGJvcmRlci1ib3g7XHJcbiAgICAgICAgLmV2b2x1dGlvbi1jaGFydHtcclxuICAgICAgICAgICAgaGVpZ2h0Ojk1JTtcclxuICAgICAgICAgICAgbWF4LWhlaWdodDogOTUlOyAgICBcclxuICAgICAgICAgICAgd2lkdGg6IGZpdC1jb250ZW50O1xyXG4gICAgICAgICAgICBtYXgtd2lkdGg6IDY0NnB4O1xyXG4gICAgICAgICAgICBiYWNrZ3JvdW5kLWNvbG9yOiByZ2IoMjUsIDI0LCAyNik7XHJcbiAgICAgICAgICAgIGJvcmRlci1yYWRpdXM6IDEwcHg7XHJcbiAgICAgICAgICAgIHBhZGRpbmc6IDEwcHg7XHJcbiAgICAgICAgICAgIG1hcmdpbi1sZWZ0OiA1cHg7XHJcbiAgICAgICAgICAgIG1hcmdpbi1yaWdodDogNXB4O1xyXG4gICAgICAgICAgICBtYXJnaW4tYm90dG9tOiA1cHg7XHJcbiAgICAgICAgICAgIHRleHQtYWxpZ246IGNlbnRlcjtcclxuICAgICAgICAgICAgbGluZS1oZWlnaHQ6IDEuMTtcclxuICAgICAgICAgICAgYm94LXNpemluZzogYm9yZGVyLWJveDtcclxuICAgICAgICAgICAgLmV2by1saXN0e1xyXG4gICAgICAgICAgICAgICAgaGVpZ2h0OiA2NSU7XHJcbiAgICAgICAgICAgICAgICB3aWR0aDogYXV0bztcclxuICAgICAgICAgICAgICAgIGRpc3BsYXk6IGZsZXg7XHJcbiAgICAgICAgICAgICAgICBmbGV4LWRpcmVjdGlvbjogcm93O1xyXG4gICAgICAgICAgICAgICAgYWxpZ24taXRlbXM6IGNlbnRlcjtcclxuICAgICAgICAgICAgICAgIGp1c3RpZnktY29udGVudDogY2VudGVyO1xyXG4gICAgICAgICAgICB9XHJcbiAgICAgICAgfVxyXG4gICAgfVxyXG4gICAgI25vdGVzLXNsb3Qge1xyXG4gICAgICAgIGhlaWdodDogMjglO1xyXG4gICAgICAgIHdpZHRoOiAxMDAlOztcclxuICAgIH1cclxufVxyXG5cclxuI21vdmVzLWNvbCB7XHJcbiAgICB3aWR0aDogMjUlO1xyXG4gICAgLy8gZmxleC1ncm93OiAxO1xyXG4gICAgLy8gZmxleDoxO1xyXG4gICAgZGlzcGxheTogZmxleDtcclxuICAgIGZsZXgtZGlyZWN0aW9uOiBjb2x1bW47XHJcbiAgICBhbGlnbi1pdGVtczogY2VudGVyO1xyXG4gICAgcGFkZGluZzogNnB4O1xyXG4gICAgI21vdmUtdGFibGUge1xyXG4gICAgICAgIG1heC1oZWlnaHQ6IDkwJTtcclxuICAgICAgICB3aWR0aDogODAlO1xyXG4gICAgICAgIGRpc3BsYXk6IGZsZXg7XHJcbiAgICAgICAgZmxleC1kaXJlY3Rpb246IGNvbHVtbjtcclxuICAgICAgICBhbGlnbi1pdGVtczogY2VudGVyO1xyXG4gICAgICAgICNMdmxUTVNlbGVjdG9ye1xyXG4gICAgICAgICAgICBkaXNwbGF5OiBmbGV4O1xyXG4gICAgICAgICAgICBmbGV4LWRpcmVjdGlvbjogcm93O1xyXG4gICAgICAgICAgICBqdXN0aWZ5LWNvbnRlbnQ6IGNlbnRlcjtcclxuICAgICAgICAgICAgbWFyZ2luLWJvdHRvbTogNXB4O1xyXG4gICAgICAgIH1cclxuICAgICAgICAubW92ZS1saXN0e1xyXG4gICAgICAgICAgICBvdmVyZmxvdy15OiBhdXRvO1xyXG4gICAgICAgICAgICBzY3JvbGxiYXItd2lkdGg6IG5vbmU7XHJcbiAgICAgICAgICAgIHdpZHRoOiAxMDAlO1xyXG4gICAgICAgICAgICBtYXgtaGVpZ2h0OiAxMDAlO1xyXG4gICAgICAgICAgICAubGVmdC10YWJsZXtcclxuICAgICAgICAgICAgICAgIGJvcmRlci1yaWdodDogMXB4IHNvbGlkIHJnYigxNjcsIDE2MywgMTY4KTtcclxuICAgICAgICAgICAgICAgIHBhZGRpbmctcmlnaHQ6IDVweDtcclxuICAgICAgICAgICAgICAgIHBhZGRpbmctbGVmdDogMjVweDtcclxuICAgICAgICAgICAgICAgIHRleHQtYWxpZ246IHJpZ2h0O1xyXG4gICAgICAgICAgICB9XHJcbiAgICAgICAgICAgIC5yaWdodC10YWJsZXtcclxuICAgICAgICAgICAgICAgIHBhZGRpbmctbGVmdDogMjVweDtcclxuICAgICAgICAgICAgICAgIGN1cnNvcjogcG9pbnRlcjtcclxuICAgICAgICAgICAgfVxyXG4gICAgICAgIH1cclxuICAgICAgICAubW92ZS1saXN0Ojotd2Via2l0LXNjcm9sbGJhciB7XHJcbiAgICAgICAgICAgIHdpZHRoOiAwcHg7ICAgICAgICAvKiBDaHJvbWUvU2FmYXJpICovXHJcbiAgICAgICAgfVxyXG4gICAgICAgIC5tb3ZlLWxpc3Q6aG92ZXIge1xyXG4gICAgICAgICAgICBzY3JvbGxiYXItd2lkdGg6IHRoaW47ICAgICAgICAgICAgIC8qIEZpcmVmb3ggKi9cclxuICAgICAgICB9XHJcblxyXG4gICAgICAgIC8qIENocm9tZS1saWtlIGJyb3dzZXJzICovXHJcbiAgICAgICAgLm1vdmUtbGlzdDpob3Zlcjo6LXdlYmtpdC1zY3JvbGxiYXIge1xyXG4gICAgICAgICAgICB3aWR0aDogNnB4O1xyXG4gICAgICAgICAgICBiYWNrZ3JvdW5kLWNvbG9yOiB0cmFuc3BhcmVudDsgICAgIC8qIE1hdGNoZXMgY29udGFpbmVyICovXHJcbiAgICAgICAgfVxyXG4gICAgfVxyXG59XHJcblxyXG5cclxuI2JhY2tncm91bmQge1xyXG4gICAgLy9iYWNrZ3JvdW5kLWNvbG9yOiByZ2IoOTIsIDkyLCAyMDcpO1xyXG4gICAgLy8gYm9yZGVyOiBzb2xpZDtcclxuICAgIGJvcmRlci1yYWRpdXM6IDBweCAwcHggMTBweCAxMHB4O1xyXG4gICAgd2lkdGg6IDEwMCU7XHJcbiAgICBtaW4td2lkdGg6IDYwMHB4O1xyXG4gICAgb3ZlcmZsb3c6IGF1dG87XHJcbiAgICAvLyAqe1xyXG4gICAgLy8gICAgIG92ZXJmbG93OiBhdXRvO1xyXG4gICAgLy8gfVxyXG59IFxyXG4vLyAjYmFja2dvdW5kOmFmdGVyIHtcclxuLy8gICAgIGNsZWFyOiBib3RoO1xyXG4vLyB9XHJcblxyXG4ubGVmdCB7XHJcbiAgICB3aWR0aDogNTAlO1xyXG4gICAgZmxvYXQ6IGxlZnQ7XHJcbiAgICAvLyBib3JkZXI6IDJweCBzb2xpZCBncmVlbjtcclxuICAgIFxyXG59XHJcblxyXG4uc3ByaXRlIHtcclxuICAgIHdpZHRoOiA0MCU7XHJcbiAgICBwb3NpdGlvbjogcmVsYXRpdmU7XHJcbiAgICBtYXgtaGVpZ2h0OiA0NTBweDtcclxuICAgIGRpc3BsYXk6IGZsZXg7XHJcbiAgICBmbGV4LWRpcmVjdGlvbjogY29sdW1uO1xyXG4gICAgYWxpZ24taXRlbXM6IGNlbnRlcjtcclxuICAgIC8vIGJvcmRlcjogMnB4IHNvbGlkIGdyZWVuXHJcbn1cclxuXHJcbi5yaWdodCB7XHJcbiAgICB3aWR0aDo1MCU7XHJcbiAgICBmbG9hdDogcmlnaHQ7XHJcbiAgICAvLyBib3JkZXI6IDJweCBzb2xpZCByZWQ7XHJcblxyXG4gICAgXHJcbn1cclxuXHJcbi5zdGF0LWdyYXBoe1xyXG4gICAgd2lkdGg6IDYwJTtcclxuICAgIGhlaWdodDogMzg1cHg7XHJcbiAgICAvLyBib3JkZXI6IDJweCBzb2xpZCBncmVlblxyXG59XHJcblxyXG4uc3ByaXRlLWJhY2tncm91bmQge1xyXG4gICAgZGlzcGxheTogZmxleDtcclxuICAgIGhlaWdodDogMTAwJTtcclxuICAgIG92ZXJmbG93OiBoaWRkZW47XHJcbiAgICBhbGlnbi1pdGVtczogY2VudGVyO1xyXG4gICAganVzdGlmeS1jb250ZW50OiBjZW50ZXI7XHJcbiAgICBhc3BlY3QtcmF0aW86IDEgLyAxO1xyXG4gICAgLy8gcGFkZGluZy10b3A6IDUwcHg7XHJcbiAgICBib3JkZXItcmFkaXVzOiAzMCU7XHJcbiAgICBiYWNrZ3JvdW5kLWNvbG9yOiByZ2IoMjUsIDI0LCAyNik7XHJcbiAgICAvLyBwb3NpdGlvbjogcmVsYXRpdmU7XHJcbiAgICAvLyBvdmVyZmxvdzpcclxufVxyXG5cclxuI2NoYXJ0LXdyYXBwZXIge1xyXG4gICAgcG9zaXRpb246IHJlbGF0aXZlO1xyXG4gICAgd2lkdGg6IDEwMCU7XHJcbiAgICBtYXgtd2lkdGg6IDYwMHB4O1xyXG4gICAgYXNwZWN0LXJhdGlvOiAyIC8gMTtcclxuICAgIG1hcmdpbjogNXB4OyAvKiBleHRlcm5hbCBzcGFjaW5nICovXHJcbiAgICBjdXJzb3I6IHBvaW50ZXI7XHJcbn1cclxuXHJcbiNzdGF0LWNoYXJ0LFxyXG4jc3RhdC1jaGFydC1vdmVybGF5IHtcclxuICBwb3NpdGlvbjogYWJzb2x1dGU7XHJcbiAgdG9wOiAwO1xyXG4gIGxlZnQ6IDA7XHJcbiAgd2lkdGg6IDEwMCU7XHJcbiAgaGVpZ2h0OiAxMDAlO1xyXG4gIGJvcmRlci1yYWRpdXM6IDEwcHg7XHJcbiAgbWFyZ2luOiAwO1xyXG59XHJcblxyXG5cclxuI3N0YXQtY2hhcnQge1xyXG4gICAgYmFja2dyb3VuZC1jb2xvcjogcmdiKDI1LCAyNCwgMjYpO1xyXG4gICAgei1pbmRleDogMTtcclxufVxyXG5cclxuI3N0YXQtY2hhcnQtb3ZlcmxheSB7XHJcbiAgICBiYWNrZ3JvdW5kLWNvbG9yOiByZ2JhKDAsIDAsIDAsIC41KTtcclxuICAgIHBvaW50ZXItZXZlbnRzOiBub25lOyAgXHJcbiAgICBkaXNwbGF5OiBmbGV4O1xyXG4gICAgYWxpZ24taXRlbXM6IGNlbnRlcjtcclxuICAgIGp1c3RpZnktY29udGVudDogY2VudGVyO1xyXG4gICAgY29sb3I6IHdoaXRlO1xyXG4gICAgZm9udC13ZWlnaHQ6IGJvbGQ7XHJcblxyXG4gICAgei1pbmRleDogMjtcclxufVxyXG5cclxuLm92ZXJsYXktdGV4dCB7XHJcbiAgcG9pbnRlci1ldmVudHM6IG5vbmU7XHJcbn1cclxuXHJcbi5zZWFyY2gtYm94IHtcclxuICAgIC8vIG1hcmdpbi1sZWZ0OiAxNXB4O1xyXG4gICAgLy8gbWFyZ2luLXRvcDogNXB4O1xyXG4gICAgLy8gbWFyZ2luLWJvdHRvbTogMnB4O1xyXG4gICAgLy8gbWF4LXdpZHRoOiAyMDBweDtcclxuICAgIGJvcmRlci1yYWRpdXM6IDEwcHg7XHJcbiAgICBwYWRkaW5nLWxlZnQ6IDEycHg7XHJcbiAgICB3aWR0aDogMTAwJTtcclxuICAgIC8vIGJvcmRlcjogMnB4IHNvbGlkIGRhcmt2aW9sZXQ7XHJcbiAgICBiYWNrZ3JvdW5kLWNvbG9yOiByZ2IoMjUsIDI0LCAyNik7XHJcbiAgICAvLyBiYWNrZ3JvdW5kLWNvbG9yOiBnaG9zdHdoaXRlO1xyXG4gICAgZGlzcGxheTogYmxvY2s7XHJcbn1cclxuXHJcbi50eXBlLWJveCB7XHJcbiAgICB3aWR0aDogNjRweDtcclxuICAgIGhlaWdodDogYXV0bztcclxuICAgIG1heC1oZWlnaHQ6IDI0cHg7XHJcbiAgICBtYXJnaW4tbGVmdDogMnB4O1xyXG4gICAgbWFyZ2luLXJpZ2h0OiAycHg7XHJcbiAgICBtYXJnaW4tdG9wOiAycHg7XHJcbiAgICBcclxufVxyXG5cclxuI3R5cGUtY29udGFpbmVyIHtcclxuICAgIGRpc3BsYXk6IGZsZXg7XHJcbiAgICBmbGV4LWRpcmVjdGlvbjogcm93O1xyXG4gICAganVzdGlmeS1jb250ZW50OiBjZW50ZXI7XHJcbn1cclxuXHJcblxyXG5cclxuLnJldmVhbC1idXR0b24ge1xyXG4gICAgd2lkdGg6IGZpdC1jb250ZW50O1xyXG4gICAgbWFyZ2luLXRvcDogMTVweDtcclxufVxyXG5cclxuXHJcbiNub3Rlcy1wYXJlbnQge1xyXG4gICAgZGlzcGxheTogZmxleDtcclxuICAgIGZsZXgtZGlyZWN0aW9uOiByb3c7XHJcbiAgICBhbGlnbi1pdGVtczogY2VudGVyO1xyXG4gICAgaGVpZ2h0OiAxMDAlO1xyXG4gICAgd2lkdGg6IDEwMCU7XHJcbiAgICBmb250LXNpemU6IDExcHQ7XHJcbiAgICAjbm90ZXMtc2VsZWN0b3Ige1xyXG4gICAgICAgIGRpc3BsYXk6IGZsZXg7XHJcbiAgICAgICAgaGVpZ2h0OiAxMDAlO1xyXG4gICAgICAgIHdpZHRoOiAxMiU7XHJcbiAgICAgICAgZmxleC1kaXJlY3Rpb246IGNvbHVtbjtcclxuICAgICAgICBhbGlnbi1pdGVtczogZmxleC1lbmQ7XHJcbiAgICAgICAganVzdGlmeS1jb250ZW50OiBmbGV4LXN0YXJ0O1xyXG4gICAgfVxyXG59ICAgICBcclxuXHJcbiNsb2NhdGlvbi1wYXJlbnQge1xyXG4gICAgaGVpZ2h0OiAxMDAlO1xyXG4gICAgZmxleC1ncm93OiAxO1xyXG4gICAgcG9zaXRpb246IHJlbGF0aXZlO1xyXG59XHJcblxyXG4jbG9jYXRpb24tc2VjdGlvbiB7XHJcbiAgICBoZWlnaHQ6IDEwMCU7XHJcbiAgICB3aWR0aDogMTAwJTtcclxuICAgIGRpc3BsYXk6IGZsZXg7XHJcbiAgICBmbGV4LWRpcmVjdGlvbjogY29sdW1uO1xyXG4gICAgZ2FwOiA0cHg7XHJcbiAgICBhbGlnbi1pdGVtczogY2VudGVyO1xyXG4gICAgb3ZlcmZsb3cteTogc2Nyb2xsO1xyXG4gICAgc2Nyb2xsYmFyLXdpZHRoOiBub25lO1xyXG59XHJcblxyXG4jbG9jYXRpb24tb3ZlcmxheSB7XHJcbiAgICBwb3NpdGlvbjogYWJzb2x1dGU7ICBcclxuICAgIHRvcDogNTAlO1xyXG4gICAgbGVmdDogNTAlO1xyXG4gICAgdHJhbnNmb3JtOiB0cmFuc2xhdGUoLTUwJSwgLTUwJSk7XHJcbiAgICBiYWNrZ3JvdW5kLWNvbG9yOiByZ2JhKDAsIDAsIDAsIC41KTtcclxuICAgIGRpc3BsYXk6IGZsZXg7XHJcbiAgICBhbGlnbi1pdGVtczogY2VudGVyO1xyXG4gICAganVzdGlmeS1jb250ZW50OiBjZW50ZXI7XHJcbiAgICBjb2xvcjogd2hpdGU7XHJcbiAgICBmb250LXdlaWdodDogYm9sZDtcclxuICAgIHotaW5kZXg6IDI7XHJcbiAgICBwYWRkaW5nOiA0MHB4O1xyXG4gICAgYm9yZGVyLXJhZGl1czogMTBweDtcclxuICAgIGN1cnNvcjogcG9pbnRlcjtcclxufVxyXG5cclxuI25vLWxvY2F0aW9ucyB7XHJcbiAgICBkaXNwbGF5OiBmbGV4O1xyXG4gICAgYWxpZ24taXRlbXM6IGNlbnRlcjtcclxuICAgIGp1c3RpZnktY29udGVudDogY2VudGVyO1xyXG4gICAgaGVpZ2h0OiAxMDAlO1xyXG4gICAgd2lkdGg6IDEwMCU7XHJcbiAgICBmb250LXN0eWxlOiBpdGFsaWM7XHJcbiAgICBjb2xvcjogZ3JheTtcclxufVxyXG5cclxuLnJvdyB7XHJcbiAgICBkaXNwbGF5OiBmbGV4O1xyXG4gICAgZmxleC1kaXJlY3Rpb246IHJvdztcclxuICAgIGFsaWduLWl0ZW1zOiBmbGV4LXN0YXJ0O1xyXG59XHJcblxyXG4uY29sdW1uIHtcclxuICAgIGRpc3BsYXk6IGZsZXg7XHJcbiAgICBmbGV4LWRpcmVjdGlvbjogY29sdW1uO1xyXG4gICAgYWxpZ24taXRlbXM6IGZsZXgtc3RhcnQ7XHJcbn1cclxuXHJcbi5ub3Rlcy1zZWN0aW9uIHtcclxuICAgIHJlc2l6ZTogbm9uZTtcclxuICAgIGZvbnQtc2l6ZTogMTFwdDtcclxuICAgIGJhY2tncm91bmQtY29sb3I6IHJnYigyNSwgMjQsIDI2KTtcclxuICAgIGJvcmRlcjogbm9uZTtcclxuICAgIGZsZXgtZ3JvdzogMTtcclxuICAgIGhlaWdodDogMTAwJTtcclxuICAgIC8vIG1hcmdpbjogNXB4O1xyXG4gICAgOjpwbGFjZWhvbGRlciB7XHJcbiAgICAgICAgY29sb3I6IGdyYXk7XHJcbiAgICAgICAgZm9udC1zdHlsZTogaXRhbGljO1xyXG4gICAgfVxyXG59XHJcblxyXG4jbm90ZXMtb3B0aW9uc3tcclxuICAgIGZsZXgtZ3JvdzogMTtcclxuICAgIHdpZHRoOiAxMDAlO1xyXG4gICAgI2xvY2F0aW9uLW9wdGlvbnN7XHJcbiAgICAgICAgZGlzcGxheTogZmxleDtcclxuICAgICAgICB3aWR0aDogMTAwJTtcclxuICAgICAgICBoZWlnaHQ6IDEwMCU7XHJcbiAgICAgICAgZmxleC1kaXJlY3Rpb246IGNvbHVtbjtcclxuICAgICAgICBhbGlnbi1pdGVtczogZmxleC1lbmQ7XHJcbiAgICAgICAganVzdGlmeS1jb250ZW50OiBjZW50ZXI7XHJcbiAgICAgICAgZm9udC1zaXplOiA4cHQ7XHJcbiAgICB9XHJcbiAgICAubm90ZS1vcHRpb257XHJcbiAgICAgICAgZGlzcGxheTogZmxleDtcclxuICAgICAgICBmbGV4LWRpcmVjdGlvbjogcm93O1xyXG4gICAgICAgIGFsaWduLWl0ZW1zOiBjZW50ZXI7XHJcbiAgICAgICAganVzdGlmeS1jb250ZW50OiBmbGV4LWVuZDtcclxuICAgIH1cclxufVxyXG5cclxuLnZlcnRpY2FsLWJhciB7XHJcbiAgd2lkdGg6IDFweDtcclxuICBoZWlnaHQ6IDEwMCU7XHJcbiAgYmFja2dyb3VuZC1jb2xvcjogI2NmY2ZjZjtcclxuICBtYXJnaW46IDAgNXB4O1xyXG59XHJcblxyXG4jYWJpbGl0eS1wYXJlbnQge1xyXG4gICAgcGFkZGluZzogMTBweDtcclxuICAgIGRpc3BsYXk6IGZsZXg7XHJcbiAgICBmbGV4LWRpcmVjdGlvbjogY29sdW1uO1xyXG4gICAgYWxpZ24taXRlbXM6IGNlbnRlcjtcclxuICAgIC8vIGJvcmRlcjogMnB4IHNvbGlkIGdyZWVuO1xyXG59XHJcblxyXG4uYWJpbGl0eS1jb2xsZWN0aW9uIHtcclxuICAgIHBhZGRpbmc6IDEwcHg7XHJcbiAgICBkaXNwbGF5OiBmbGV4O1xyXG4gICAganVzdGlmeS1jb250ZW50OiBjZW50ZXI7XHJcbiAgICBoZWlnaHQ6IGZpdC1jb250ZW50O1xyXG59XHJcblxyXG4uYWJpbGl0eS1wYW5lbCB7XHJcbiAgICBiYWNrZ3JvdW5kLWNvbG9yOiByZ2IoMjUsIDI0LCAyNik7XHJcbiAgICBib3JkZXItcmFkaXVzOiAxMHB4O1xyXG4gICAgcGFkZGluZzogMTVweDtcclxuICAgIG1hcmdpbi1sZWZ0OiAxMHB4O1xyXG59XHJcblxyXG4udGFiU2VsZWN0ZWQge1xyXG4gICAgdGV4dC1kZWNvcmF0aW9uOiB1bmRlcmxpbmU7XHJcbiAgICBmb250LXdlaWdodDogYm9sZDtcclxuICAgIHBvaW50ZXItZXZlbnRzOiBub25lO1xyXG59XHJcblxyXG4udGFiVW5zZWxlY3RlZHtcclxuICAgIHRleHQtZGVjb3JhdGlvbjogbm9uZTtcclxuICAgIGZvbnQtd2VpZ2h0OiBub3JtYWw7XHJcbiAgICBwb2ludGVyLWV2ZW50czogYXV0bztcclxuICAgIGN1cnNvcjogcG9pbnRlcjtcclxufVxyXG5cclxuLmRlZmF1bHQtdG0tbWVzc2FnZSB7XHJcbiAgICBoZWlnaHQ6IDMwMHB4O1xyXG4gICAgd2lkdGg6IDEwMCU7XHJcbiAgICBkaXNwbGF5OiBmbGV4O1xyXG4gICAgYWxpZ24taXRlbXM6IGNlbnRlcjtcclxuICAgIGp1c3RpZnktY29udGVudDogY2VudGVyO1xyXG59Il19 */"] });
+    } }, directives: [_angular_common__WEBPACK_IMPORTED_MODULE_10__.NgIf, _angular_forms__WEBPACK_IMPORTED_MODULE_5__["ɵNgNoValidate"], _angular_forms__WEBPACK_IMPORTED_MODULE_5__.NgControlStatusGroup, _angular_forms__WEBPACK_IMPORTED_MODULE_5__.NgForm, _angular_material_form_field__WEBPACK_IMPORTED_MODULE_11__.MatFormField, _angular_material_input__WEBPACK_IMPORTED_MODULE_12__.MatInput, _angular_forms__WEBPACK_IMPORTED_MODULE_5__.DefaultValueAccessor, _angular_material_autocomplete__WEBPACK_IMPORTED_MODULE_13__.MatAutocompleteTrigger, _angular_forms__WEBPACK_IMPORTED_MODULE_5__.NgControlStatus, _angular_forms__WEBPACK_IMPORTED_MODULE_5__.FormControlDirective, _angular_material_autocomplete__WEBPACK_IMPORTED_MODULE_13__.MatAutocomplete, _angular_common__WEBPACK_IMPORTED_MODULE_10__.NgForOf, _angular_material_core__WEBPACK_IMPORTED_MODULE_14__.MatOption, _angular_forms__WEBPACK_IMPORTED_MODULE_5__.CheckboxControlValueAccessor, _angular_forms__WEBPACK_IMPORTED_MODULE_5__.NgModel, _trainer_pokemon_selector_trainer_pokemon_selector_component__WEBPACK_IMPORTED_MODULE_3__.TrainerPokemonSelectorComponent], pipes: [_angular_common__WEBPACK_IMPORTED_MODULE_10__.AsyncPipe], styles: ["#main-card[_ngcontent-%COMP%] {\n  display: flex;\n  flex-direction: row;\n  min-height: 600px;\n  max-height: 600px;\n  min-width: 1200px;\n  max-width: 1300px;\n  margin-top: 20px;\n  margin-left: auto;\n  margin-right: auto;\n  margin-bottom: 10px;\n}\n\n#search-col[_ngcontent-%COMP%] {\n  max-width: 220px;\n  display: flex;\n  flex-direction: column;\n}\n\n#search-col[_ngcontent-%COMP%]   #search-slot[_ngcontent-%COMP%] {\n  height: 50%;\n}\n\n#search-col[_ngcontent-%COMP%]   #dex-summary-slot[_ngcontent-%COMP%] {\n  height: 50%;\n}\n\n#profile-col[_ngcontent-%COMP%] {\n  width: 25%;\n  display: flex;\n  flex-direction: column;\n}\n\n#profile-col[_ngcontent-%COMP%]   #name-slot[_ngcontent-%COMP%] {\n  height: 10%;\n  display: flex;\n  align-items: center;\n  justify-content: center;\n  box-sizing: border-box;\n  padding: 6px;\n}\n\n#profile-col[_ngcontent-%COMP%]   #sprite-slot[_ngcontent-%COMP%] {\n  height: 40%;\n  display: flex;\n  padding: 6px;\n  align-items: center;\n  justify-content: center;\n  box-sizing: border-box;\n}\n\n#profile-col[_ngcontent-%COMP%]   #ability-slot[_ngcontent-%COMP%] {\n  height: 20%;\n  display: flex;\n  padding: 6px;\n  justify-content: center;\n  box-sizing: border-box;\n}\n\n#profile-col[_ngcontent-%COMP%]   #ability-slot[_ngcontent-%COMP%]   #ability-container[_ngcontent-%COMP%] {\n  line-height: 1.1;\n  text-align: center;\n  height: fit-content;\n}\n\n#profile-col[_ngcontent-%COMP%]   #type-slot[_ngcontent-%COMP%] {\n  height: 15%;\n  display: flex;\n  padding: 6px;\n  align-items: center;\n  justify-content: center;\n  box-sizing: border-box;\n}\n\n#profile-col[_ngcontent-%COMP%]   #search2-slot[_ngcontent-%COMP%] {\n  display: flex;\n  align-items: center;\n  justify-content: center;\n  height: 15%;\n}\n\n#stat-col[_ngcontent-%COMP%] {\n  width: 50%;\n  max-width: 50%;\n  display: flex;\n  flex-direction: column;\n}\n\n#stat-col[_ngcontent-%COMP%]   #chart-slot[_ngcontent-%COMP%] {\n  height: 52%;\n  position: relative;\n}\n\n#stat-col[_ngcontent-%COMP%]   #evolutions-slot[_ngcontent-%COMP%] {\n  height: 20%;\n  padding: 0px;\n  width: 100%;\n  max-width: 100%;\n  display: flex;\n  flex-direction: row;\n  align-items: center;\n  justify-content: center;\n  box-sizing: border-box;\n}\n\n#stat-col[_ngcontent-%COMP%]   #evolutions-slot[_ngcontent-%COMP%]   .evolution-chart[_ngcontent-%COMP%] {\n  height: 95%;\n  max-height: 95%;\n  width: fit-content;\n  max-width: 646px;\n  background-color: #19181a;\n  border-radius: 10px;\n  padding: 10px;\n  margin-left: 5px;\n  margin-right: 5px;\n  margin-bottom: 5px;\n  text-align: center;\n  line-height: 1.1;\n  box-sizing: border-box;\n}\n\n#stat-col[_ngcontent-%COMP%]   #evolutions-slot[_ngcontent-%COMP%]   .evolution-chart[_ngcontent-%COMP%]   .evo-list[_ngcontent-%COMP%] {\n  height: 65%;\n  width: auto;\n  display: flex;\n  flex-direction: row;\n  align-items: center;\n  justify-content: center;\n}\n\n#stat-col[_ngcontent-%COMP%]   #notes-slot[_ngcontent-%COMP%] {\n  height: 28%;\n  width: 100%;\n}\n\n#moves-col[_ngcontent-%COMP%] {\n  width: 25%;\n  display: flex;\n  flex-direction: column;\n  align-items: center;\n  padding: 6px;\n}\n\n#moves-col[_ngcontent-%COMP%]   #move-table[_ngcontent-%COMP%] {\n  max-height: 90%;\n  width: 80%;\n  display: flex;\n  flex-direction: column;\n  align-items: center;\n  \n}\n\n#moves-col[_ngcontent-%COMP%]   #move-table[_ngcontent-%COMP%]   #LvlTMSelector[_ngcontent-%COMP%] {\n  display: flex;\n  flex-direction: row;\n  justify-content: center;\n  margin-bottom: 5px;\n}\n\n#moves-col[_ngcontent-%COMP%]   #move-table[_ngcontent-%COMP%]   .move-list[_ngcontent-%COMP%] {\n  overflow-y: auto;\n  scrollbar-width: none;\n  width: 100%;\n  max-height: 100%;\n}\n\n#moves-col[_ngcontent-%COMP%]   #move-table[_ngcontent-%COMP%]   .move-list[_ngcontent-%COMP%]   .left-table[_ngcontent-%COMP%] {\n  border-right: 1px solid #a7a3a8;\n  padding-right: 5px;\n  padding-left: 25px;\n  text-align: right;\n}\n\n#moves-col[_ngcontent-%COMP%]   #move-table[_ngcontent-%COMP%]   .move-list[_ngcontent-%COMP%]   .right-table[_ngcontent-%COMP%] {\n  padding-left: 25px;\n  cursor: pointer;\n}\n\n#moves-col[_ngcontent-%COMP%]   #move-table[_ngcontent-%COMP%]   .move-list[_ngcontent-%COMP%]::-webkit-scrollbar {\n  width: 0px;\n  \n}\n\n#moves-col[_ngcontent-%COMP%]   #move-table[_ngcontent-%COMP%]   .move-list[_ngcontent-%COMP%]:hover {\n  scrollbar-width: thin;\n  \n}\n\n#moves-col[_ngcontent-%COMP%]   #move-table[_ngcontent-%COMP%]   .move-list[_ngcontent-%COMP%]:hover::-webkit-scrollbar {\n  width: 6px;\n  background-color: transparent;\n  \n}\n\n#background[_ngcontent-%COMP%] {\n  border-radius: 0px 0px 10px 10px;\n  width: 100%;\n  min-width: 600px;\n  overflow: auto;\n}\n\n.left[_ngcontent-%COMP%] {\n  width: 50%;\n  float: left;\n}\n\n.sprite[_ngcontent-%COMP%] {\n  width: 40%;\n  position: relative;\n  max-height: 450px;\n  display: flex;\n  flex-direction: column;\n  align-items: center;\n}\n\n.right[_ngcontent-%COMP%] {\n  width: 50%;\n  float: right;\n}\n\n.stat-graph[_ngcontent-%COMP%] {\n  width: 60%;\n  height: 385px;\n}\n\n.sprite-background[_ngcontent-%COMP%] {\n  display: flex;\n  height: 100%;\n  overflow: hidden;\n  align-items: center;\n  justify-content: center;\n  aspect-ratio: 1/1;\n  border-radius: 30%;\n  background-color: #19181a;\n}\n\n#chart-wrapper[_ngcontent-%COMP%] {\n  position: relative;\n  width: 100%;\n  max-width: 600px;\n  aspect-ratio: 2/1;\n  margin: 5px;\n  \n  cursor: pointer;\n}\n\n#stat-chart[_ngcontent-%COMP%], #stat-chart-overlay[_ngcontent-%COMP%] {\n  position: absolute;\n  top: 0;\n  left: 0;\n  width: 100%;\n  height: 100%;\n  border-radius: 10px;\n  margin: 0;\n}\n\n#stat-chart[_ngcontent-%COMP%] {\n  background-color: #19181a;\n  z-index: 1;\n}\n\n#stat-chart-overlay[_ngcontent-%COMP%] {\n  background-color: rgba(0, 0, 0, 0.5);\n  pointer-events: none;\n  display: flex;\n  align-items: center;\n  justify-content: center;\n  color: white;\n  font-weight: bold;\n  z-index: 2;\n}\n\n.overlay-text[_ngcontent-%COMP%] {\n  pointer-events: none;\n}\n\n.search-box[_ngcontent-%COMP%] {\n  border-radius: 10px;\n  padding-left: 12px;\n  width: 100%;\n  background-color: #19181a;\n  display: block;\n}\n\n.type-box[_ngcontent-%COMP%] {\n  width: 64px;\n  height: auto;\n  max-height: 24px;\n  margin-left: 2px;\n  margin-right: 2px;\n  margin-top: 2px;\n}\n\n#type-container[_ngcontent-%COMP%] {\n  display: flex;\n  flex-direction: row;\n  justify-content: center;\n}\n\n.reveal-button[_ngcontent-%COMP%] {\n  width: fit-content;\n  margin-top: 15px;\n}\n\n#notes-parent[_ngcontent-%COMP%] {\n  display: flex;\n  flex-direction: row;\n  align-items: center;\n  height: 100%;\n  width: 100%;\n  font-size: 11pt;\n}\n\n#notes-parent[_ngcontent-%COMP%]   #notes-selector[_ngcontent-%COMP%] {\n  display: flex;\n  height: 100%;\n  width: 12%;\n  flex-direction: column;\n  align-items: flex-end;\n  justify-content: flex-start;\n}\n\n#location-parent[_ngcontent-%COMP%] {\n  height: 100%;\n  flex-grow: 1;\n  position: relative;\n}\n\n#location-section[_ngcontent-%COMP%] {\n  height: 100%;\n  width: 100%;\n  display: flex;\n  flex-direction: column;\n  gap: 4px;\n  align-items: center;\n  overflow-y: scroll;\n  scrollbar-width: none;\n}\n\n#location-overlay[_ngcontent-%COMP%] {\n  position: absolute;\n  top: 50%;\n  left: 50%;\n  transform: translate(-50%, -50%);\n  background-color: rgba(0, 0, 0, 0.5);\n  display: flex;\n  align-items: center;\n  justify-content: center;\n  color: white;\n  font-weight: bold;\n  z-index: 2;\n  padding: 40px;\n  border-radius: 10px;\n  cursor: pointer;\n}\n\n#no-locations[_ngcontent-%COMP%] {\n  display: flex;\n  align-items: center;\n  justify-content: center;\n  height: 100%;\n  width: 100%;\n  font-style: italic;\n  color: gray;\n}\n\n.row[_ngcontent-%COMP%] {\n  display: flex;\n  flex-direction: row;\n  align-items: flex-start;\n}\n\n.column[_ngcontent-%COMP%] {\n  display: flex;\n  flex-direction: column;\n  align-items: flex-start;\n}\n\n.notes-section[_ngcontent-%COMP%] {\n  resize: none;\n  font-size: 11pt;\n  background-color: #19181a;\n  border: none;\n  flex-grow: 1;\n  height: 100%;\n}\n\n.notes-section[_ngcontent-%COMP%]   [_ngcontent-%COMP%]::placeholder {\n  color: gray;\n  font-style: italic;\n}\n\n#notes-options[_ngcontent-%COMP%] {\n  flex-grow: 1;\n  width: 100%;\n}\n\n#notes-options[_ngcontent-%COMP%]   #location-options[_ngcontent-%COMP%] {\n  display: flex;\n  width: 100%;\n  height: 100%;\n  flex-direction: column;\n  align-items: flex-end;\n  justify-content: center;\n  font-size: 8pt;\n}\n\n#notes-options[_ngcontent-%COMP%]   .note-option[_ngcontent-%COMP%] {\n  display: flex;\n  flex-direction: row;\n  align-items: center;\n  justify-content: flex-end;\n}\n\n.vertical-bar[_ngcontent-%COMP%] {\n  width: 1px;\n  height: 100%;\n  background-color: #cfcfcf;\n  margin: 0 5px;\n}\n\n#ability-parent[_ngcontent-%COMP%] {\n  padding: 10px;\n  display: flex;\n  flex-direction: column;\n  align-items: center;\n}\n\n.ability-collection[_ngcontent-%COMP%] {\n  padding: 10px;\n  display: flex;\n  justify-content: center;\n  height: fit-content;\n}\n\n.ability-panel[_ngcontent-%COMP%] {\n  background-color: #19181a;\n  border-radius: 10px;\n  padding: 15px;\n  margin-left: 10px;\n}\n\n.tabSelected[_ngcontent-%COMP%] {\n  text-decoration: underline;\n  font-weight: bold;\n  pointer-events: none;\n}\n\n.tabUnselected[_ngcontent-%COMP%] {\n  text-decoration: none;\n  font-weight: normal;\n  pointer-events: auto;\n  cursor: pointer;\n}\n\n.default-tm-message[_ngcontent-%COMP%] {\n  height: 300px;\n  width: 100%;\n  display: flex;\n  align-items: center;\n  justify-content: center;\n}\n/*# sourceMappingURL=data:application/json;base64,eyJ2ZXJzaW9uIjozLCJzb3VyY2VzIjpbImluZGl2aWR1YWwtc3VtbWFyeS5jb21wb25lbnQuc2NzcyJdLCJuYW1lcyI6W10sIm1hcHBpbmdzIjoiQUFFQTtFQUNJLGFBQUE7RUFDQSxtQkFBQTtFQUVBLGlCQUFBO0VBQ0EsaUJBQUE7RUFDQSxpQkFBQTtFQUNBLGlCQUFBO0VBQ0EsZ0JBQUE7RUFDQSxpQkFBQTtFQUNBLGtCQUFBO0VBQ0EsbUJBQUE7QUFGSjs7QUFPQTtFQUlJLGdCQUFBO0VBQ0EsYUFBQTtFQUNBLHNCQUFBO0FBUEo7O0FBUUk7RUFDSSxXQUFBO0FBTlI7O0FBUUk7RUFDSSxXQUFBO0FBTlI7O0FBVUE7RUFDSSxVQUFBO0VBR0EsYUFBQTtFQUNBLHNCQUFBO0FBVEo7O0FBVUk7RUFDSSxXQUFBO0VBQ0EsYUFBQTtFQUNBLG1CQUFBO0VBQ0EsdUJBQUE7RUFDQSxzQkFBQTtFQUNBLFlBQUE7QUFSUjs7QUFVSTtFQUNJLFdBQUE7RUFDQSxhQUFBO0VBQ0EsWUFBQTtFQUNBLG1CQUFBO0VBQ0EsdUJBQUE7RUFDQSxzQkFBQTtBQVJSOztBQVVJO0VBQ0ksV0FBQTtFQUNBLGFBQUE7RUFDQSxZQUFBO0VBQ0EsdUJBQUE7RUFDQSxzQkFBQTtBQVJSOztBQVNRO0VBQ0ksZ0JBQUE7RUFDQSxrQkFBQTtFQUNBLG1CQUFBO0FBUFo7O0FBVUk7RUFDSSxXQUFBO0VBQ0EsYUFBQTtFQUNBLFlBQUE7RUFDQSxtQkFBQTtFQUNBLHVCQUFBO0VBQ0Esc0JBQUE7QUFSUjs7QUFVSTtFQUNJLGFBQUE7RUFDQSxtQkFBQTtFQUNBLHVCQUFBO0VBQ0EsV0FBQTtBQVJSOztBQVlBO0VBQ0ksVUFBQTtFQUdBLGNBQUE7RUFDQSxhQUFBO0VBQ0Esc0JBQUE7QUFYSjs7QUFZSTtFQUNJLFdBQUE7RUFDQSxrQkFBQTtBQVZSOztBQVlJO0VBQ0ksV0FBQTtFQUNBLFlBQUE7RUFDQSxXQUFBO0VBQ0EsZUFBQTtFQUNBLGFBQUE7RUFDQSxtQkFBQTtFQUNBLG1CQUFBO0VBQ0EsdUJBQUE7RUFDQSxzQkFBQTtBQVZSOztBQVdRO0VBQ0ksV0FBQTtFQUNBLGVBQUE7RUFDQSxrQkFBQTtFQUNBLGdCQUFBO0VBQ0EseUJBQUE7RUFDQSxtQkFBQTtFQUNBLGFBQUE7RUFDQSxnQkFBQTtFQUNBLGlCQUFBO0VBQ0Esa0JBQUE7RUFDQSxrQkFBQTtFQUNBLGdCQUFBO0VBQ0Esc0JBQUE7QUFUWjs7QUFVWTtFQUNJLFdBQUE7RUFDQSxXQUFBO0VBQ0EsYUFBQTtFQUNBLG1CQUFBO0VBQ0EsbUJBQUE7RUFDQSx1QkFBQTtBQVJoQjs7QUFZSTtFQUNJLFdBQUE7RUFDQSxXQUFBO0FBVlI7O0FBY0E7RUFDSSxVQUFBO0VBR0EsYUFBQTtFQUNBLHNCQUFBO0VBQ0EsbUJBQUE7RUFDQSxZQUFBO0FBYko7O0FBY0k7RUFDSSxlQUFBO0VBQ0EsVUFBQTtFQUNBLGFBQUE7RUFDQSxzQkFBQTtFQUNBLG1CQUFBO0VBOEJBLHlCQUFBO0FBekNSOztBQVlRO0VBQ0ksYUFBQTtFQUNBLG1CQUFBO0VBQ0EsdUJBQUE7RUFDQSxrQkFBQTtBQVZaOztBQVlRO0VBQ0ksZ0JBQUE7RUFDQSxxQkFBQTtFQUNBLFdBQUE7RUFDQSxnQkFBQTtBQVZaOztBQVdZO0VBQ0ksK0JBQUE7RUFDQSxrQkFBQTtFQUNBLGtCQUFBO0VBQ0EsaUJBQUE7QUFUaEI7O0FBV1k7RUFDSSxrQkFBQTtFQUNBLGVBQUE7QUFUaEI7O0FBWVE7RUFDSSxVQUFBO0VBQW1CLGtCQUFBO0FBVC9COztBQVdRO0VBQ0kscUJBQUE7RUFBbUMsWUFBQTtBQVIvQzs7QUFZUTtFQUNJLFVBQUE7RUFDQSw2QkFBQTtFQUFtQyxzQkFBQTtBQVQvQzs7QUFlQTtFQUdJLGdDQUFBO0VBQ0EsV0FBQTtFQUNBLGdCQUFBO0VBQ0EsY0FBQTtBQWRKOztBQXVCQTtFQUNJLFVBQUE7RUFDQSxXQUFBO0FBcEJKOztBQXlCQTtFQUNJLFVBQUE7RUFDQSxrQkFBQTtFQUNBLGlCQUFBO0VBQ0EsYUFBQTtFQUNBLHNCQUFBO0VBQ0EsbUJBQUE7QUF0Qko7O0FBMEJBO0VBQ0ksVUFBQTtFQUNBLFlBQUE7QUF2Qko7O0FBNkJBO0VBQ0ksVUFBQTtFQUNBLGFBQUE7QUExQko7O0FBOEJBO0VBQ0ksYUFBQTtFQUNBLFlBQUE7RUFDQSxnQkFBQTtFQUNBLG1CQUFBO0VBQ0EsdUJBQUE7RUFDQSxpQkFBQTtFQUVBLGtCQUFBO0VBQ0EseUJBQUE7QUE1Qko7O0FBaUNBO0VBQ0ksa0JBQUE7RUFDQSxXQUFBO0VBQ0EsZ0JBQUE7RUFDQSxpQkFBQTtFQUNBLFdBQUE7RUFBYSxxQkFBQTtFQUNiLGVBQUE7QUE3Qko7O0FBZ0NBOztFQUVFLGtCQUFBO0VBQ0EsTUFBQTtFQUNBLE9BQUE7RUFDQSxXQUFBO0VBQ0EsWUFBQTtFQUNBLG1CQUFBO0VBQ0EsU0FBQTtBQTdCRjs7QUFpQ0E7RUFDSSx5QkFBQTtFQUNBLFVBQUE7QUE5Qko7O0FBaUNBO0VBQ0ksb0NBQUE7RUFDQSxvQkFBQTtFQUNBLGFBQUE7RUFDQSxtQkFBQTtFQUNBLHVCQUFBO0VBQ0EsWUFBQTtFQUNBLGlCQUFBO0VBRUEsVUFBQTtBQS9CSjs7QUFrQ0E7RUFDRSxvQkFBQTtBQS9CRjs7QUFrQ0E7RUFLSSxtQkFBQTtFQUNBLGtCQUFBO0VBQ0EsV0FBQTtFQUVBLHlCQUFBO0VBRUEsY0FBQTtBQXJDSjs7QUF3Q0E7RUFDSSxXQUFBO0VBQ0EsWUFBQTtFQUNBLGdCQUFBO0VBQ0EsZ0JBQUE7RUFDQSxpQkFBQTtFQUNBLGVBQUE7QUFyQ0o7O0FBeUNBO0VBQ0ksYUFBQTtFQUNBLG1CQUFBO0VBQ0EsdUJBQUE7QUF0Q0o7O0FBMkNBO0VBQ0ksa0JBQUE7RUFDQSxnQkFBQTtBQXhDSjs7QUE0Q0E7RUFDSSxhQUFBO0VBQ0EsbUJBQUE7RUFDQSxtQkFBQTtFQUNBLFlBQUE7RUFDQSxXQUFBO0VBQ0EsZUFBQTtBQXpDSjs7QUEwQ0k7RUFDSSxhQUFBO0VBQ0EsWUFBQTtFQUNBLFVBQUE7RUFDQSxzQkFBQTtFQUNBLHFCQUFBO0VBQ0EsMkJBQUE7QUF4Q1I7O0FBNENBO0VBQ0ksWUFBQTtFQUNBLFlBQUE7RUFDQSxrQkFBQTtBQXpDSjs7QUE0Q0E7RUFDSSxZQUFBO0VBQ0EsV0FBQTtFQUNBLGFBQUE7RUFDQSxzQkFBQTtFQUNBLFFBQUE7RUFDQSxtQkFBQTtFQUNBLGtCQUFBO0VBQ0EscUJBQUE7QUF6Q0o7O0FBNENBO0VBQ0ksa0JBQUE7RUFDQSxRQUFBO0VBQ0EsU0FBQTtFQUNBLGdDQUFBO0VBQ0Esb0NBQUE7RUFDQSxhQUFBO0VBQ0EsbUJBQUE7RUFDQSx1QkFBQTtFQUNBLFlBQUE7RUFDQSxpQkFBQTtFQUNBLFVBQUE7RUFDQSxhQUFBO0VBQ0EsbUJBQUE7RUFDQSxlQUFBO0FBekNKOztBQTRDQTtFQUNJLGFBQUE7RUFDQSxtQkFBQTtFQUNBLHVCQUFBO0VBQ0EsWUFBQTtFQUNBLFdBQUE7RUFDQSxrQkFBQTtFQUNBLFdBQUE7QUF6Q0o7O0FBNENBO0VBQ0ksYUFBQTtFQUNBLG1CQUFBO0VBQ0EsdUJBQUE7QUF6Q0o7O0FBNENBO0VBQ0ksYUFBQTtFQUNBLHNCQUFBO0VBQ0EsdUJBQUE7QUF6Q0o7O0FBNENBO0VBQ0ksWUFBQTtFQUNBLGVBQUE7RUFDQSx5QkFBQTtFQUNBLFlBQUE7RUFDQSxZQUFBO0VBQ0EsWUFBQTtBQXpDSjs7QUEyQ0k7RUFDSSxXQUFBO0VBQ0Esa0JBQUE7QUF6Q1I7O0FBNkNBO0VBQ0ksWUFBQTtFQUNBLFdBQUE7QUExQ0o7O0FBMkNJO0VBQ0ksYUFBQTtFQUNBLFdBQUE7RUFDQSxZQUFBO0VBQ0Esc0JBQUE7RUFDQSxxQkFBQTtFQUNBLHVCQUFBO0VBQ0EsY0FBQTtBQXpDUjs7QUEyQ0k7RUFDSSxhQUFBO0VBQ0EsbUJBQUE7RUFDQSxtQkFBQTtFQUNBLHlCQUFBO0FBekNSOztBQTZDQTtFQUNFLFVBQUE7RUFDQSxZQUFBO0VBQ0EseUJBQUE7RUFDQSxhQUFBO0FBMUNGOztBQTZDQTtFQUNJLGFBQUE7RUFDQSxhQUFBO0VBQ0Esc0JBQUE7RUFDQSxtQkFBQTtBQTFDSjs7QUE4Q0E7RUFDSSxhQUFBO0VBQ0EsYUFBQTtFQUNBLHVCQUFBO0VBQ0EsbUJBQUE7QUEzQ0o7O0FBOENBO0VBQ0kseUJBQUE7RUFDQSxtQkFBQTtFQUNBLGFBQUE7RUFDQSxpQkFBQTtBQTNDSjs7QUE4Q0E7RUFDSSwwQkFBQTtFQUNBLGlCQUFBO0VBQ0Esb0JBQUE7QUEzQ0o7O0FBOENBO0VBQ0kscUJBQUE7RUFDQSxtQkFBQTtFQUNBLG9CQUFBO0VBQ0EsZUFBQTtBQTNDSjs7QUE4Q0E7RUFDSSxhQUFBO0VBQ0EsV0FBQTtFQUNBLGFBQUE7RUFDQSxtQkFBQTtFQUNBLHVCQUFBO0FBM0NKIiwiZmlsZSI6ImluZGl2aWR1YWwtc3VtbWFyeS5jb21wb25lbnQuc2NzcyIsInNvdXJjZXNDb250ZW50IjpbIlxyXG4vLyBOZXcgTGF5b3V0IFNlY3Rpb25cclxuI21haW4tY2FyZCB7XHJcbiAgICBkaXNwbGF5OmZsZXg7XHJcbiAgICBmbGV4LWRpcmVjdGlvbjogcm93O1xyXG4gICAgLy8gYWxpZ24taXRlbXM6IGZsZXgtc3RhcnQ7XHJcbiAgICBtaW4taGVpZ2h0OiA2MDBweDtcclxuICAgIG1heC1oZWlnaHQ6IDYwMHB4O1xyXG4gICAgbWluLXdpZHRoOiAxMjAwcHg7XHJcbiAgICBtYXgtd2lkdGg6IDEzMDBweDtcclxuICAgIG1hcmdpbi10b3A6IDIwcHg7XHJcbiAgICBtYXJnaW4tbGVmdDogYXV0bztcclxuICAgIG1hcmdpbi1yaWdodDogYXV0bztcclxuICAgIG1hcmdpbi1ib3R0b206IDEwcHg7XHJcbn1cclxuXHJcbi8vIExldmVsIDFcclxuXHJcbiNzZWFyY2gtY29sIHtcclxuICAgIC8vIHdpZHRoOiAyNSU7XHJcbiAgICAvLyBmbGV4LWdyb3c6IDE7XHJcbiAgICAvLyBmbGV4OjE7XHJcbiAgICBtYXgtd2lkdGg6IDIyMHB4O1xyXG4gICAgZGlzcGxheTogZmxleDtcclxuICAgIGZsZXgtZGlyZWN0aW9uOiBjb2x1bW47XHJcbiAgICAjc2VhcmNoLXNsb3Qge1xyXG4gICAgICAgIGhlaWdodDogNTAlO1xyXG4gICAgfVxyXG4gICAgI2RleC1zdW1tYXJ5LXNsb3Qge1xyXG4gICAgICAgIGhlaWdodDogNTAlO1xyXG4gICAgfVxyXG59XHJcblxyXG4jcHJvZmlsZS1jb2wge1xyXG4gICAgd2lkdGg6IDI1JTtcclxuICAgIC8vIGZsZXgtZ3JvdzogMTtcclxuICAgIC8vIGZsZXg6MTtcclxuICAgIGRpc3BsYXk6IGZsZXg7XHJcbiAgICBmbGV4LWRpcmVjdGlvbjogY29sdW1uO1xyXG4gICAgI25hbWUtc2xvdCB7XHJcbiAgICAgICAgaGVpZ2h0OiAxMCU7XHJcbiAgICAgICAgZGlzcGxheTogZmxleDtcclxuICAgICAgICBhbGlnbi1pdGVtczogY2VudGVyO1xyXG4gICAgICAgIGp1c3RpZnktY29udGVudDogY2VudGVyO1xyXG4gICAgICAgIGJveC1zaXppbmc6IGJvcmRlci1ib3g7XHJcbiAgICAgICAgcGFkZGluZzogNnB4O1xyXG4gICAgfVxyXG4gICAgI3Nwcml0ZS1zbG90IHtcclxuICAgICAgICBoZWlnaHQ6IDQwJTtcclxuICAgICAgICBkaXNwbGF5OiBmbGV4O1xyXG4gICAgICAgIHBhZGRpbmc6IDZweDtcclxuICAgICAgICBhbGlnbi1pdGVtczogY2VudGVyO1xyXG4gICAgICAgIGp1c3RpZnktY29udGVudDogY2VudGVyOyAgXHJcbiAgICAgICAgYm94LXNpemluZzogYm9yZGVyLWJveDtcclxuICAgIH1cclxuICAgICNhYmlsaXR5LXNsb3R7XHJcbiAgICAgICAgaGVpZ2h0OiAyMCU7XHJcbiAgICAgICAgZGlzcGxheTogZmxleDtcclxuICAgICAgICBwYWRkaW5nOiA2cHg7XHJcbiAgICAgICAganVzdGlmeS1jb250ZW50OiBjZW50ZXI7ICAgXHJcbiAgICAgICAgYm94LXNpemluZzogYm9yZGVyLWJveDtcclxuICAgICAgICAjYWJpbGl0eS1jb250YWluZXIge1xyXG4gICAgICAgICAgICBsaW5lLWhlaWdodDogMS4xO1xyXG4gICAgICAgICAgICB0ZXh0LWFsaWduOiBjZW50ZXI7XHJcbiAgICAgICAgICAgIGhlaWdodDogZml0LWNvbnRlbnQ7XHJcbiAgICAgICAgfVxyXG4gICAgfVxyXG4gICAgI3R5cGUtc2xvdCB7XHJcbiAgICAgICAgaGVpZ2h0OiAxNSU7XHJcbiAgICAgICAgZGlzcGxheTogZmxleDtcclxuICAgICAgICBwYWRkaW5nOiA2cHg7XHJcbiAgICAgICAgYWxpZ24taXRlbXM6IGNlbnRlcjtcclxuICAgICAgICBqdXN0aWZ5LWNvbnRlbnQ6IGNlbnRlcjsgICBcclxuICAgICAgICBib3gtc2l6aW5nOiBib3JkZXItYm94O1xyXG4gICAgfVxyXG4gICAgI3NlYXJjaDItc2xvdCB7XHJcbiAgICAgICAgZGlzcGxheTogZmxleDtcclxuICAgICAgICBhbGlnbi1pdGVtczogY2VudGVyO1xyXG4gICAgICAgIGp1c3RpZnktY29udGVudDogY2VudGVyOyAgIFxyXG4gICAgICAgIGhlaWdodDogMTUlO1xyXG4gICAgfVxyXG59XHJcblxyXG4jc3RhdC1jb2wge1xyXG4gICAgd2lkdGg6IDUwJTtcclxuICAgIC8vIGZsZXgtZ3JvdzogMjtcclxuICAgIC8vIGZsZXg6MjtcclxuICAgIG1heC13aWR0aDogNTAlO1xyXG4gICAgZGlzcGxheTogZmxleDtcclxuICAgIGZsZXgtZGlyZWN0aW9uOiBjb2x1bW47XHJcbiAgICAjY2hhcnQtc2xvdCB7XHJcbiAgICAgICAgaGVpZ2h0OiA1MiU7XHJcbiAgICAgICAgcG9zaXRpb246IHJlbGF0aXZlO1xyXG4gICAgfVxyXG4gICAgI2V2b2x1dGlvbnMtc2xvdCB7XHJcbiAgICAgICAgaGVpZ2h0OiAyMCU7XHJcbiAgICAgICAgcGFkZGluZzogMHB4O1xyXG4gICAgICAgIHdpZHRoOiAxMDAlO1xyXG4gICAgICAgIG1heC13aWR0aDogMTAwJTtcclxuICAgICAgICBkaXNwbGF5OiBmbGV4O1xyXG4gICAgICAgIGZsZXgtZGlyZWN0aW9uOiByb3c7XHJcbiAgICAgICAgYWxpZ24taXRlbXM6IGNlbnRlcjtcclxuICAgICAgICBqdXN0aWZ5LWNvbnRlbnQ6IGNlbnRlcjtcclxuICAgICAgICBib3gtc2l6aW5nOiBib3JkZXItYm94O1xyXG4gICAgICAgIC5ldm9sdXRpb24tY2hhcnR7XHJcbiAgICAgICAgICAgIGhlaWdodDo5NSU7XHJcbiAgICAgICAgICAgIG1heC1oZWlnaHQ6IDk1JTsgICAgXHJcbiAgICAgICAgICAgIHdpZHRoOiBmaXQtY29udGVudDtcclxuICAgICAgICAgICAgbWF4LXdpZHRoOiA2NDZweDtcclxuICAgICAgICAgICAgYmFja2dyb3VuZC1jb2xvcjogcmdiKDI1LCAyNCwgMjYpO1xyXG4gICAgICAgICAgICBib3JkZXItcmFkaXVzOiAxMHB4O1xyXG4gICAgICAgICAgICBwYWRkaW5nOiAxMHB4O1xyXG4gICAgICAgICAgICBtYXJnaW4tbGVmdDogNXB4O1xyXG4gICAgICAgICAgICBtYXJnaW4tcmlnaHQ6IDVweDtcclxuICAgICAgICAgICAgbWFyZ2luLWJvdHRvbTogNXB4O1xyXG4gICAgICAgICAgICB0ZXh0LWFsaWduOiBjZW50ZXI7XHJcbiAgICAgICAgICAgIGxpbmUtaGVpZ2h0OiAxLjE7XHJcbiAgICAgICAgICAgIGJveC1zaXppbmc6IGJvcmRlci1ib3g7XHJcbiAgICAgICAgICAgIC5ldm8tbGlzdHtcclxuICAgICAgICAgICAgICAgIGhlaWdodDogNjUlO1xyXG4gICAgICAgICAgICAgICAgd2lkdGg6IGF1dG87XHJcbiAgICAgICAgICAgICAgICBkaXNwbGF5OiBmbGV4O1xyXG4gICAgICAgICAgICAgICAgZmxleC1kaXJlY3Rpb246IHJvdztcclxuICAgICAgICAgICAgICAgIGFsaWduLWl0ZW1zOiBjZW50ZXI7XHJcbiAgICAgICAgICAgICAgICBqdXN0aWZ5LWNvbnRlbnQ6IGNlbnRlcjtcclxuICAgICAgICAgICAgfVxyXG4gICAgICAgIH1cclxuICAgIH1cclxuICAgICNub3Rlcy1zbG90IHtcclxuICAgICAgICBoZWlnaHQ6IDI4JTtcclxuICAgICAgICB3aWR0aDogMTAwJTs7XHJcbiAgICB9XHJcbn1cclxuXHJcbiNtb3Zlcy1jb2wge1xyXG4gICAgd2lkdGg6IDI1JTtcclxuICAgIC8vIGZsZXgtZ3JvdzogMTtcclxuICAgIC8vIGZsZXg6MTtcclxuICAgIGRpc3BsYXk6IGZsZXg7XHJcbiAgICBmbGV4LWRpcmVjdGlvbjogY29sdW1uO1xyXG4gICAgYWxpZ24taXRlbXM6IGNlbnRlcjtcclxuICAgIHBhZGRpbmc6IDZweDtcclxuICAgICNtb3ZlLXRhYmxlIHtcclxuICAgICAgICBtYXgtaGVpZ2h0OiA5MCU7XHJcbiAgICAgICAgd2lkdGg6IDgwJTtcclxuICAgICAgICBkaXNwbGF5OiBmbGV4O1xyXG4gICAgICAgIGZsZXgtZGlyZWN0aW9uOiBjb2x1bW47XHJcbiAgICAgICAgYWxpZ24taXRlbXM6IGNlbnRlcjtcclxuICAgICAgICAjTHZsVE1TZWxlY3RvcntcclxuICAgICAgICAgICAgZGlzcGxheTogZmxleDtcclxuICAgICAgICAgICAgZmxleC1kaXJlY3Rpb246IHJvdztcclxuICAgICAgICAgICAganVzdGlmeS1jb250ZW50OiBjZW50ZXI7XHJcbiAgICAgICAgICAgIG1hcmdpbi1ib3R0b206IDVweDtcclxuICAgICAgICB9XHJcbiAgICAgICAgLm1vdmUtbGlzdHtcclxuICAgICAgICAgICAgb3ZlcmZsb3cteTogYXV0bztcclxuICAgICAgICAgICAgc2Nyb2xsYmFyLXdpZHRoOiBub25lO1xyXG4gICAgICAgICAgICB3aWR0aDogMTAwJTtcclxuICAgICAgICAgICAgbWF4LWhlaWdodDogMTAwJTtcclxuICAgICAgICAgICAgLmxlZnQtdGFibGV7XHJcbiAgICAgICAgICAgICAgICBib3JkZXItcmlnaHQ6IDFweCBzb2xpZCByZ2IoMTY3LCAxNjMsIDE2OCk7XHJcbiAgICAgICAgICAgICAgICBwYWRkaW5nLXJpZ2h0OiA1cHg7XHJcbiAgICAgICAgICAgICAgICBwYWRkaW5nLWxlZnQ6IDI1cHg7XHJcbiAgICAgICAgICAgICAgICB0ZXh0LWFsaWduOiByaWdodDtcclxuICAgICAgICAgICAgfVxyXG4gICAgICAgICAgICAucmlnaHQtdGFibGV7XHJcbiAgICAgICAgICAgICAgICBwYWRkaW5nLWxlZnQ6IDI1cHg7XHJcbiAgICAgICAgICAgICAgICBjdXJzb3I6IHBvaW50ZXI7XHJcbiAgICAgICAgICAgIH1cclxuICAgICAgICB9XHJcbiAgICAgICAgLm1vdmUtbGlzdDo6LXdlYmtpdC1zY3JvbGxiYXIge1xyXG4gICAgICAgICAgICB3aWR0aDogMHB4OyAgICAgICAgLyogQ2hyb21lL1NhZmFyaSAqL1xyXG4gICAgICAgIH1cclxuICAgICAgICAubW92ZS1saXN0OmhvdmVyIHtcclxuICAgICAgICAgICAgc2Nyb2xsYmFyLXdpZHRoOiB0aGluOyAgICAgICAgICAgICAvKiBGaXJlZm94ICovXHJcbiAgICAgICAgfVxyXG5cclxuICAgICAgICAvKiBDaHJvbWUtbGlrZSBicm93c2VycyAqL1xyXG4gICAgICAgIC5tb3ZlLWxpc3Q6aG92ZXI6Oi13ZWJraXQtc2Nyb2xsYmFyIHtcclxuICAgICAgICAgICAgd2lkdGg6IDZweDtcclxuICAgICAgICAgICAgYmFja2dyb3VuZC1jb2xvcjogdHJhbnNwYXJlbnQ7ICAgICAvKiBNYXRjaGVzIGNvbnRhaW5lciAqL1xyXG4gICAgICAgIH1cclxuICAgIH1cclxufVxyXG5cclxuXHJcbiNiYWNrZ3JvdW5kIHtcclxuICAgIC8vYmFja2dyb3VuZC1jb2xvcjogcmdiKDkyLCA5MiwgMjA3KTtcclxuICAgIC8vIGJvcmRlcjogc29saWQ7XHJcbiAgICBib3JkZXItcmFkaXVzOiAwcHggMHB4IDEwcHggMTBweDtcclxuICAgIHdpZHRoOiAxMDAlO1xyXG4gICAgbWluLXdpZHRoOiA2MDBweDtcclxuICAgIG92ZXJmbG93OiBhdXRvO1xyXG4gICAgLy8gKntcclxuICAgIC8vICAgICBvdmVyZmxvdzogYXV0bztcclxuICAgIC8vIH1cclxufSBcclxuLy8gI2JhY2tnb3VuZDphZnRlciB7XHJcbi8vICAgICBjbGVhcjogYm90aDtcclxuLy8gfVxyXG5cclxuLmxlZnQge1xyXG4gICAgd2lkdGg6IDUwJTtcclxuICAgIGZsb2F0OiBsZWZ0O1xyXG4gICAgLy8gYm9yZGVyOiAycHggc29saWQgZ3JlZW47XHJcbiAgICBcclxufVxyXG5cclxuLnNwcml0ZSB7XHJcbiAgICB3aWR0aDogNDAlO1xyXG4gICAgcG9zaXRpb246IHJlbGF0aXZlO1xyXG4gICAgbWF4LWhlaWdodDogNDUwcHg7XHJcbiAgICBkaXNwbGF5OiBmbGV4O1xyXG4gICAgZmxleC1kaXJlY3Rpb246IGNvbHVtbjtcclxuICAgIGFsaWduLWl0ZW1zOiBjZW50ZXI7XHJcbiAgICAvLyBib3JkZXI6IDJweCBzb2xpZCBncmVlblxyXG59XHJcblxyXG4ucmlnaHQge1xyXG4gICAgd2lkdGg6NTAlO1xyXG4gICAgZmxvYXQ6IHJpZ2h0O1xyXG4gICAgLy8gYm9yZGVyOiAycHggc29saWQgcmVkO1xyXG5cclxuICAgIFxyXG59XHJcblxyXG4uc3RhdC1ncmFwaHtcclxuICAgIHdpZHRoOiA2MCU7XHJcbiAgICBoZWlnaHQ6IDM4NXB4O1xyXG4gICAgLy8gYm9yZGVyOiAycHggc29saWQgZ3JlZW5cclxufVxyXG5cclxuLnNwcml0ZS1iYWNrZ3JvdW5kIHtcclxuICAgIGRpc3BsYXk6IGZsZXg7XHJcbiAgICBoZWlnaHQ6IDEwMCU7XHJcbiAgICBvdmVyZmxvdzogaGlkZGVuO1xyXG4gICAgYWxpZ24taXRlbXM6IGNlbnRlcjtcclxuICAgIGp1c3RpZnktY29udGVudDogY2VudGVyO1xyXG4gICAgYXNwZWN0LXJhdGlvOiAxIC8gMTtcclxuICAgIC8vIHBhZGRpbmctdG9wOiA1MHB4O1xyXG4gICAgYm9yZGVyLXJhZGl1czogMzAlO1xyXG4gICAgYmFja2dyb3VuZC1jb2xvcjogcmdiKDI1LCAyNCwgMjYpO1xyXG4gICAgLy8gcG9zaXRpb246IHJlbGF0aXZlO1xyXG4gICAgLy8gb3ZlcmZsb3c6XHJcbn1cclxuXHJcbiNjaGFydC13cmFwcGVyIHtcclxuICAgIHBvc2l0aW9uOiByZWxhdGl2ZTtcclxuICAgIHdpZHRoOiAxMDAlO1xyXG4gICAgbWF4LXdpZHRoOiA2MDBweDtcclxuICAgIGFzcGVjdC1yYXRpbzogMiAvIDE7XHJcbiAgICBtYXJnaW46IDVweDsgLyogZXh0ZXJuYWwgc3BhY2luZyAqL1xyXG4gICAgY3Vyc29yOiBwb2ludGVyO1xyXG59XHJcblxyXG4jc3RhdC1jaGFydCxcclxuI3N0YXQtY2hhcnQtb3ZlcmxheSB7XHJcbiAgcG9zaXRpb246IGFic29sdXRlO1xyXG4gIHRvcDogMDtcclxuICBsZWZ0OiAwO1xyXG4gIHdpZHRoOiAxMDAlO1xyXG4gIGhlaWdodDogMTAwJTtcclxuICBib3JkZXItcmFkaXVzOiAxMHB4O1xyXG4gIG1hcmdpbjogMDtcclxufVxyXG5cclxuXHJcbiNzdGF0LWNoYXJ0IHtcclxuICAgIGJhY2tncm91bmQtY29sb3I6IHJnYigyNSwgMjQsIDI2KTtcclxuICAgIHotaW5kZXg6IDE7XHJcbn1cclxuXHJcbiNzdGF0LWNoYXJ0LW92ZXJsYXkge1xyXG4gICAgYmFja2dyb3VuZC1jb2xvcjogcmdiYSgwLCAwLCAwLCAuNSk7XHJcbiAgICBwb2ludGVyLWV2ZW50czogbm9uZTsgIFxyXG4gICAgZGlzcGxheTogZmxleDtcclxuICAgIGFsaWduLWl0ZW1zOiBjZW50ZXI7XHJcbiAgICBqdXN0aWZ5LWNvbnRlbnQ6IGNlbnRlcjtcclxuICAgIGNvbG9yOiB3aGl0ZTtcclxuICAgIGZvbnQtd2VpZ2h0OiBib2xkO1xyXG5cclxuICAgIHotaW5kZXg6IDI7XHJcbn1cclxuXHJcbi5vdmVybGF5LXRleHQge1xyXG4gIHBvaW50ZXItZXZlbnRzOiBub25lO1xyXG59XHJcblxyXG4uc2VhcmNoLWJveCB7XHJcbiAgICAvLyBtYXJnaW4tbGVmdDogMTVweDtcclxuICAgIC8vIG1hcmdpbi10b3A6IDVweDtcclxuICAgIC8vIG1hcmdpbi1ib3R0b206IDJweDtcclxuICAgIC8vIG1heC13aWR0aDogMjAwcHg7XHJcbiAgICBib3JkZXItcmFkaXVzOiAxMHB4O1xyXG4gICAgcGFkZGluZy1sZWZ0OiAxMnB4O1xyXG4gICAgd2lkdGg6IDEwMCU7XHJcbiAgICAvLyBib3JkZXI6IDJweCBzb2xpZCBkYXJrdmlvbGV0O1xyXG4gICAgYmFja2dyb3VuZC1jb2xvcjogcmdiKDI1LCAyNCwgMjYpO1xyXG4gICAgLy8gYmFja2dyb3VuZC1jb2xvcjogZ2hvc3R3aGl0ZTtcclxuICAgIGRpc3BsYXk6IGJsb2NrO1xyXG59XHJcblxyXG4udHlwZS1ib3gge1xyXG4gICAgd2lkdGg6IDY0cHg7XHJcbiAgICBoZWlnaHQ6IGF1dG87XHJcbiAgICBtYXgtaGVpZ2h0OiAyNHB4O1xyXG4gICAgbWFyZ2luLWxlZnQ6IDJweDtcclxuICAgIG1hcmdpbi1yaWdodDogMnB4O1xyXG4gICAgbWFyZ2luLXRvcDogMnB4O1xyXG4gICAgXHJcbn1cclxuXHJcbiN0eXBlLWNvbnRhaW5lciB7XHJcbiAgICBkaXNwbGF5OiBmbGV4O1xyXG4gICAgZmxleC1kaXJlY3Rpb246IHJvdztcclxuICAgIGp1c3RpZnktY29udGVudDogY2VudGVyO1xyXG59XHJcblxyXG5cclxuXHJcbi5yZXZlYWwtYnV0dG9uIHtcclxuICAgIHdpZHRoOiBmaXQtY29udGVudDtcclxuICAgIG1hcmdpbi10b3A6IDE1cHg7XHJcbn1cclxuXHJcblxyXG4jbm90ZXMtcGFyZW50IHtcclxuICAgIGRpc3BsYXk6IGZsZXg7XHJcbiAgICBmbGV4LWRpcmVjdGlvbjogcm93O1xyXG4gICAgYWxpZ24taXRlbXM6IGNlbnRlcjtcclxuICAgIGhlaWdodDogMTAwJTtcclxuICAgIHdpZHRoOiAxMDAlO1xyXG4gICAgZm9udC1zaXplOiAxMXB0O1xyXG4gICAgI25vdGVzLXNlbGVjdG9yIHtcclxuICAgICAgICBkaXNwbGF5OiBmbGV4O1xyXG4gICAgICAgIGhlaWdodDogMTAwJTtcclxuICAgICAgICB3aWR0aDogMTIlO1xyXG4gICAgICAgIGZsZXgtZGlyZWN0aW9uOiBjb2x1bW47XHJcbiAgICAgICAgYWxpZ24taXRlbXM6IGZsZXgtZW5kO1xyXG4gICAgICAgIGp1c3RpZnktY29udGVudDogZmxleC1zdGFydDtcclxuICAgIH1cclxufSAgICAgXHJcblxyXG4jbG9jYXRpb24tcGFyZW50IHtcclxuICAgIGhlaWdodDogMTAwJTtcclxuICAgIGZsZXgtZ3JvdzogMTtcclxuICAgIHBvc2l0aW9uOiByZWxhdGl2ZTtcclxufVxyXG5cclxuI2xvY2F0aW9uLXNlY3Rpb24ge1xyXG4gICAgaGVpZ2h0OiAxMDAlO1xyXG4gICAgd2lkdGg6IDEwMCU7XHJcbiAgICBkaXNwbGF5OiBmbGV4O1xyXG4gICAgZmxleC1kaXJlY3Rpb246IGNvbHVtbjtcclxuICAgIGdhcDogNHB4O1xyXG4gICAgYWxpZ24taXRlbXM6IGNlbnRlcjtcclxuICAgIG92ZXJmbG93LXk6IHNjcm9sbDtcclxuICAgIHNjcm9sbGJhci13aWR0aDogbm9uZTtcclxufVxyXG5cclxuI2xvY2F0aW9uLW92ZXJsYXkge1xyXG4gICAgcG9zaXRpb246IGFic29sdXRlOyAgXHJcbiAgICB0b3A6IDUwJTtcclxuICAgIGxlZnQ6IDUwJTtcclxuICAgIHRyYW5zZm9ybTogdHJhbnNsYXRlKC01MCUsIC01MCUpO1xyXG4gICAgYmFja2dyb3VuZC1jb2xvcjogcmdiYSgwLCAwLCAwLCAuNSk7XHJcbiAgICBkaXNwbGF5OiBmbGV4O1xyXG4gICAgYWxpZ24taXRlbXM6IGNlbnRlcjtcclxuICAgIGp1c3RpZnktY29udGVudDogY2VudGVyO1xyXG4gICAgY29sb3I6IHdoaXRlO1xyXG4gICAgZm9udC13ZWlnaHQ6IGJvbGQ7XHJcbiAgICB6LWluZGV4OiAyO1xyXG4gICAgcGFkZGluZzogNDBweDtcclxuICAgIGJvcmRlci1yYWRpdXM6IDEwcHg7XHJcbiAgICBjdXJzb3I6IHBvaW50ZXI7XHJcbn1cclxuXHJcbiNuby1sb2NhdGlvbnMge1xyXG4gICAgZGlzcGxheTogZmxleDtcclxuICAgIGFsaWduLWl0ZW1zOiBjZW50ZXI7XHJcbiAgICBqdXN0aWZ5LWNvbnRlbnQ6IGNlbnRlcjtcclxuICAgIGhlaWdodDogMTAwJTtcclxuICAgIHdpZHRoOiAxMDAlO1xyXG4gICAgZm9udC1zdHlsZTogaXRhbGljO1xyXG4gICAgY29sb3I6IGdyYXk7XHJcbn1cclxuXHJcbi5yb3cge1xyXG4gICAgZGlzcGxheTogZmxleDtcclxuICAgIGZsZXgtZGlyZWN0aW9uOiByb3c7XHJcbiAgICBhbGlnbi1pdGVtczogZmxleC1zdGFydDtcclxufVxyXG5cclxuLmNvbHVtbiB7XHJcbiAgICBkaXNwbGF5OiBmbGV4O1xyXG4gICAgZmxleC1kaXJlY3Rpb246IGNvbHVtbjtcclxuICAgIGFsaWduLWl0ZW1zOiBmbGV4LXN0YXJ0O1xyXG59XHJcblxyXG4ubm90ZXMtc2VjdGlvbiB7XHJcbiAgICByZXNpemU6IG5vbmU7XHJcbiAgICBmb250LXNpemU6IDExcHQ7XHJcbiAgICBiYWNrZ3JvdW5kLWNvbG9yOiByZ2IoMjUsIDI0LCAyNik7XHJcbiAgICBib3JkZXI6IG5vbmU7XHJcbiAgICBmbGV4LWdyb3c6IDE7XHJcbiAgICBoZWlnaHQ6IDEwMCU7XHJcbiAgICAvLyBtYXJnaW46IDVweDtcclxuICAgIDo6cGxhY2Vob2xkZXIge1xyXG4gICAgICAgIGNvbG9yOiBncmF5O1xyXG4gICAgICAgIGZvbnQtc3R5bGU6IGl0YWxpYztcclxuICAgIH1cclxufVxyXG5cclxuI25vdGVzLW9wdGlvbnN7XHJcbiAgICBmbGV4LWdyb3c6IDE7XHJcbiAgICB3aWR0aDogMTAwJTtcclxuICAgICNsb2NhdGlvbi1vcHRpb25ze1xyXG4gICAgICAgIGRpc3BsYXk6IGZsZXg7XHJcbiAgICAgICAgd2lkdGg6IDEwMCU7XHJcbiAgICAgICAgaGVpZ2h0OiAxMDAlO1xyXG4gICAgICAgIGZsZXgtZGlyZWN0aW9uOiBjb2x1bW47XHJcbiAgICAgICAgYWxpZ24taXRlbXM6IGZsZXgtZW5kO1xyXG4gICAgICAgIGp1c3RpZnktY29udGVudDogY2VudGVyO1xyXG4gICAgICAgIGZvbnQtc2l6ZTogOHB0O1xyXG4gICAgfVxyXG4gICAgLm5vdGUtb3B0aW9ue1xyXG4gICAgICAgIGRpc3BsYXk6IGZsZXg7XHJcbiAgICAgICAgZmxleC1kaXJlY3Rpb246IHJvdztcclxuICAgICAgICBhbGlnbi1pdGVtczogY2VudGVyO1xyXG4gICAgICAgIGp1c3RpZnktY29udGVudDogZmxleC1lbmQ7XHJcbiAgICB9XHJcbn1cclxuXHJcbi52ZXJ0aWNhbC1iYXIge1xyXG4gIHdpZHRoOiAxcHg7XHJcbiAgaGVpZ2h0OiAxMDAlO1xyXG4gIGJhY2tncm91bmQtY29sb3I6ICNjZmNmY2Y7XHJcbiAgbWFyZ2luOiAwIDVweDtcclxufVxyXG5cclxuI2FiaWxpdHktcGFyZW50IHtcclxuICAgIHBhZGRpbmc6IDEwcHg7XHJcbiAgICBkaXNwbGF5OiBmbGV4O1xyXG4gICAgZmxleC1kaXJlY3Rpb246IGNvbHVtbjtcclxuICAgIGFsaWduLWl0ZW1zOiBjZW50ZXI7XHJcbiAgICAvLyBib3JkZXI6IDJweCBzb2xpZCBncmVlbjtcclxufVxyXG5cclxuLmFiaWxpdHktY29sbGVjdGlvbiB7XHJcbiAgICBwYWRkaW5nOiAxMHB4O1xyXG4gICAgZGlzcGxheTogZmxleDtcclxuICAgIGp1c3RpZnktY29udGVudDogY2VudGVyO1xyXG4gICAgaGVpZ2h0OiBmaXQtY29udGVudDtcclxufVxyXG5cclxuLmFiaWxpdHktcGFuZWwge1xyXG4gICAgYmFja2dyb3VuZC1jb2xvcjogcmdiKDI1LCAyNCwgMjYpO1xyXG4gICAgYm9yZGVyLXJhZGl1czogMTBweDtcclxuICAgIHBhZGRpbmc6IDE1cHg7XHJcbiAgICBtYXJnaW4tbGVmdDogMTBweDtcclxufVxyXG5cclxuLnRhYlNlbGVjdGVkIHtcclxuICAgIHRleHQtZGVjb3JhdGlvbjogdW5kZXJsaW5lO1xyXG4gICAgZm9udC13ZWlnaHQ6IGJvbGQ7XHJcbiAgICBwb2ludGVyLWV2ZW50czogbm9uZTtcclxufVxyXG5cclxuLnRhYlVuc2VsZWN0ZWR7XHJcbiAgICB0ZXh0LWRlY29yYXRpb246IG5vbmU7XHJcbiAgICBmb250LXdlaWdodDogbm9ybWFsO1xyXG4gICAgcG9pbnRlci1ldmVudHM6IGF1dG87XHJcbiAgICBjdXJzb3I6IHBvaW50ZXI7XHJcbn1cclxuXHJcbi5kZWZhdWx0LXRtLW1lc3NhZ2Uge1xyXG4gICAgaGVpZ2h0OiAzMDBweDtcclxuICAgIHdpZHRoOiAxMDAlO1xyXG4gICAgZGlzcGxheTogZmxleDtcclxuICAgIGFsaWduLWl0ZW1zOiBjZW50ZXI7XHJcbiAgICBqdXN0aWZ5LWNvbnRlbnQ6IGNlbnRlcjtcclxufSJdfQ== */"] });
 
 
 /***/ }),
@@ -2906,18 +3084,22 @@ __webpack_require__.r(__webpack_exports__);
 /* harmony export */ __webpack_require__.d(__webpack_exports__, {
 /* harmony export */   "TrainerPokemonSelectorComponent": () => (/* binding */ TrainerPokemonSelectorComponent)
 /* harmony export */ });
+/* harmony import */ var rxjs_operators__WEBPACK_IMPORTED_MODULE_4__ = __webpack_require__(/*! rxjs/operators */ 5921);
+/* harmony import */ var rxjs__WEBPACK_IMPORTED_MODULE_3__ = __webpack_require__(/*! rxjs */ 2218);
 /* harmony import */ var src_app_Settings__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! src/app/Settings */ 4095);
 /* harmony import */ var _angular_core__WEBPACK_IMPORTED_MODULE_2__ = __webpack_require__(/*! @angular/core */ 3184);
 /* harmony import */ var src_app_pokedex_service__WEBPACK_IMPORTED_MODULE_1__ = __webpack_require__(/*! src/app/pokedex.service */ 4044);
-/* harmony import */ var _angular_common__WEBPACK_IMPORTED_MODULE_3__ = __webpack_require__(/*! @angular/common */ 6362);
-/* harmony import */ var _angular_forms__WEBPACK_IMPORTED_MODULE_4__ = __webpack_require__(/*! @angular/forms */ 587);
+/* harmony import */ var _angular_common__WEBPACK_IMPORTED_MODULE_5__ = __webpack_require__(/*! @angular/common */ 6362);
+/* harmony import */ var _angular_forms__WEBPACK_IMPORTED_MODULE_6__ = __webpack_require__(/*! @angular/forms */ 587);
+
+
 
 
 
 
 
 function TrainerPokemonSelectorComponent_table_8_Template(rf, ctx) { if (rf & 1) {
-    _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵelementStart"](0, "table", 16)(1, "tr")(2, "td", 17);
+    _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵelementStart"](0, "table", 17)(1, "tr")(2, "td", 18);
     _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵtext"](3);
     _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵelementEnd"]();
     _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵelementStart"](4, "td");
@@ -2926,7 +3108,7 @@ function TrainerPokemonSelectorComponent_table_8_Template(rf, ctx) { if (rf & 1)
     _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵelementStart"](6, "tr")(7, "td");
     _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵtext"](8);
     _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵelementEnd"]();
-    _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵelementStart"](9, "td", 18);
+    _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵelementStart"](9, "td", 19);
     _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵtext"](10);
     _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵelementEnd"]()()();
 } if (rf & 2) {
@@ -2941,23 +3123,23 @@ function TrainerPokemonSelectorComponent_table_8_Template(rf, ctx) { if (rf & 1)
     _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵtextInterpolate"](ctx_r0.currentTrainerPokemon.getMoveString(3, ctx_r0.dex.isFullyRevealed));
 } }
 function TrainerPokemonSelectorComponent_ng_template_9_Template(rf, ctx) { if (rf & 1) {
-    _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵelementStart"](0, "div", 19);
+    _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵelementStart"](0, "div", 20);
     _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵtext"](1, " No Moves Found ");
     _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵelementEnd"]();
 } }
 function TrainerPokemonSelectorComponent_option_13_Template(rf, ctx) { if (rf & 1) {
-    _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵelementStart"](0, "option", 20);
+    _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵelementStart"](0, "option", 21);
     _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵtext"](1);
     _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵelementEnd"]();
 } if (rf & 2) {
-    const key_r7 = ctx.$implicit;
+    const key_r8 = ctx.$implicit;
     const ctx_r3 = _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵnextContext"]();
-    _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵproperty"]("value", key_r7);
+    _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵproperty"]("value", key_r8);
     _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵadvance"](1);
-    _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵtextInterpolate1"](" ", key_r7 ? (ctx_r3.trainerPokemonMap.get(key_r7).pokemon.isDefeated ? "\u2705" : "\u2B1C") + key_r7 : ctx_r3.trainerPokemonSearchKeys.length > 1 ? "Select a Trainer" : "No Trainers Found", " ");
+    _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵtextInterpolate1"](" ", key_r8 ? (ctx_r3.trainerPokemonMap.get(key_r8).pokemon.isDefeated ? "\u2705" : "\u2B1C") + key_r8 : ctx_r3.trainerPokemonSearchKeys.length > 1 ? "Select a Trainer" : "No Trainers Found", " ");
 } }
 function TrainerPokemonSelectorComponent_div_15_Template(rf, ctx) { if (rf & 1) {
-    _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵelementStart"](0, "div", 21);
+    _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵelementStart"](0, "div", 22);
     _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵtext"](1);
     _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵelementEnd"]();
 } if (rf & 2) {
@@ -2966,9 +3148,9 @@ function TrainerPokemonSelectorComponent_div_15_Template(rf, ctx) { if (rf & 1) 
     _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵtextInterpolate1"]("Defeated: ", ctx_r4.currentMon.levels_defeated_at.length, "");
 } }
 function TrainerPokemonSelectorComponent_button_17_Template(rf, ctx) { if (rf & 1) {
-    const _r9 = _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵgetCurrentView"]();
-    _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵelementStart"](0, "button", 22);
-    _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵlistener"]("click", function TrainerPokemonSelectorComponent_button_17_Template_button_click_0_listener() { _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵrestoreView"](_r9); const ctx_r8 = _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵnextContext"](); return ctx_r8.toggleSpoil(); });
+    const _r10 = _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵgetCurrentView"]();
+    _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵelementStart"](0, "button", 23);
+    _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵlistener"]("click", function TrainerPokemonSelectorComponent_button_17_Template_button_click_0_listener() { _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵrestoreView"](_r10); const ctx_r9 = _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵnextContext"](); return ctx_r9.toggleSpoil(); });
     _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵtext"](1);
     _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵelementEnd"]();
 } if (rf & 2) {
@@ -2979,9 +3161,9 @@ function TrainerPokemonSelectorComponent_button_17_Template(rf, ctx) { if (rf & 
     _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵtextInterpolate"](ctx_r5.currentTrainerPokemon.isRevealed ? "Unspoil" : "Spoil");
 } }
 function TrainerPokemonSelectorComponent_button_18_Template(rf, ctx) { if (rf & 1) {
-    const _r11 = _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵgetCurrentView"]();
-    _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵelementStart"](0, "button", 23);
-    _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵlistener"]("click", function TrainerPokemonSelectorComponent_button_18_Template_button_click_0_listener() { _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵrestoreView"](_r11); const ctx_r10 = _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵnextContext"](); return ctx_r10.toggleDefeat(); });
+    const _r12 = _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵgetCurrentView"]();
+    _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵelementStart"](0, "button", 24);
+    _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵlistener"]("click", function TrainerPokemonSelectorComponent_button_18_Template_button_click_0_listener() { _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵrestoreView"](_r12); const ctx_r11 = _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵnextContext"](); return ctx_r11.toggleDefeat(); });
     _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵtext"](1);
     _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵelementEnd"]();
 } if (rf & 2) {
@@ -2990,20 +3172,71 @@ function TrainerPokemonSelectorComponent_button_18_Template(rf, ctx) { if (rf & 
     _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵadvance"](1);
     _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵtextInterpolate"](ctx_r6.currentTrainerPokemon.isDefeated ? "Undefeat" : "Defeat");
 } }
+function TrainerPokemonSelectorComponent_div_19_ng_container_1_Template(rf, ctx) { if (rf & 1) {
+    const _r16 = _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵgetCurrentView"]();
+    _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵelementContainerStart"](0);
+    _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵelementStart"](1, "button", 27);
+    _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵlistener"]("click", function TrainerPokemonSelectorComponent_div_19_ng_container_1_Template_button_click_1_listener() { const restoredCtx = _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵrestoreView"](_r16); const ct_r14 = restoredCtx.ngIf; const ctx_r15 = _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵnextContext"](2); return ctx_r15.navigateToTrainerView(ct_r14); });
+    _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵtext"](2, "View Team");
+    _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵelementEnd"]();
+    _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵelementContainerEnd"]();
+} }
+function TrainerPokemonSelectorComponent_div_19_Template(rf, ctx) { if (rf & 1) {
+    _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵelementStart"](0, "div", 25);
+    _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵtemplate"](1, TrainerPokemonSelectorComponent_div_19_ng_container_1_Template, 3, 0, "ng-container", 26);
+    _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵelementEnd"]();
+} if (rf & 2) {
+    const ctx_r7 = _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵnextContext"]();
+    _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵadvance"](1);
+    _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵproperty"]("ngIf", ctx_r7.currentTrainer);
+} }
 class TrainerPokemonSelectorComponent {
     constructor(dex, cdr) {
         this.trainerPokemonMap = new Map();
         this.trainerPokemonSearchKeys = [];
         this.selectedTrainerKey = '';
+        this.destroy$ = new rxjs__WEBPACK_IMPORTED_MODULE_3__.Subject();
         this.dex = dex;
         this.cdr = cdr;
     }
+    ngOnDestroy() {
+        this.destroy$.next();
+        this.destroy$.complete();
+    }
     ngAfterViewInit() { }
     ngOnInit() {
-        this.dex.monSelection.subscribe((monName) => {
+        this.dex.monSelection.pipe((0,rxjs_operators__WEBPACK_IMPORTED_MODULE_4__.takeUntil)(this.destroy$)).subscribe((monName) => {
             this.populateTrainerPokemonMap(monName);
             this.maybeUpdateSelection(monName);
+            if (this.currentTrainerPokemon) {
+                this.dex.trainerPokemonSelection.next(this.currentTrainerPokemon);
+            }
             this.cdr.detectChanges();
+        });
+        // this.dex.trainerSelection.subscribe((trainer) => {
+        //   if (trainer && this.currentMon) {
+        //     this.currentTrainer = trainer;
+        //     const matchingMon = trainer.Pokes.find(
+        //       (tp) => tp.name === this.currentMon?.name
+        //     );
+        //     if (matchingMon) {
+        //       this.currentTrainerPokemon = matchingMon;
+        //       this.selectedTrainerKey = this.buildTrainerKey(this.currentTrainer, this.currentTrainerPokemon);
+        //     }
+        //   }
+        // });
+        this.dex.trainerPokemonSelection.pipe((0,rxjs_operators__WEBPACK_IMPORTED_MODULE_4__.takeUntil)(this.destroy$)).subscribe((trainerPokemon) => {
+            var _a, _b;
+            if (this.currentTrainerPokemon === trainerPokemon) {
+                return;
+            }
+            // Hacky way of remembering trainer selection when navigating between mons.
+            this.currentTrainer = (_a = this.dex.trainersByPokemonName.get(trainerPokemon.name)) === null || _a === void 0 ? void 0 : _a.find((t) => t.Pokes.includes(trainerPokemon));
+            if (((_b = this.currentMon) === null || _b === void 0 ? void 0 : _b.name) === trainerPokemon.name) {
+                this.populateTrainerPokemonMap(trainerPokemon.name);
+                this.maybeUpdateSelection(trainerPokemon.name, trainerPokemon);
+            }
+            // this.cdr.detectChanges();
         });
     }
     populateTrainerPokemonMap(monName) {
@@ -3050,7 +3283,7 @@ class TrainerPokemonSelectorComponent {
         });
         this.trainerPokemonSearchKeys.unshift(''); // for no selection
     }
-    maybeUpdateSelection(monName) {
+    maybeUpdateSelection(monName, trainerPokemon) {
         if (!this.currentMon) {
             this.selectedTrainerKey = '';
             this.currentTrainer = undefined;
@@ -3060,29 +3293,51 @@ class TrainerPokemonSelectorComponent {
         const trainers = this.dex.trainersByPokemonName.get(monName);
         const matchingTrainer = trainers === null || trainers === void 0 ? void 0 : trainers.find((t) => t === this.currentTrainer);
         if (matchingTrainer) {
+            if (trainerPokemon) {
+                this.currentTrainerPokemon = trainerPokemon;
+                this.selectedTrainerKey = this.buildTrainerKey(matchingTrainer, this.currentTrainerPokemon);
+                return;
+            }
             const matchingMon = matchingTrainer.Pokes.find((tp) => { var _a; return tp.name === ((_a = this.currentMon) === null || _a === void 0 ? void 0 : _a.name); });
             if (matchingMon) {
                 this.currentTrainerPokemon = matchingMon;
-                this.selectedTrainerKey = `Lv${this.currentTrainerPokemon.level} ${matchingTrainer.name}${matchingTrainer.oldName !== matchingTrainer.name
-                    ? ' (' + matchingTrainer.oldName + ')'
-                    : ''}`;
+                this.selectedTrainerKey = this.buildTrainerKey(matchingTrainer, this.currentTrainerPokemon);
                 return;
             }
         }
         this.selectedTrainerKey = '';
-        this.currentTrainer = undefined;
+        // this.currentTrainer = undefined; // If we keep current trainer, we can still return to the same trainer after navigating away.
         this.currentTrainerPokemon = undefined;
         return;
+    }
+    buildTrainerKey(matchingTrainer, trainerPokemon) {
+        let base_string = `Lv${trainerPokemon.level} ${matchingTrainer.name}${matchingTrainer.oldName !== matchingTrainer.name
+            ? ' (' + matchingTrainer.oldName + ')'
+            : ''}`;
+        let index = 0;
+        for (let t_mon of matchingTrainer.Pokes) {
+            if (t_mon.name === trainerPokemon.name) {
+                index++;
+                if (t_mon === trainerPokemon) {
+                    break;
+                }
+            }
+        }
+        return base_string + (index > 1 ? ` (${index})` : '');
     }
     onDropdownChange(newKey) {
         const entry = this.trainerPokemonMap.get(newKey);
         if (entry) {
-            this.currentTrainer = entry.trainer;
+            this.currentTrainer = entry.trainer; // Only update currentTrainer when we actually select one.
             this.currentTrainerPokemon = entry.pokemon;
+            this.dex.trainerSelection.next(entry.trainer);
+            this.dex.trainerPokemonSelection.next(entry.pokemon);
         }
         else {
             this.currentTrainer = undefined;
             this.currentTrainerPokemon = undefined;
+            this.dex.trainerSelection.next(undefined); // We want to remember our selections, even if they're empty
+            this.dex.trainerPokemonSelection.next(undefined);
         }
     }
     toggleSpoil() {
@@ -3093,25 +3348,56 @@ class TrainerPokemonSelectorComponent {
     }
     toggleDefeat() {
         if (this.currentTrainerPokemon && this.currentMon && this.currentTrainer) {
+            // First we need to see if we need to update any other pokemon in addition to this one
+            let ctp_name = this.currentTrainerPokemon.name;
+            let alt_forms = [];
+            if (this.currentTrainerPokemon.canMegaEvolve()) {
+                alt_forms = this.currentTrainer.Pokes.filter(p => p.name.startsWith(ctp_name) && p.name.includes("-Mega"));
+            }
+            else if (this.currentTrainerPokemon.isMegaEvolved()) { //Super hacky, but not sure how to grab otherwise.
+                alt_forms = this.currentTrainer.Pokes.filter(p => p.canMegaEvolve() && p.name.slice(0, 5) === ctp_name.slice(0, 5));
+            }
+            let alt_species = alt_forms.map(f => this.dex.pokedexByName.get(f.name));
+            // Then either defeat or undefeat them depending on button state
             if (this.currentTrainerPokemon.isDefeated) {
-                this.currentMon.undefeatTrainerPokemon(this.currentTrainerPokemon.level, src_app_Settings__WEBPACK_IMPORTED_MODULE_0__.DEFAULT_SETTINGS);
+                this.currentMon.undefeatTrainerPokemon(this.currentTrainerPokemon, src_app_Settings__WEBPACK_IMPORTED_MODULE_0__.DEFAULT_SETTINGS);
                 this.currentTrainerPokemon.isRevealed = false;
+                for (let alt of alt_species) {
+                    if (alt) {
+                        alt.undefeatTrainerPokemon(this.currentTrainerPokemon, src_app_Settings__WEBPACK_IMPORTED_MODULE_0__.DEFAULT_SETTINGS);
+                    }
+                }
             }
             else {
-                this.currentMon.defeatTrainerPokemon(this.currentTrainerPokemon.level, src_app_Settings__WEBPACK_IMPORTED_MODULE_0__.DEFAULT_SETTINGS);
+                this.currentMon.defeatTrainerPokemon(this.currentTrainerPokemon, src_app_Settings__WEBPACK_IMPORTED_MODULE_0__.DEFAULT_SETTINGS);
                 this.currentTrainerPokemon.isRevealed = true;
+                for (let alt of alt_species) {
+                    if (alt) {
+                        alt.defeatTrainerPokemon(this.currentTrainerPokemon, src_app_Settings__WEBPACK_IMPORTED_MODULE_0__.DEFAULT_SETTINGS);
+                    }
+                }
             }
+            // Update all information to match (alt forms should stay closely coupled with base)
             this.currentTrainerPokemon.isDefeated =
                 !this.currentTrainerPokemon.isDefeated;
+            for (let alt_tp of alt_forms) {
+                alt_tp.isRevealed = this.currentTrainerPokemon.isRevealed;
+                alt_tp.isDefeated = this.currentTrainerPokemon.isDefeated;
+            }
+            this.dex.bumpTrainerEncounterOrder(this.currentTrainer);
             this.dex.individualChanges.next(this.currentMon);
         }
         else {
             console.log("Couldn't toggle defeat, missing data");
         }
     }
+    navigateToTrainerView(trainer) {
+        this.dex.trainerSelection.next(trainer);
+        this.dex.cardNavigationSelection.next('trainersTab');
+    }
 }
 TrainerPokemonSelectorComponent.ɵfac = function TrainerPokemonSelectorComponent_Factory(t) { return new (t || TrainerPokemonSelectorComponent)(_angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵdirectiveInject"](src_app_pokedex_service__WEBPACK_IMPORTED_MODULE_1__.PokedexService), _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵdirectiveInject"](_angular_core__WEBPACK_IMPORTED_MODULE_2__.ChangeDetectorRef)); };
-TrainerPokemonSelectorComponent.ɵcmp = /*@__PURE__*/ _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵdefineComponent"]({ type: TrainerPokemonSelectorComponent, selectors: [["app-trainer-pokemon-selector"]], inputs: { currentMon: "currentMon" }, decls: 19, vars: 9, consts: [[1, "trainer-pokemon-selector-root"], [1, "trainer-pokemon-details"], [1, "trainer-pokemon-header"], [2, "width", "45%"], [2, "width", "50%"], [1, "trainer-pokemon-moves"], ["class", "move-table", 4, "ngIf", "ngIfElse"], ["noMoves", ""], [1, "trainer-pokemon-select"], [3, "ngModel", "ngModelChange"], [3, "value", 4, "ngFor", "ngForOf"], [1, "trainer-pokemon-buttons"], ["id", "defeated-count", 4, "ngIf"], ["id", "button-container"], ["class", "top", 3, "toggled", "disabled", "click", 4, "ngIf"], ["class", "bottom", 3, "toggled", "click", 4, "ngIf"], [1, "move-table"], [2, "border-right", "1px solid #ccc", "border-bottom", "1px solid #ccc"], [2, "border-top", "1px solid #ccc", "border-left", "1px solid #ccc"], [1, "no-moves"], [3, "value"], ["id", "defeated-count"], [1, "top", 3, "disabled", "click"], [1, "bottom", 3, "click"]], template: function TrainerPokemonSelectorComponent_Template(rf, ctx) { if (rf & 1) {
+TrainerPokemonSelectorComponent.ɵcmp = /*@__PURE__*/ _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵdefineComponent"]({ type: TrainerPokemonSelectorComponent, selectors: [["app-trainer-pokemon-selector"]], inputs: { currentMon: "currentMon" }, decls: 20, vars: 10, consts: [[1, "trainer-pokemon-selector-root"], [1, "trainer-pokemon-details"], [1, "trainer-pokemon-header"], [2, "width", "45%"], [2, "width", "50%"], [1, "trainer-pokemon-moves"], ["class", "move-table", 4, "ngIf", "ngIfElse"], ["noMoves", ""], [1, "trainer-pokemon-select"], [3, "ngModel", "ngModelChange"], [3, "value", 4, "ngFor", "ngForOf"], [1, "trainer-pokemon-buttons"], ["id", "defeated-count", 4, "ngIf"], ["id", "button-container"], ["class", "top", 3, "toggled", "disabled", "click", 4, "ngIf"], ["class", "bottom", 3, "toggled", "click", 4, "ngIf"], ["id", "view-team-button", 4, "ngIf"], [1, "move-table"], [2, "border-right", "1px solid #ccc", "border-bottom", "1px solid #ccc"], [2, "border-top", "1px solid #ccc", "border-left", "1px solid #ccc"], [1, "no-moves"], [3, "value"], ["id", "defeated-count"], [1, "top", 3, "disabled", "click"], [1, "bottom", 3, "click"], ["id", "view-team-button"], [4, "ngIf"], [1, "team-navigation", 3, "click"]], template: function TrainerPokemonSelectorComponent_Template(rf, ctx) { if (rf & 1) {
         _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵelementStart"](0, "div", 0)(1, "div", 1)(2, "div", 2)(3, "span", 3);
         _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵtext"](4);
         _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵelementEnd"]();
@@ -3131,7 +3417,9 @@ TrainerPokemonSelectorComponent.ɵcmp = /*@__PURE__*/ _angular_core__WEBPACK_IMP
         _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵelementStart"](16, "div", 13);
         _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵtemplate"](17, TrainerPokemonSelectorComponent_button_17_Template, 2, 4, "button", 14);
         _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵtemplate"](18, TrainerPokemonSelectorComponent_button_18_Template, 2, 3, "button", 15);
-        _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵelementEnd"]()()();
+        _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵelementEnd"]();
+        _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵtemplate"](19, TrainerPokemonSelectorComponent_div_19_Template, 2, 1, "div", 16);
+        _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵelementEnd"]()();
     } if (rf & 2) {
         const _r1 = _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵreference"](10);
         let tmp_0_0;
@@ -3152,7 +3440,9 @@ TrainerPokemonSelectorComponent.ɵcmp = /*@__PURE__*/ _angular_core__WEBPACK_IMP
         _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵproperty"]("ngIf", ctx.currentTrainerPokemon);
         _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵadvance"](1);
         _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵproperty"]("ngIf", ctx.currentTrainerPokemon);
-    } }, directives: [_angular_common__WEBPACK_IMPORTED_MODULE_3__.NgIf, _angular_forms__WEBPACK_IMPORTED_MODULE_4__.SelectControlValueAccessor, _angular_forms__WEBPACK_IMPORTED_MODULE_4__.NgControlStatus, _angular_forms__WEBPACK_IMPORTED_MODULE_4__.NgModel, _angular_common__WEBPACK_IMPORTED_MODULE_3__.NgForOf, _angular_forms__WEBPACK_IMPORTED_MODULE_4__.NgSelectOption, _angular_forms__WEBPACK_IMPORTED_MODULE_4__["ɵNgSelectMultipleOption"]], styles: [".trainer-pokemon-selector-root[_ngcontent-%COMP%] {\n  height: 100%;\n  width: 100%;\n  display: flex;\n  flex-direction: row;\n  align-items: flex-start;\n  justify-content: flex-start;\n}\n.trainer-pokemon-selector-root[_ngcontent-%COMP%]   .trainer-pokemon-details[_ngcontent-%COMP%] {\n  display: flex;\n  flex-direction: column;\n  align-items: center;\n  width: 75%;\n  height: 100%;\n}\n.trainer-pokemon-selector-root[_ngcontent-%COMP%]   .trainer-pokemon-details[_ngcontent-%COMP%]   .trainer-pokemon-header[_ngcontent-%COMP%] {\n  display: flex;\n  flex-direction: row;\n  align-items: center;\n  justify-content: flex-end;\n  height: 20px;\n  width: 100%;\n}\n.trainer-pokemon-selector-root[_ngcontent-%COMP%]   .trainer-pokemon-details[_ngcontent-%COMP%]   .trainer-pokemon-moves[_ngcontent-%COMP%] {\n  width: 100%;\n  flex-grow: 1;\n}\n.trainer-pokemon-selector-root[_ngcontent-%COMP%]   .trainer-pokemon-details[_ngcontent-%COMP%]   .trainer-pokemon-select[_ngcontent-%COMP%] {\n  width: 100%;\n  height: 30px;\n}\n.trainer-pokemon-selector-root[_ngcontent-%COMP%]   .trainer-pokemon-details[_ngcontent-%COMP%]   .trainer-pokemon-select[_ngcontent-%COMP%]   select[_ngcontent-%COMP%] {\n  width: 100%;\n  height: 100%;\n  font-size: 11pt;\n  padding-left: 5px;\n  padding-right: 5px;\n  box-sizing: border-box;\n  border-radius: 5px;\n  background-color: #19181a;\n}\n.trainer-pokemon-selector-root[_ngcontent-%COMP%]   .trainer-pokemon-details[_ngcontent-%COMP%]   .trainer-pokemon-select[_ngcontent-%COMP%]   select[_ngcontent-%COMP%]:focus {\n  outline: none;\n  border: 2px solid #007bff;\n}\n.trainer-pokemon-selector-root[_ngcontent-%COMP%]   .trainer-pokemon-buttons[_ngcontent-%COMP%] {\n  display: flex;\n  flex-direction: column;\n  justify-content: flex-start;\n  height: 100%;\n  width: 25%;\n}\n.trainer-pokemon-selector-root[_ngcontent-%COMP%]   .trainer-pokemon-buttons[_ngcontent-%COMP%]   #defeated-count[_ngcontent-%COMP%] {\n  width: 100%;\n  height: 20px;\n  text-align: left;\n}\n.trainer-pokemon-selector-root[_ngcontent-%COMP%]   .trainer-pokemon-buttons[_ngcontent-%COMP%]   #button-container[_ngcontent-%COMP%] {\n  width: 100%;\n  flex-grow: 1;\n  display: flex;\n  flex-direction: column;\n  align-items: center;\n  justify-content: center;\n  gap: 0px;\n}\n.trainer-pokemon-selector-root[_ngcontent-%COMP%]   .trainer-pokemon-buttons[_ngcontent-%COMP%]   #button-container[_ngcontent-%COMP%]   button[_ngcontent-%COMP%] {\n  height: 40px;\n  width: 80px;\n  display: flex;\n  flex-direction: column;\n  align-items: center;\n  font-size: 8pt;\n  font-weight: bold;\n  color: white;\n}\n.trainer-pokemon-selector-root[_ngcontent-%COMP%]   .trainer-pokemon-buttons[_ngcontent-%COMP%]   #button-container[_ngcontent-%COMP%]   button.top[_ngcontent-%COMP%] {\n  border-radius: 40px 40px 0 0;\n  background-color: #156615;\n  justify-content: flex-end;\n  border-bottom: solid 1px black;\n}\n.trainer-pokemon-selector-root[_ngcontent-%COMP%]   .trainer-pokemon-buttons[_ngcontent-%COMP%]   #button-container[_ngcontent-%COMP%]   button.top.toggled[_ngcontent-%COMP%] {\n  background-color: #858585;\n}\n.trainer-pokemon-selector-root[_ngcontent-%COMP%]   .trainer-pokemon-buttons[_ngcontent-%COMP%]   #button-container[_ngcontent-%COMP%]   button.bottom[_ngcontent-%COMP%] {\n  border-radius: 0 0 40px 40px;\n  background-color: #720000;\n  justify-content: flex-start;\n}\n.trainer-pokemon-selector-root[_ngcontent-%COMP%]   .trainer-pokemon-buttons[_ngcontent-%COMP%]   #button-container[_ngcontent-%COMP%]   button.bottom.toggled[_ngcontent-%COMP%] {\n  background-color: #424242;\n}\n.move-table[_ngcontent-%COMP%] {\n  width: 100%;\n  height: 100%;\n  border-collapse: collapse;\n}\n.move-table[_ngcontent-%COMP%]   td[_ngcontent-%COMP%] {\n  width: 50%;\n  height: 50%;\n  border: none;\n  \n  box-sizing: border-box;\n  overflow: hidden;\n  text-align: center;\n  vertical-align: middle;\n}\n.no-moves[_ngcontent-%COMP%] {\n  width: 100%;\n  height: 100%;\n  display: flex;\n  align-items: center;\n  justify-content: center;\n  font-style: italic;\n  color: gray;\n}\n.testlist[_ngcontent-%COMP%] {\n  display: flex;\n  flex-direction: column;\n  align-items: flex-start;\n  overflow-y: scroll;\n  scrollbar-width: none;\n}\n/*# sourceMappingURL=data:application/json;base64,eyJ2ZXJzaW9uIjozLCJzb3VyY2VzIjpbInRyYWluZXItcG9rZW1vbi1zZWxlY3Rvci5jb21wb25lbnQuc2NzcyJdLCJuYW1lcyI6W10sIm1hcHBpbmdzIjoiQUFBQTtFQUNFLFlBQUE7RUFDQSxXQUFBO0VBQ0EsYUFBQTtFQUNBLG1CQUFBO0VBQ0EsdUJBQUE7RUFDQSwyQkFBQTtBQUNGO0FBQUU7RUFDRSxhQUFBO0VBQ0Esc0JBQUE7RUFDQSxtQkFBQTtFQUNBLFVBQUE7RUFDQSxZQUFBO0FBRUo7QUFESTtFQUNFLGFBQUE7RUFDQSxtQkFBQTtFQUNBLG1CQUFBO0VBQ0EseUJBQUE7RUFDQSxZQUFBO0VBQ0EsV0FBQTtBQUdOO0FBREk7RUFDRSxXQUFBO0VBQ0EsWUFBQTtBQUdOO0FBREk7RUFDRSxXQUFBO0VBQ0EsWUFBQTtBQUdOO0FBRk07RUFDRSxXQUFBO0VBQ0EsWUFBQTtFQUNBLGVBQUE7RUFDQSxpQkFBQTtFQUNBLGtCQUFBO0VBQ0Esc0JBQUE7RUFDQSxrQkFBQTtFQUNBLHlCQUFBO0FBSVI7QUFIUTtFQUNFLGFBQUE7RUFDQSx5QkFBQTtBQUtWO0FBQUU7RUFDRSxhQUFBO0VBQ0Esc0JBQUE7RUFDQSwyQkFBQTtFQUNBLFlBQUE7RUFDQSxVQUFBO0FBRUo7QUFESTtFQUNFLFdBQUE7RUFDQSxZQUFBO0VBQ0EsZ0JBQUE7QUFHTjtBQURJO0VBQ0UsV0FBQTtFQUNBLFlBQUE7RUFDQSxhQUFBO0VBQ0Esc0JBQUE7RUFDQSxtQkFBQTtFQUNBLHVCQUFBO0VBQ0EsUUFBQTtBQUdOO0FBRk07RUFDRSxZQUFBO0VBQ0EsV0FBQTtFQUNBLGFBQUE7RUFDQSxzQkFBQTtFQUNBLG1CQUFBO0VBQ0EsY0FBQTtFQUNBLGlCQUFBO0VBQ0EsWUFBQTtBQUlSO0FBRk07RUFDRSw0QkFBQTtFQUNBLHlCQUFBO0VBQ0EseUJBQUE7RUFDQSw4QkFBQTtBQUlSO0FBRk07RUFDRSx5QkFBQTtBQUlSO0FBRk07RUFDRSw0QkFBQTtFQUNBLHlCQUFBO0VBQ0EsMkJBQUE7QUFJUjtBQUZNO0VBQ0UseUJBQUE7QUFJUjtBQUVBO0VBQ0UsV0FBQTtFQUNBLFlBQUE7RUFFQSx5QkFBQTtBQUFGO0FBR0E7RUFDRSxVQUFBO0VBQ0EsV0FBQTtFQUNBLFlBQUE7RUFBYyw0QkFBQTtFQUNkLHNCQUFBO0VBQ0EsZ0JBQUE7RUFDQSxrQkFBQTtFQUNBLHNCQUFBO0FBQ0Y7QUFFQTtFQUNFLFdBQUE7RUFDQSxZQUFBO0VBQ0EsYUFBQTtFQUNBLG1CQUFBO0VBQ0EsdUJBQUE7RUFDQSxrQkFBQTtFQUNBLFdBQUE7QUFDRjtBQUVBO0VBQ0UsYUFBQTtFQUNBLHNCQUFBO0VBQ0EsdUJBQUE7RUFDQSxrQkFBQTtFQUNBLHFCQUFBO0FBQ0YiLCJmaWxlIjoidHJhaW5lci1wb2tlbW9uLXNlbGVjdG9yLmNvbXBvbmVudC5zY3NzIiwic291cmNlc0NvbnRlbnQiOlsiLnRyYWluZXItcG9rZW1vbi1zZWxlY3Rvci1yb290IHtcclxuICBoZWlnaHQ6IDEwMCU7XHJcbiAgd2lkdGg6IDEwMCU7XHJcbiAgZGlzcGxheTogZmxleDtcclxuICBmbGV4LWRpcmVjdGlvbjogcm93O1xyXG4gIGFsaWduLWl0ZW1zOiBmbGV4LXN0YXJ0O1xyXG4gIGp1c3RpZnktY29udGVudDogZmxleC1zdGFydDtcclxuICAudHJhaW5lci1wb2tlbW9uLWRldGFpbHMge1xyXG4gICAgZGlzcGxheTogZmxleDtcclxuICAgIGZsZXgtZGlyZWN0aW9uOiBjb2x1bW47XHJcbiAgICBhbGlnbi1pdGVtczogY2VudGVyO1xyXG4gICAgd2lkdGg6IDc1JTtcclxuICAgIGhlaWdodDogMTAwJTtcclxuICAgIC50cmFpbmVyLXBva2Vtb24taGVhZGVyIHtcclxuICAgICAgZGlzcGxheTogZmxleDtcclxuICAgICAgZmxleC1kaXJlY3Rpb246IHJvdztcclxuICAgICAgYWxpZ24taXRlbXM6IGNlbnRlcjtcclxuICAgICAganVzdGlmeS1jb250ZW50OiBmbGV4LWVuZDtcclxuICAgICAgaGVpZ2h0OiAyMHB4O1xyXG4gICAgICB3aWR0aDogMTAwJTtcclxuICAgIH1cclxuICAgIC50cmFpbmVyLXBva2Vtb24tbW92ZXMge1xyXG4gICAgICB3aWR0aDogMTAwJTtcclxuICAgICAgZmxleC1ncm93OiAxO1xyXG4gICAgfVxyXG4gICAgLnRyYWluZXItcG9rZW1vbi1zZWxlY3Qge1xyXG4gICAgICB3aWR0aDogMTAwJTtcclxuICAgICAgaGVpZ2h0OiAzMHB4O1xyXG4gICAgICBzZWxlY3Qge1xyXG4gICAgICAgIHdpZHRoOiAxMDAlO1xyXG4gICAgICAgIGhlaWdodDogMTAwJTtcclxuICAgICAgICBmb250LXNpemU6IDExcHQ7XHJcbiAgICAgICAgcGFkZGluZy1sZWZ0OiA1cHg7XHJcbiAgICAgICAgcGFkZGluZy1yaWdodDogNXB4O1xyXG4gICAgICAgIGJveC1zaXppbmc6IGJvcmRlci1ib3g7XHJcbiAgICAgICAgYm9yZGVyLXJhZGl1czogNXB4O1xyXG4gICAgICAgIGJhY2tncm91bmQtY29sb3I6IHJnYigyNSwgMjQsIDI2KTtcclxuICAgICAgICAmOmZvY3VzIHtcclxuICAgICAgICAgIG91dGxpbmU6IG5vbmU7XHJcbiAgICAgICAgICBib3JkZXI6IDJweCBzb2xpZCAjMDA3YmZmO1xyXG4gICAgICAgIH1cclxuICAgICAgfTtcclxuICAgIH1cclxuICB9XHJcbiAgLnRyYWluZXItcG9rZW1vbi1idXR0b25zIHtcclxuICAgIGRpc3BsYXk6IGZsZXg7XHJcbiAgICBmbGV4LWRpcmVjdGlvbjogY29sdW1uO1xyXG4gICAganVzdGlmeS1jb250ZW50OiBmbGV4LXN0YXJ0O1xyXG4gICAgaGVpZ2h0OiAxMDAlO1xyXG4gICAgd2lkdGg6IDI1JTtcclxuICAgICNkZWZlYXRlZC1jb3VudCB7XHJcbiAgICAgIHdpZHRoOiAxMDAlO1xyXG4gICAgICBoZWlnaHQ6IDIwcHg7XHJcbiAgICAgIHRleHQtYWxpZ246IGxlZnQ7XHJcbiAgICB9XHJcbiAgICAjYnV0dG9uLWNvbnRhaW5lciB7XHJcbiAgICAgIHdpZHRoOiAxMDAlO1xyXG4gICAgICBmbGV4LWdyb3c6IDE7XHJcbiAgICAgIGRpc3BsYXk6IGZsZXg7XHJcbiAgICAgIGZsZXgtZGlyZWN0aW9uOiBjb2x1bW47XHJcbiAgICAgIGFsaWduLWl0ZW1zOiBjZW50ZXI7XHJcbiAgICAgIGp1c3RpZnktY29udGVudDogY2VudGVyO1xyXG4gICAgICBnYXA6IDBweDtcclxuICAgICAgYnV0dG9uIHtcclxuICAgICAgICBoZWlnaHQ6IDQwcHg7XHJcbiAgICAgICAgd2lkdGg6IDgwcHg7XHJcbiAgICAgICAgZGlzcGxheTogZmxleDtcclxuICAgICAgICBmbGV4LWRpcmVjdGlvbjogY29sdW1uO1xyXG4gICAgICAgIGFsaWduLWl0ZW1zOiBjZW50ZXI7XHJcbiAgICAgICAgZm9udC1zaXplOiA4cHQ7XHJcbiAgICAgICAgZm9udC13ZWlnaHQ6IGJvbGQ7XHJcbiAgICAgICAgY29sb3I6IHdoaXRlO1xyXG4gICAgICB9XHJcbiAgICAgIGJ1dHRvbi50b3Age1xyXG4gICAgICAgIGJvcmRlci1yYWRpdXM6IDQwcHggNDBweCAwIDA7XHJcbiAgICAgICAgYmFja2dyb3VuZC1jb2xvcjogIzE1NjYxNTtcclxuICAgICAgICBqdXN0aWZ5LWNvbnRlbnQ6IGZsZXgtZW5kO1xyXG4gICAgICAgIGJvcmRlci1ib3R0b206IHNvbGlkIDFweCBibGFjaztcclxuICAgICAgfVxyXG4gICAgICBidXR0b24udG9wLnRvZ2dsZWQge1xyXG4gICAgICAgIGJhY2tncm91bmQtY29sb3I6ICM4NTg1ODU7XHJcbiAgICAgIH1cclxuICAgICAgYnV0dG9uLmJvdHRvbSB7XHJcbiAgICAgICAgYm9yZGVyLXJhZGl1czogMCAwIDQwcHggNDBweDtcclxuICAgICAgICBiYWNrZ3JvdW5kLWNvbG9yOiAjNzIwMDAwO1xyXG4gICAgICAgIGp1c3RpZnktY29udGVudDogZmxleC1zdGFydDtcclxuICAgICAgfVxyXG4gICAgICBidXR0b24uYm90dG9tLnRvZ2dsZWQge1xyXG4gICAgICAgIGJhY2tncm91bmQtY29sb3I6ICM0MjQyNDI7XHJcbiAgICAgIH1cclxuICAgIH1cclxuICB9XHJcbn1cclxuXHJcbi5tb3ZlLXRhYmxlIHtcclxuICB3aWR0aDogMTAwJTtcclxuICBoZWlnaHQ6IDEwMCU7XHJcbiAgLy8gdGFibGUtbGF5b3V0OiBmaXhlZDtcclxuICBib3JkZXItY29sbGFwc2U6IGNvbGxhcHNlO1xyXG59XHJcblxyXG4ubW92ZS10YWJsZSB0ZCB7XHJcbiAgd2lkdGg6IDUwJTtcclxuICBoZWlnaHQ6IDUwJTtcclxuICBib3JkZXI6IG5vbmU7IC8qIG9wdGlvbmFsIGZvciB2aXNpYmlsaXR5ICovXHJcbiAgYm94LXNpemluZzogYm9yZGVyLWJveDtcclxuICBvdmVyZmxvdzogaGlkZGVuO1xyXG4gIHRleHQtYWxpZ246IGNlbnRlcjtcclxuICB2ZXJ0aWNhbC1hbGlnbjogbWlkZGxlO1xyXG59XHJcblxyXG4ubm8tbW92ZXMge1xyXG4gIHdpZHRoOiAxMDAlO1xyXG4gIGhlaWdodDogMTAwJTtcclxuICBkaXNwbGF5OiBmbGV4O1xyXG4gIGFsaWduLWl0ZW1zOiBjZW50ZXI7XHJcbiAganVzdGlmeS1jb250ZW50OiBjZW50ZXI7XHJcbiAgZm9udC1zdHlsZTogaXRhbGljO1xyXG4gIGNvbG9yOiBncmF5O1xyXG59XHJcblxyXG4udGVzdGxpc3Qge1xyXG4gIGRpc3BsYXk6IGZsZXg7XHJcbiAgZmxleC1kaXJlY3Rpb246IGNvbHVtbjtcclxuICBhbGlnbi1pdGVtczogZmxleC1zdGFydDtcclxuICBvdmVyZmxvdy15OiBzY3JvbGw7XHJcbiAgc2Nyb2xsYmFyLXdpZHRoOiBub25lO1xyXG59Il19 */"] });
+        _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵadvance"](1);
+        _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵproperty"]("ngIf", ctx.currentTrainerPokemon);
+    } }, directives: [_angular_common__WEBPACK_IMPORTED_MODULE_5__.NgIf, _angular_forms__WEBPACK_IMPORTED_MODULE_6__.SelectControlValueAccessor, _angular_forms__WEBPACK_IMPORTED_MODULE_6__.NgControlStatus, _angular_forms__WEBPACK_IMPORTED_MODULE_6__.NgModel, _angular_common__WEBPACK_IMPORTED_MODULE_5__.NgForOf, _angular_forms__WEBPACK_IMPORTED_MODULE_6__.NgSelectOption, _angular_forms__WEBPACK_IMPORTED_MODULE_6__["ɵNgSelectMultipleOption"]], styles: [".trainer-pokemon-selector-root[_ngcontent-%COMP%] {\n  height: 100%;\n  width: 100%;\n  display: flex;\n  flex-direction: row;\n  align-items: flex-start;\n  justify-content: flex-start;\n}\n.trainer-pokemon-selector-root[_ngcontent-%COMP%]   .trainer-pokemon-details[_ngcontent-%COMP%] {\n  display: flex;\n  flex-direction: column;\n  align-items: center;\n  width: 75%;\n  height: 100%;\n}\n.trainer-pokemon-selector-root[_ngcontent-%COMP%]   .trainer-pokemon-details[_ngcontent-%COMP%]   .trainer-pokemon-header[_ngcontent-%COMP%] {\n  display: flex;\n  flex-direction: row;\n  align-items: center;\n  justify-content: flex-end;\n  height: 20px;\n  width: 100%;\n}\n.trainer-pokemon-selector-root[_ngcontent-%COMP%]   .trainer-pokemon-details[_ngcontent-%COMP%]   .trainer-pokemon-moves[_ngcontent-%COMP%] {\n  width: 100%;\n  flex-grow: 1;\n}\n.trainer-pokemon-selector-root[_ngcontent-%COMP%]   .trainer-pokemon-details[_ngcontent-%COMP%]   .trainer-pokemon-select[_ngcontent-%COMP%] {\n  width: 100%;\n  height: 30px;\n}\n.trainer-pokemon-selector-root[_ngcontent-%COMP%]   .trainer-pokemon-details[_ngcontent-%COMP%]   .trainer-pokemon-select[_ngcontent-%COMP%]   select[_ngcontent-%COMP%] {\n  width: 100%;\n  height: 100%;\n  font-size: 11pt;\n  padding-left: 5px;\n  padding-right: 5px;\n  box-sizing: border-box;\n  border-radius: 5px;\n  background-color: #19181a;\n}\n.trainer-pokemon-selector-root[_ngcontent-%COMP%]   .trainer-pokemon-details[_ngcontent-%COMP%]   .trainer-pokemon-select[_ngcontent-%COMP%]   select[_ngcontent-%COMP%]:focus {\n  outline: none;\n  border: 2px solid #007bff;\n}\n.trainer-pokemon-selector-root[_ngcontent-%COMP%]   .trainer-pokemon-buttons[_ngcontent-%COMP%] {\n  display: flex;\n  flex-direction: column;\n  justify-content: flex-start;\n  height: 100%;\n  width: 25%;\n}\n.trainer-pokemon-selector-root[_ngcontent-%COMP%]   .trainer-pokemon-buttons[_ngcontent-%COMP%]   #defeated-count[_ngcontent-%COMP%] {\n  width: 100%;\n  height: 20px;\n  text-align: left;\n}\n.trainer-pokemon-selector-root[_ngcontent-%COMP%]   .trainer-pokemon-buttons[_ngcontent-%COMP%]   #view-team-button[_ngcontent-%COMP%] {\n  height: 30px;\n  width: 100%;\n  display: flex;\n  align-items: center;\n}\n.trainer-pokemon-selector-root[_ngcontent-%COMP%]   .trainer-pokemon-buttons[_ngcontent-%COMP%]   #button-container[_ngcontent-%COMP%] {\n  width: 100%;\n  flex-grow: 1;\n  display: flex;\n  flex-direction: column;\n  align-items: center;\n  justify-content: center;\n  gap: 0px;\n}\n.trainer-pokemon-selector-root[_ngcontent-%COMP%]   .trainer-pokemon-buttons[_ngcontent-%COMP%]   #button-container[_ngcontent-%COMP%]   button[_ngcontent-%COMP%] {\n  height: 40px;\n  width: 80px;\n  display: flex;\n  flex-direction: column;\n  align-items: center;\n  font-size: 8pt;\n  font-weight: bold;\n  color: white;\n}\n.trainer-pokemon-selector-root[_ngcontent-%COMP%]   .trainer-pokemon-buttons[_ngcontent-%COMP%]   #button-container[_ngcontent-%COMP%]   button.top[_ngcontent-%COMP%] {\n  border-radius: 40px 40px 0 0;\n  background-color: #156615;\n  justify-content: flex-end;\n  border-bottom: solid 1px black;\n}\n.trainer-pokemon-selector-root[_ngcontent-%COMP%]   .trainer-pokemon-buttons[_ngcontent-%COMP%]   #button-container[_ngcontent-%COMP%]   button.top.toggled[_ngcontent-%COMP%] {\n  background-color: #858585;\n}\n.trainer-pokemon-selector-root[_ngcontent-%COMP%]   .trainer-pokemon-buttons[_ngcontent-%COMP%]   #button-container[_ngcontent-%COMP%]   button.bottom[_ngcontent-%COMP%] {\n  border-radius: 0 0 40px 40px;\n  background-color: #720000;\n  justify-content: flex-start;\n}\n.trainer-pokemon-selector-root[_ngcontent-%COMP%]   .trainer-pokemon-buttons[_ngcontent-%COMP%]   #button-container[_ngcontent-%COMP%]   button.bottom.toggled[_ngcontent-%COMP%] {\n  background-color: #424242;\n}\n.team-navigation[_ngcontent-%COMP%] {\n  margin-left: auto;\n  margin-right: auto;\n  color: white;\n  background-color: #156615;\n  --h: 20px;\n  height: var(--h);\n  border-radius: calc(var(--h) / 2);\n}\n.move-table[_ngcontent-%COMP%] {\n  width: 100%;\n  height: 100%;\n  border-collapse: collapse;\n}\n.move-table[_ngcontent-%COMP%]   td[_ngcontent-%COMP%] {\n  width: 50%;\n  height: 50%;\n  border: none;\n  \n  box-sizing: border-box;\n  overflow: hidden;\n  text-align: center;\n  vertical-align: middle;\n}\n.no-moves[_ngcontent-%COMP%] {\n  width: 100%;\n  height: 100%;\n  display: flex;\n  align-items: center;\n  justify-content: center;\n  font-style: italic;\n  color: gray;\n}\n.testlist[_ngcontent-%COMP%] {\n  display: flex;\n  flex-direction: column;\n  align-items: flex-start;\n  overflow-y: scroll;\n  scrollbar-width: none;\n}\n/*# sourceMappingURL=data:application/json;base64,eyJ2ZXJzaW9uIjozLCJzb3VyY2VzIjpbInRyYWluZXItcG9rZW1vbi1zZWxlY3Rvci5jb21wb25lbnQuc2NzcyJdLCJuYW1lcyI6W10sIm1hcHBpbmdzIjoiQUFBQTtFQUNFLFlBQUE7RUFDQSxXQUFBO0VBQ0EsYUFBQTtFQUNBLG1CQUFBO0VBQ0EsdUJBQUE7RUFDQSwyQkFBQTtBQUNGO0FBQUU7RUFDRSxhQUFBO0VBQ0Esc0JBQUE7RUFDQSxtQkFBQTtFQUNBLFVBQUE7RUFDQSxZQUFBO0FBRUo7QUFESTtFQUNFLGFBQUE7RUFDQSxtQkFBQTtFQUNBLG1CQUFBO0VBQ0EseUJBQUE7RUFDQSxZQUFBO0VBQ0EsV0FBQTtBQUdOO0FBREk7RUFDRSxXQUFBO0VBQ0EsWUFBQTtBQUdOO0FBREk7RUFDRSxXQUFBO0VBQ0EsWUFBQTtBQUdOO0FBRk07RUFDRSxXQUFBO0VBQ0EsWUFBQTtFQUNBLGVBQUE7RUFDQSxpQkFBQTtFQUNBLGtCQUFBO0VBQ0Esc0JBQUE7RUFDQSxrQkFBQTtFQUNBLHlCQUFBO0FBSVI7QUFIUTtFQUNFLGFBQUE7RUFDQSx5QkFBQTtBQUtWO0FBQUU7RUFDRSxhQUFBO0VBQ0Esc0JBQUE7RUFDQSwyQkFBQTtFQUNBLFlBQUE7RUFDQSxVQUFBO0FBRUo7QUFESTtFQUNFLFdBQUE7RUFDQSxZQUFBO0VBQ0EsZ0JBQUE7QUFHTjtBQURJO0VBQ0UsWUFBQTtFQUNBLFdBQUE7RUFDQSxhQUFBO0VBQ0EsbUJBQUE7QUFHTjtBQURJO0VBQ0UsV0FBQTtFQUNBLFlBQUE7RUFDQSxhQUFBO0VBQ0Esc0JBQUE7RUFDQSxtQkFBQTtFQUNBLHVCQUFBO0VBQ0EsUUFBQTtBQUdOO0FBRk07RUFDRSxZQUFBO0VBQ0EsV0FBQTtFQUNBLGFBQUE7RUFDQSxzQkFBQTtFQUNBLG1CQUFBO0VBQ0EsY0FBQTtFQUNBLGlCQUFBO0VBQ0EsWUFBQTtBQUlSO0FBRk07RUFDRSw0QkFBQTtFQUNBLHlCQUFBO0VBQ0EseUJBQUE7RUFDQSw4QkFBQTtBQUlSO0FBRk07RUFDRSx5QkFBQTtBQUlSO0FBRk07RUFDRSw0QkFBQTtFQUNBLHlCQUFBO0VBQ0EsMkJBQUE7QUFJUjtBQUZNO0VBQ0UseUJBQUE7QUFJUjtBQUVBO0VBQ0UsaUJBQUE7RUFDQSxrQkFBQTtFQUNBLFlBQUE7RUFDQSx5QkFBQTtFQUNBLFNBQUE7RUFDQSxnQkFBQTtFQUNBLGlDQUFBO0FBQ0Y7QUFFQTtFQUNFLFdBQUE7RUFDQSxZQUFBO0VBRUEseUJBQUE7QUFBRjtBQUdBO0VBQ0UsVUFBQTtFQUNBLFdBQUE7RUFDQSxZQUFBO0VBQWMsNEJBQUE7RUFDZCxzQkFBQTtFQUNBLGdCQUFBO0VBQ0Esa0JBQUE7RUFDQSxzQkFBQTtBQUNGO0FBRUE7RUFDRSxXQUFBO0VBQ0EsWUFBQTtFQUNBLGFBQUE7RUFDQSxtQkFBQTtFQUNBLHVCQUFBO0VBQ0Esa0JBQUE7RUFDQSxXQUFBO0FBQ0Y7QUFFQTtFQUNFLGFBQUE7RUFDQSxzQkFBQTtFQUNBLHVCQUFBO0VBQ0Esa0JBQUE7RUFDQSxxQkFBQTtBQUNGIiwiZmlsZSI6InRyYWluZXItcG9rZW1vbi1zZWxlY3Rvci5jb21wb25lbnQuc2NzcyIsInNvdXJjZXNDb250ZW50IjpbIi50cmFpbmVyLXBva2Vtb24tc2VsZWN0b3Itcm9vdCB7XHJcbiAgaGVpZ2h0OiAxMDAlO1xyXG4gIHdpZHRoOiAxMDAlO1xyXG4gIGRpc3BsYXk6IGZsZXg7XHJcbiAgZmxleC1kaXJlY3Rpb246IHJvdztcclxuICBhbGlnbi1pdGVtczogZmxleC1zdGFydDtcclxuICBqdXN0aWZ5LWNvbnRlbnQ6IGZsZXgtc3RhcnQ7XHJcbiAgLnRyYWluZXItcG9rZW1vbi1kZXRhaWxzIHtcclxuICAgIGRpc3BsYXk6IGZsZXg7XHJcbiAgICBmbGV4LWRpcmVjdGlvbjogY29sdW1uO1xyXG4gICAgYWxpZ24taXRlbXM6IGNlbnRlcjtcclxuICAgIHdpZHRoOiA3NSU7XHJcbiAgICBoZWlnaHQ6IDEwMCU7XHJcbiAgICAudHJhaW5lci1wb2tlbW9uLWhlYWRlciB7XHJcbiAgICAgIGRpc3BsYXk6IGZsZXg7XHJcbiAgICAgIGZsZXgtZGlyZWN0aW9uOiByb3c7XHJcbiAgICAgIGFsaWduLWl0ZW1zOiBjZW50ZXI7XHJcbiAgICAgIGp1c3RpZnktY29udGVudDogZmxleC1lbmQ7XHJcbiAgICAgIGhlaWdodDogMjBweDtcclxuICAgICAgd2lkdGg6IDEwMCU7XHJcbiAgICB9XHJcbiAgICAudHJhaW5lci1wb2tlbW9uLW1vdmVzIHtcclxuICAgICAgd2lkdGg6IDEwMCU7XHJcbiAgICAgIGZsZXgtZ3JvdzogMTtcclxuICAgIH1cclxuICAgIC50cmFpbmVyLXBva2Vtb24tc2VsZWN0IHtcclxuICAgICAgd2lkdGg6IDEwMCU7XHJcbiAgICAgIGhlaWdodDogMzBweDtcclxuICAgICAgc2VsZWN0IHtcclxuICAgICAgICB3aWR0aDogMTAwJTtcclxuICAgICAgICBoZWlnaHQ6IDEwMCU7XHJcbiAgICAgICAgZm9udC1zaXplOiAxMXB0O1xyXG4gICAgICAgIHBhZGRpbmctbGVmdDogNXB4O1xyXG4gICAgICAgIHBhZGRpbmctcmlnaHQ6IDVweDtcclxuICAgICAgICBib3gtc2l6aW5nOiBib3JkZXItYm94O1xyXG4gICAgICAgIGJvcmRlci1yYWRpdXM6IDVweDtcclxuICAgICAgICBiYWNrZ3JvdW5kLWNvbG9yOiByZ2IoMjUsIDI0LCAyNik7XHJcbiAgICAgICAgJjpmb2N1cyB7XHJcbiAgICAgICAgICBvdXRsaW5lOiBub25lO1xyXG4gICAgICAgICAgYm9yZGVyOiAycHggc29saWQgIzAwN2JmZjtcclxuICAgICAgICB9XHJcbiAgICAgIH07XHJcbiAgICB9XHJcbiAgfVxyXG4gIC50cmFpbmVyLXBva2Vtb24tYnV0dG9ucyB7XHJcbiAgICBkaXNwbGF5OiBmbGV4O1xyXG4gICAgZmxleC1kaXJlY3Rpb246IGNvbHVtbjtcclxuICAgIGp1c3RpZnktY29udGVudDogZmxleC1zdGFydDtcclxuICAgIGhlaWdodDogMTAwJTtcclxuICAgIHdpZHRoOiAyNSU7XHJcbiAgICAjZGVmZWF0ZWQtY291bnQge1xyXG4gICAgICB3aWR0aDogMTAwJTtcclxuICAgICAgaGVpZ2h0OiAyMHB4O1xyXG4gICAgICB0ZXh0LWFsaWduOiBsZWZ0O1xyXG4gICAgfVxyXG4gICAgI3ZpZXctdGVhbS1idXR0b24ge1xyXG4gICAgICBoZWlnaHQ6IDMwcHg7XHJcbiAgICAgIHdpZHRoOiAxMDAlO1xyXG4gICAgICBkaXNwbGF5OiBmbGV4O1xyXG4gICAgICBhbGlnbi1pdGVtczogY2VudGVyO1xyXG4gICAgfVxyXG4gICAgI2J1dHRvbi1jb250YWluZXIge1xyXG4gICAgICB3aWR0aDogMTAwJTtcclxuICAgICAgZmxleC1ncm93OiAxO1xyXG4gICAgICBkaXNwbGF5OiBmbGV4O1xyXG4gICAgICBmbGV4LWRpcmVjdGlvbjogY29sdW1uO1xyXG4gICAgICBhbGlnbi1pdGVtczogY2VudGVyO1xyXG4gICAgICBqdXN0aWZ5LWNvbnRlbnQ6IGNlbnRlcjtcclxuICAgICAgZ2FwOiAwcHg7XHJcbiAgICAgIGJ1dHRvbiB7XHJcbiAgICAgICAgaGVpZ2h0OiA0MHB4O1xyXG4gICAgICAgIHdpZHRoOiA4MHB4O1xyXG4gICAgICAgIGRpc3BsYXk6IGZsZXg7XHJcbiAgICAgICAgZmxleC1kaXJlY3Rpb246IGNvbHVtbjtcclxuICAgICAgICBhbGlnbi1pdGVtczogY2VudGVyO1xyXG4gICAgICAgIGZvbnQtc2l6ZTogOHB0O1xyXG4gICAgICAgIGZvbnQtd2VpZ2h0OiBib2xkO1xyXG4gICAgICAgIGNvbG9yOiB3aGl0ZTtcclxuICAgICAgfVxyXG4gICAgICBidXR0b24udG9wIHtcclxuICAgICAgICBib3JkZXItcmFkaXVzOiA0MHB4IDQwcHggMCAwO1xyXG4gICAgICAgIGJhY2tncm91bmQtY29sb3I6ICMxNTY2MTU7XHJcbiAgICAgICAganVzdGlmeS1jb250ZW50OiBmbGV4LWVuZDtcclxuICAgICAgICBib3JkZXItYm90dG9tOiBzb2xpZCAxcHggYmxhY2s7XHJcbiAgICAgIH1cclxuICAgICAgYnV0dG9uLnRvcC50b2dnbGVkIHtcclxuICAgICAgICBiYWNrZ3JvdW5kLWNvbG9yOiAjODU4NTg1O1xyXG4gICAgICB9XHJcbiAgICAgIGJ1dHRvbi5ib3R0b20ge1xyXG4gICAgICAgIGJvcmRlci1yYWRpdXM6IDAgMCA0MHB4IDQwcHg7XHJcbiAgICAgICAgYmFja2dyb3VuZC1jb2xvcjogIzcyMDAwMDtcclxuICAgICAgICBqdXN0aWZ5LWNvbnRlbnQ6IGZsZXgtc3RhcnQ7XHJcbiAgICAgIH1cclxuICAgICAgYnV0dG9uLmJvdHRvbS50b2dnbGVkIHtcclxuICAgICAgICBiYWNrZ3JvdW5kLWNvbG9yOiAjNDI0MjQyO1xyXG4gICAgICB9XHJcbiAgICB9XHJcbiAgfVxyXG59XHJcblxyXG4udGVhbS1uYXZpZ2F0aW9uIHtcclxuICBtYXJnaW4tbGVmdDogYXV0bztcclxuICBtYXJnaW4tcmlnaHQ6IGF1dG87XHJcbiAgY29sb3I6IHdoaXRlO1xyXG4gIGJhY2tncm91bmQtY29sb3I6ICMxNTY2MTU7XHJcbiAgLS1oOiAyMHB4OyBcclxuICBoZWlnaHQ6IHZhcigtLWgpO1xyXG4gIGJvcmRlci1yYWRpdXM6IGNhbGModmFyKC0taCkgLyAyKTtcclxufVxyXG5cclxuLm1vdmUtdGFibGUge1xyXG4gIHdpZHRoOiAxMDAlO1xyXG4gIGhlaWdodDogMTAwJTtcclxuICAvLyB0YWJsZS1sYXlvdXQ6IGZpeGVkO1xyXG4gIGJvcmRlci1jb2xsYXBzZTogY29sbGFwc2U7XHJcbn1cclxuXHJcbi5tb3ZlLXRhYmxlIHRkIHtcclxuICB3aWR0aDogNTAlO1xyXG4gIGhlaWdodDogNTAlO1xyXG4gIGJvcmRlcjogbm9uZTsgLyogb3B0aW9uYWwgZm9yIHZpc2liaWxpdHkgKi9cclxuICBib3gtc2l6aW5nOiBib3JkZXItYm94O1xyXG4gIG92ZXJmbG93OiBoaWRkZW47XHJcbiAgdGV4dC1hbGlnbjogY2VudGVyO1xyXG4gIHZlcnRpY2FsLWFsaWduOiBtaWRkbGU7XHJcbn1cclxuXHJcbi5uby1tb3ZlcyB7XHJcbiAgd2lkdGg6IDEwMCU7XHJcbiAgaGVpZ2h0OiAxMDAlO1xyXG4gIGRpc3BsYXk6IGZsZXg7XHJcbiAgYWxpZ24taXRlbXM6IGNlbnRlcjtcclxuICBqdXN0aWZ5LWNvbnRlbnQ6IGNlbnRlcjtcclxuICBmb250LXN0eWxlOiBpdGFsaWM7XHJcbiAgY29sb3I6IGdyYXk7XHJcbn1cclxuXHJcbi50ZXN0bGlzdCB7XHJcbiAgZGlzcGxheTogZmxleDtcclxuICBmbGV4LWRpcmVjdGlvbjogY29sdW1uO1xyXG4gIGFsaWduLWl0ZW1zOiBmbGV4LXN0YXJ0O1xyXG4gIG92ZXJmbG93LXk6IHNjcm9sbDtcclxuICBzY3JvbGxiYXItd2lkdGg6IG5vbmU7XHJcbn0iXX0= */"] });
 
 
 /***/ }),
@@ -3183,6 +3473,595 @@ TeamBuilderComponent.ɵcmp = /*@__PURE__*/ _angular_core__WEBPACK_IMPORTED_MODUL
         _angular_core__WEBPACK_IMPORTED_MODULE_0__["ɵɵtext"](4, " Summary goes here ");
         _angular_core__WEBPACK_IMPORTED_MODULE_0__["ɵɵelementEnd"]()();
     } }, styles: ["#tb-container[_ngcontent-%COMP%] {\n  height: 100%;\n  min-height: 600px;\n}\n\n#team-table[_ngcontent-%COMP%] {\n  height: 60%;\n}\n\n#team-summary[_ngcontent-%COMP%] {\n  height: 40%;\n}\n/*# sourceMappingURL=data:application/json;base64,eyJ2ZXJzaW9uIjozLCJzb3VyY2VzIjpbInRlYW0tYnVpbGRlci5jb21wb25lbnQuc2NzcyJdLCJuYW1lcyI6W10sIm1hcHBpbmdzIjoiQUFBQTtFQUNJLFlBQUE7RUFDQSxpQkFBQTtBQUNKOztBQUVBO0VBQ0ksV0FBQTtBQUNKOztBQUVBO0VBQ0ksV0FBQTtBQUNKIiwiZmlsZSI6InRlYW0tYnVpbGRlci5jb21wb25lbnQuc2NzcyIsInNvdXJjZXNDb250ZW50IjpbIiN0Yi1jb250YWluZXIge1xyXG4gICAgaGVpZ2h0OiAxMDAlO1xyXG4gICAgbWluLWhlaWdodDogNjAwcHg7XHJcbn1cclxuXHJcbiN0ZWFtLXRhYmxlIHtcclxuICAgIGhlaWdodDogNjAlO1xyXG59XHJcblxyXG4jdGVhbS1zdW1tYXJ5IHtcclxuICAgIGhlaWdodDogNDAlO1xyXG59Il19 */"] });
+
+
+/***/ }),
+
+/***/ 8712:
+/*!**************************************************************************************!*\
+  !*** ./src/app/pokedex-page/cards-view/trainers-view/tp-panel/tp-panel.component.ts ***!
+  \**************************************************************************************/
+/***/ ((__unused_webpack_module, __webpack_exports__, __webpack_require__) => {
+
+__webpack_require__.r(__webpack_exports__);
+/* harmony export */ __webpack_require__.d(__webpack_exports__, {
+/* harmony export */   "TpPanelComponent": () => (/* binding */ TpPanelComponent)
+/* harmony export */ });
+/* harmony import */ var rxjs__WEBPACK_IMPORTED_MODULE_4__ = __webpack_require__(/*! rxjs */ 2218);
+/* harmony import */ var rxjs_operators__WEBPACK_IMPORTED_MODULE_5__ = __webpack_require__(/*! rxjs/operators */ 6276);
+/* harmony import */ var rxjs_operators__WEBPACK_IMPORTED_MODULE_6__ = __webpack_require__(/*! rxjs/operators */ 5921);
+/* harmony import */ var src_app_Pokemon__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! src/app/Pokemon */ 5328);
+/* harmony import */ var src_app_Settings__WEBPACK_IMPORTED_MODULE_1__ = __webpack_require__(/*! src/app/Settings */ 4095);
+/* harmony import */ var _angular_core__WEBPACK_IMPORTED_MODULE_3__ = __webpack_require__(/*! @angular/core */ 3184);
+/* harmony import */ var src_app_pokedex_service__WEBPACK_IMPORTED_MODULE_2__ = __webpack_require__(/*! src/app/pokedex.service */ 4044);
+/* harmony import */ var _angular_common__WEBPACK_IMPORTED_MODULE_7__ = __webpack_require__(/*! @angular/common */ 6362);
+
+
+
+
+
+
+
+function TpPanelComponent_div_7_ng_container_1_img_2_Template(rf, ctx) { if (rf & 1) {
+    _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵelement"](0, "img", 12);
+} if (rf & 2) {
+    const sprites_r4 = _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵnextContext"]().ngIf;
+    _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵproperty"]("src", sprites_r4[1], _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵsanitizeUrl"]);
+} }
+function TpPanelComponent_div_7_ng_container_1_Template(rf, ctx) { if (rf & 1) {
+    _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵelementContainerStart"](0);
+    _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵelement"](1, "img", 12);
+    _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵtemplate"](2, TpPanelComponent_div_7_ng_container_1_img_2_Template, 1, 1, "img", 13);
+    _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵelementContainerEnd"]();
+} if (rf & 2) {
+    const sprites_r4 = ctx.ngIf;
+    _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵadvance"](1);
+    _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵproperty"]("src", sprites_r4[0], _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵsanitizeUrl"]);
+    _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵadvance"](1);
+    _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵproperty"]("ngIf", sprites_r4[1]);
+} }
+function TpPanelComponent_div_7_Template(rf, ctx) { if (rf & 1) {
+    _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵelementStart"](0, "div", 11);
+    _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵtemplate"](1, TpPanelComponent_div_7_ng_container_1_Template, 3, 2, "ng-container", 5);
+    _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵelementEnd"]();
+} if (rf & 2) {
+    const ctx_r0 = _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵnextContext"]();
+    _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵadvance"](1);
+    _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵproperty"]("ngIf", ctx_r0.getTypeSprite());
+} }
+function TpPanelComponent_ng_container_9_div_1_div_1_Template(rf, ctx) { if (rf & 1) {
+    _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵelementStart"](0, "div", 20);
+    _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵtext"](1);
+    _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵelementEnd"]();
+} if (rf & 2) {
+    const i_r12 = ctx.$implicit;
+    const ctx_r11 = _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵnextContext"](3);
+    _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵadvance"](1);
+    _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵtextInterpolate1"](" ", ctx_r11.selected_form.getMoveString(i_r12, ctx_r11.dex.isFullyRevealed), " ");
+} }
+const _c0 = function () { return [0, 1, 2, 3]; };
+function TpPanelComponent_ng_container_9_div_1_Template(rf, ctx) { if (rf & 1) {
+    _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵelementStart"](0, "div", 18);
+    _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵtemplate"](1, TpPanelComponent_ng_container_9_div_1_div_1_Template, 2, 1, "div", 19);
+    _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵelementEnd"]();
+} if (rf & 2) {
+    _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵadvance"](1);
+    _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵproperty"]("ngForOf", _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵpureFunction0"](1, _c0));
+} }
+function TpPanelComponent_ng_container_9_ng_template_2_Template(rf, ctx) { if (rf & 1) {
+    _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵelementStart"](0, "div", 21);
+    _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵtext"](1, " No Moves Found ");
+    _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵelementEnd"]();
+} }
+function TpPanelComponent_ng_container_9_div_9_button_1_Template(rf, ctx) { if (rf & 1) {
+    const _r16 = _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵgetCurrentView"]();
+    _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵelementStart"](0, "button", 24);
+    _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵlistener"]("click", function TpPanelComponent_ng_container_9_div_9_button_1_Template_button_click_0_listener() { const restoredCtx = _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵrestoreView"](_r16); const form_r14 = restoredCtx.$implicit; const ctx_r15 = _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵnextContext"](3); return ctx_r15.formButtonClicked(form_r14); });
+    _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵtext"](1);
+    _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵelementEnd"]();
+} if (rf & 2) {
+    const form_r14 = ctx.$implicit;
+    const ctx_r13 = _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵnextContext"](3);
+    _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵadvance"](1);
+    _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵtextInterpolate"](ctx_r13.getFormButtonText(form_r14));
+} }
+function TpPanelComponent_ng_container_9_div_9_Template(rf, ctx) { if (rf & 1) {
+    _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵelementStart"](0, "div", 22);
+    _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵtemplate"](1, TpPanelComponent_ng_container_9_div_9_button_1_Template, 2, 1, "button", 23);
+    _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵelementEnd"]();
+} if (rf & 2) {
+    const ctx_r10 = _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵnextContext"](2);
+    _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵadvance"](1);
+    _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵproperty"]("ngForOf", ctx_r10.alt_forms);
+} }
+function TpPanelComponent_ng_container_9_Template(rf, ctx) { if (rf & 1) {
+    _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵelementContainerStart"](0);
+    _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵtemplate"](1, TpPanelComponent_ng_container_9_div_1_Template, 2, 2, "div", 14);
+    _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵtemplate"](2, TpPanelComponent_ng_container_9_ng_template_2_Template, 2, 0, "ng-template", null, 15, _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵtemplateRefExtractor"]);
+    _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵelementStart"](4, "div", 16)(5, "div");
+    _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵtext"](6);
+    _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵelementEnd"]();
+    _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵelementStart"](7, "div");
+    _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵtext"](8);
+    _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵelementEnd"]();
+    _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵtemplate"](9, TpPanelComponent_ng_container_9_div_9_Template, 2, 1, "div", 17);
+    _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵelementEnd"]();
+    _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵelementContainerEnd"]();
+} if (rf & 2) {
+    const _r8 = _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵreference"](3);
+    const ctx_r1 = _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵnextContext"]();
+    _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵadvance"](1);
+    _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵproperty"]("ngIf", ctx_r1.selected_form.moves.length > 0)("ngIfElse", _r8);
+    _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵadvance"](5);
+    _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵtextInterpolate1"](" Ability: ", ctx_r1.selected_form.getAbilityString(ctx_r1.dex.isFullyRevealed), " ");
+    _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵadvance"](2);
+    _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵtextInterpolate1"](" Item: ", ctx_r1.selected_form.getItemString(ctx_r1.dex.isFullyRevealed), " ");
+    _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵadvance"](1);
+    _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵproperty"]("ngIf", ctx_r1.selected_form.canMegaEvolve() && (ctx_r1.selected_form.isDefeated || ctx_r1.selected_form.isRevealed || ctx_r1.dex.isFullyRevealed) || ctx_r1.selected_form !== ctx_r1.trainer_pokemon);
+} }
+const _c1 = function (a0, a1, a2, a3, a4, a5, a6) { return { "stat-low": a0, "stat-med": a1, "stat-mhi": a2, "stat-hi": a3, "stat-vhi": a4, "stat-vvhi": a5, "stat-vvvhi": a6 }; };
+function TpPanelComponent_div_11_Template(rf, ctx) { if (rf & 1) {
+    _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵelementStart"](0, "div", 25);
+    _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵtext"](1);
+    _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵelement"](2, "div", 26);
+    _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵelementEnd"]();
+} if (rf & 2) {
+    const block_r17 = ctx.$implicit;
+    _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵadvance"](1);
+    _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵtextInterpolate2"](" ", block_r17[0], ": ", block_r17[1] ? block_r17[1] : "???", " ");
+    _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵadvance"](1);
+    _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵstyleProp"]("width", block_r17[1] / 4, "%");
+    _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵproperty"]("ngClass", _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵpureFunction7"](5, _c1, block_r17[1] < 25, block_r17[1] >= 25 && block_r17[1] < 75, block_r17[1] >= 75 && block_r17[1] < 125, block_r17[1] >= 125 && block_r17[1] < 200, block_r17[1] >= 200 && block_r17[1] < 300, block_r17[1] >= 300 && block_r17[1] < 400, block_r17[1] >= 400));
+} }
+class TpPanelComponent {
+    constructor(dex) {
+        this.alt_forms = [];
+        this.stat_blocks = [];
+        this.destroy$ = new rxjs__WEBPACK_IMPORTED_MODULE_4__.Subject();
+        this.dex = dex;
+    }
+    ngOnInit() {
+        this.dex.dexChanges.pipe((0,rxjs_operators__WEBPACK_IMPORTED_MODULE_5__.skip)(1), //dexChanges is a Replay, and we don't actually care about reacting on subscription
+        (0,rxjs_operators__WEBPACK_IMPORTED_MODULE_6__.takeUntil)(this.destroy$)).subscribe((_) => {
+            this.refreshSelection(this.selected_form ? this.selected_form : this.trainer_pokemon);
+        });
+        this.refreshSelection(this.trainer_pokemon);
+    }
+    ngOnChanges(changes) {
+        if (changes['trainer_pokemon']) {
+            this.refreshSelection(this.trainer_pokemon);
+        }
+    }
+    ngOnDestroy() {
+        this.destroy$.next();
+        this.destroy$.complete();
+    }
+    // Call this in subscriptions to the changes
+    refreshSelection(tp) {
+        this.selected_form = tp;
+        this.stat_blocks = this.getStatBlocks();
+    }
+    navigateToIndividualView(t_pokemon) {
+        if (!t_pokemon) {
+            return;
+        }
+        let mon = this.dex.pokedexByName.get(t_pokemon.name);
+        if (mon) {
+            this.dex.navigation.iv_misc_selection = 'trainers';
+            this.dex.selectPokemon(t_pokemon.name);
+            this.dex.trainerPokemonSelection.next(t_pokemon);
+            this.dex.updateCardNavigationSelection('summaryTab');
+        }
+    }
+    formButtonClicked(tp) {
+        if (tp === this.selected_form) {
+            this.refreshSelection(this.trainer_pokemon);
+        }
+        else {
+            this.refreshSelection(tp);
+        }
+    }
+    getFormButtonText(tp) {
+        if (tp === this.selected_form) {
+            return "Base";
+        }
+        else {
+            return this.getFormSuffix(tp);
+        }
+    }
+    getFormSuffix(tp) {
+        return tp.name.slice(this.trainer_pokemon.name.length + 1);
+    }
+    getFormName() {
+        return this.selected_form ? this.selected_form.name : this.trainer_pokemon.name;
+    }
+    getFormSprite() {
+        let address_string = "assets/images/sprites/";
+        let name = this.getFormName();
+        let mon = this.dex.pokedexByName.get(name);
+        if (mon) {
+            return address_string + mon.sanitizedName() + ".png";
+        }
+        return address_string + "unknown.png";
+    }
+    getTypeSprite() {
+        //https://serebii.net/pokedex-bw/type/{{current_mon!.get_type1()}}.gif"
+        if (!this.selected_form) {
+            return ["https://serebii.net/pokedex-bw/type/curse.gif"];
+        }
+        let mon = this.dex.pokedexByName.get(this.selected_form.name);
+        if (!mon) {
+            return ["https://serebii.net/pokedex-bw/type/curse.gif"];
+        }
+        let res = [
+            `https://serebii.net/pokedex-bw/type/${mon.get_type1()}.gif`
+        ];
+        if (mon.get_type2() !== src_app_Pokemon__WEBPACK_IMPORTED_MODULE_0__.PokeType.None) {
+            res.push(`https://serebii.net/pokedex-bw/type/${mon.get_type2()}.gif`);
+        }
+        return res;
+    }
+    getStatBlocks() {
+        if (!this.selected_form) {
+            return [];
+        }
+        let mon = this.dex.pokedexByName.get(this.selected_form.name);
+        if (!mon) {
+            return [];
+        }
+        let needToCheckRevealedStatus = (!this.selected_form.isDefeated);
+        let stats = mon.calculateFoeStatsAtLevel(this.selected_form.level, this.selected_form.ivs, this.dex.dexLoader.lastLoadedLogGeneration < 3, needToCheckRevealedStatus);
+        let tags = (stats.length === 5) ? ['HP', 'ATK', 'DEF', 'SPEC', 'SPEED'] : ['HP', 'ATK', 'DEF', 'SP ATK', 'SP DEF', 'SPEED'];
+        return tags.map((tag, i) => [tag, stats[i]]);
+    }
+    toggleSpoil() {
+        this.trainer_pokemon.isRevealed = !this.trainer_pokemon.isRevealed;
+        for (let form of this.alt_forms) {
+            form.isRevealed = this.trainer_pokemon.isRevealed;
+        }
+        this.dex.dexChanges.next();
+    }
+    toggleDefeat() {
+        let pokemon_species = this.dex.pokedexByName.get(this.trainer_pokemon.name);
+        let alt_species = this.alt_forms.map(f => this.dex.pokedexByName.get(f.name));
+        if (!pokemon_species) {
+            console.log("Couldn't find species: " + this.trainer_pokemon.name);
+            return;
+        }
+        if (this.trainer_pokemon.isDefeated) {
+            pokemon_species.undefeatTrainerPokemon(this.trainer_pokemon, src_app_Settings__WEBPACK_IMPORTED_MODULE_1__.DEFAULT_SETTINGS);
+            for (let alt of alt_species) {
+                if (alt) {
+                    alt.undefeatTrainerPokemon(this.trainer_pokemon, src_app_Settings__WEBPACK_IMPORTED_MODULE_1__.DEFAULT_SETTINGS);
+                }
+            }
+            this.trainer_pokemon.isRevealed = false;
+        }
+        else {
+            pokemon_species.defeatTrainerPokemon(this.trainer_pokemon, src_app_Settings__WEBPACK_IMPORTED_MODULE_1__.DEFAULT_SETTINGS);
+            for (let alt of alt_species) {
+                if (alt) {
+                    alt.defeatTrainerPokemon(this.trainer_pokemon, src_app_Settings__WEBPACK_IMPORTED_MODULE_1__.DEFAULT_SETTINGS);
+                }
+            }
+            this.trainer_pokemon.isRevealed = true;
+        }
+        //Toggle defeat status 
+        this.trainer_pokemon.isDefeated =
+            !this.trainer_pokemon.isDefeated;
+        // update all forms to match
+        for (let form of this.alt_forms) {
+            form.isRevealed = this.trainer_pokemon.isRevealed;
+            form.isDefeated = this.trainer_pokemon.isDefeated;
+        }
+        this.updateTrainerEncounterOrder();
+        this.dex.dexChanges.next();
+    }
+    updateTrainerEncounterOrder() {
+        let trainer = this.dex.trainers.find(t => t.Pokes.includes(this.trainer_pokemon));
+        if (trainer) {
+            this.dex.bumpTrainerEncounterOrder(trainer);
+        }
+    }
+}
+TpPanelComponent.ɵfac = function TpPanelComponent_Factory(t) { return new (t || TpPanelComponent)(_angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵdirectiveInject"](src_app_pokedex_service__WEBPACK_IMPORTED_MODULE_2__.PokedexService)); };
+TpPanelComponent.ɵcmp = /*@__PURE__*/ _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵdefineComponent"]({ type: TpPanelComponent, selectors: [["tp-panel"]], inputs: { trainer_pokemon: "trainer_pokemon", alt_forms: "alt_forms" }, features: [_angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵNgOnChangesFeature"]], decls: 17, vars: 13, consts: [[1, "element-container", "tp-panel-base"], [1, "wireframe", "tp-panel-selector-column"], [1, "tp-img", 3, "src", "click"], ["class", "tp-type", 4, "ngIf"], [1, "wireframe", "tp-panel-loadout-column"], [4, "ngIf"], [1, "wireframe", "tp-panel-stat-column"], ["class", "tp-stat", 4, "ngFor", "ngForOf"], [1, "tp-defeat-button"], [1, "top", 3, "disabled", "click"], [1, "bottom", 3, "click"], [1, "tp-type"], [1, "type-box", 3, "src"], ["class", "type-box", 3, "src", 4, "ngIf"], ["class", "tp-moves", 4, "ngIf", "ngIfElse"], ["noMoves", ""], [1, "tp-inventory", "wireframe"], ["class", "tp-form-buttons", 4, "ngIf"], [1, "tp-moves"], ["class", "tp-move", 4, "ngFor", "ngForOf"], [1, "tp-move"], [1, "tp-no-moves"], [1, "tp-form-buttons"], ["class", "tp-form-button", 3, "click", 4, "ngFor", "ngForOf"], [1, "tp-form-button", 3, "click"], [1, "tp-stat"], [1, "tp-stat-bar", 3, "ngClass"]], template: function TpPanelComponent_Template(rf, ctx) { if (rf & 1) {
+        _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵelementStart"](0, "div", 0)(1, "div", 1)(2, "div");
+        _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵtext"](3);
+        _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵelementEnd"]();
+        _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵelementStart"](4, "div");
+        _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵtext"](5);
+        _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵelementEnd"]();
+        _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵelementStart"](6, "img", 2);
+        _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵlistener"]("click", function TpPanelComponent_Template_img_click_6_listener() { return ctx.navigateToIndividualView(ctx.selected_form); });
+        _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵelementEnd"]();
+        _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵtemplate"](7, TpPanelComponent_div_7_Template, 2, 1, "div", 3);
+        _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵelementEnd"]();
+        _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵelementStart"](8, "div", 4);
+        _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵtemplate"](9, TpPanelComponent_ng_container_9_Template, 10, 5, "ng-container", 5);
+        _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵelementEnd"]();
+        _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵelementStart"](10, "div", 6);
+        _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵtemplate"](11, TpPanelComponent_div_11_Template, 3, 13, "div", 7);
+        _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵelementStart"](12, "div", 8)(13, "button", 9);
+        _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵlistener"]("click", function TpPanelComponent_Template_button_click_13_listener() { return ctx.toggleSpoil(); });
+        _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵtext"](14);
+        _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵelementEnd"]();
+        _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵelementStart"](15, "button", 10);
+        _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵlistener"]("click", function TpPanelComponent_Template_button_click_15_listener() { return ctx.toggleDefeat(); });
+        _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵtext"](16);
+        _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵelementEnd"]()()()();
+    } if (rf & 2) {
+        _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵadvance"](3);
+        _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵtextInterpolate"](ctx.getFormName());
+        _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵadvance"](2);
+        _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵtextInterpolate1"]("Lvl ", ctx.trainer_pokemon.level, "");
+        _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵadvance"](1);
+        _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵpropertyInterpolate"]("src", ctx.getFormSprite(), _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵsanitizeUrl"]);
+        _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵadvance"](1);
+        _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵproperty"]("ngIf", ctx.selected_form);
+        _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵadvance"](2);
+        _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵproperty"]("ngIf", ctx.selected_form);
+        _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵadvance"](2);
+        _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵproperty"]("ngForOf", ctx.stat_blocks);
+        _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵadvance"](2);
+        _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵclassProp"]("toggled", ctx.trainer_pokemon.isRevealed);
+        _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵproperty"]("disabled", ctx.dex.isFullyRevealed);
+        _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵadvance"](1);
+        _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵtextInterpolate"](ctx.trainer_pokemon.isRevealed ? "Unspoil" : "Spoil");
+        _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵadvance"](1);
+        _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵclassProp"]("toggled", ctx.trainer_pokemon.isDefeated);
+        _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵadvance"](1);
+        _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵtextInterpolate"](ctx.trainer_pokemon.isDefeated ? "Undefeat" : "Defeat");
+    } }, directives: [_angular_common__WEBPACK_IMPORTED_MODULE_7__.NgIf, _angular_common__WEBPACK_IMPORTED_MODULE_7__.NgForOf, _angular_common__WEBPACK_IMPORTED_MODULE_7__.NgClass], styles: [".tp-panel-base[_ngcontent-%COMP%] {\n  width: 100%;\n  height: 100%;\n  display: flex;\n  flex-direction: row;\n  font-size: 14px;\n}\n\n.tp-panel-selector-column[_ngcontent-%COMP%] {\n  flex: 2;\n  height: 100%;\n  display: flex;\n  flex-direction: column;\n}\n\n.tp-panel-loadout-column[_ngcontent-%COMP%] {\n  flex: 3;\n  height: 100%;\n}\n\n.tp-panel-stat-column[_ngcontent-%COMP%] {\n  flex: 1.5;\n  height: 100%;\n  display: flex;\n  flex-direction: column;\n}\n\n.tp-stat[_ngcontent-%COMP%] {\n  margin-bottom: 6px;\n  font-size: 12px;\n  font-weight: bold;\n}\n\n.tp-stat-bar[_ngcontent-%COMP%] {\n  height: 4px;\n  border-radius: 2px;\n}\n\n.stat-low[_ngcontent-%COMP%] {\n  background-color: red;\n}\n\n.stat-med[_ngcontent-%COMP%] {\n  background-color: orange;\n}\n\n.stat-mhi[_ngcontent-%COMP%] {\n  background-color: yellow;\n}\n\n.stat-hi[_ngcontent-%COMP%] {\n  background-color: green;\n}\n\n.stat-vhi[_ngcontent-%COMP%] {\n  background-color: blue;\n}\n\n.stat-vvhi[_ngcontent-%COMP%] {\n  background-color: purple;\n}\n\n.stat-vvvhi[_ngcontent-%COMP%] {\n  background-color: red;\n}\n\n.tp-img[_ngcontent-%COMP%] {\n  width: 100%;\n  cursor: pointer;\n}\n\n.tp-type[_ngcontent-%COMP%] {\n  width: 100%;\n  display: flex;\n  flex: 1;\n  flex-direction: row;\n  align-items: center;\n  justify-content: center;\n}\n\n.type-box[_ngcontent-%COMP%] {\n  width: 45px;\n}\n\n.tp-moves[_ngcontent-%COMP%] {\n  height: 70%;\n  display: flex;\n  flex-direction: column;\n  align-items: center;\n  width: 100%;\n}\n\n.tp-move[_ngcontent-%COMP%] {\n  flex: 1;\n  width: 95%;\n  outline: 1px solid white;\n  display: flex;\n  align-items: center;\n  justify-content: center;\n}\n\n.tp-no-moves[_ngcontent-%COMP%] {\n  width: 100%;\n  height: 100%;\n  display: flex;\n  align-items: center;\n  justify-content: center;\n  font-style: italic;\n  color: gray;\n}\n\n.tp-inventory[_ngcontent-%COMP%] {\n  height: 30%;\n  display: flex;\n  flex-direction: column;\n  justify-content: center;\n  margin-left: 8px;\n}\n\n.tp-form-buttons[_ngcontent-%COMP%] {\n  display: flex;\n  flex-direction: row;\n  align-items: center;\n  justify-content: flex-start;\n  margin-top: 4px;\n}\n\n.tp-form-button[_ngcontent-%COMP%] {\n  display: flex;\n  align-items: center;\n  justify-content: center;\n  font-family: \"Roboto\", Arial, sans-serif;\n  background-color: #156615;\n  color: #cfcfcf;\n  font-size: 14px;\n  border-radius: 5px;\n  padding: 2px 10px;\n}\n\n.tp-defeat-button[_ngcontent-%COMP%] {\n  --btn-height: 30px;\n  flex: 1;\n  display: flex;\n  flex-direction: column;\n  align-items: center;\n  justify-content: end;\n}\n\n.tp-defeat-button[_ngcontent-%COMP%]   button[_ngcontent-%COMP%] {\n  height: var(--btn-height);\n  width: calc(var(--btn-height) * 2);\n  display: flex;\n  flex-direction: column;\n  align-items: center;\n  font-size: 7pt;\n  font-weight: bold;\n  color: white;\n}\n\n.tp-defeat-button[_ngcontent-%COMP%]   button.top[_ngcontent-%COMP%] {\n  border-radius: var(--btn-height) var(--btn-height) 0 0;\n  background-color: #156615;\n  justify-content: flex-end;\n  border-bottom: solid 1px black;\n}\n\n.tp-defeat-button[_ngcontent-%COMP%]   button.top.toggled[_ngcontent-%COMP%] {\n  background-color: #858585;\n}\n\n.tp-defeat-button[_ngcontent-%COMP%]   button.bottom[_ngcontent-%COMP%] {\n  border-radius: 0 0 var(--btn-height) var(--btn-height);\n  background-color: #720000;\n  justify-content: flex-start;\n}\n\n.tp-defeat-button[_ngcontent-%COMP%]   button.bottom.toggled[_ngcontent-%COMP%] {\n  background-color: #424242;\n}\n/*# sourceMappingURL=data:application/json;base64,eyJ2ZXJzaW9uIjozLCJzb3VyY2VzIjpbInRwLXBhbmVsLmNvbXBvbmVudC5zY3NzIl0sIm5hbWVzIjpbXSwibWFwcGluZ3MiOiJBQUFBO0VBQ0UsV0FBQTtFQUNBLFlBQUE7RUFDQSxhQUFBO0VBQ0EsbUJBQUE7RUFDQSxlQUFBO0FBQ0Y7O0FBRUE7RUFDRSxPQUFBO0VBQ0EsWUFBQTtFQUNBLGFBQUE7RUFDQSxzQkFBQTtBQUNGOztBQUVBO0VBQ0UsT0FBQTtFQUNBLFlBQUE7QUFDRjs7QUFFQTtFQUNFLFNBQUE7RUFDQSxZQUFBO0VBQ0EsYUFBQTtFQUNBLHNCQUFBO0FBQ0Y7O0FBRUE7RUFDRSxrQkFBQTtFQUNBLGVBQUE7RUFDQSxpQkFBQTtBQUNGOztBQUVBO0VBQ0UsV0FBQTtFQUNBLGtCQUFBO0FBQ0Y7O0FBRUE7RUFDRSxxQkFBQTtBQUNGOztBQUNBO0VBQ0Usd0JBQUE7QUFFRjs7QUFBQTtFQUNFLHdCQUFBO0FBR0Y7O0FBREE7RUFDRSx1QkFBQTtBQUlGOztBQUZBO0VBQ0Usc0JBQUE7QUFLRjs7QUFIQTtFQUNFLHdCQUFBO0FBTUY7O0FBSkE7RUFDRSxxQkFBQTtBQU9GOztBQUhBO0VBQ0UsV0FBQTtFQUNBLGVBQUE7QUFNRjs7QUFIQTtFQUNFLFdBQUE7RUFDQSxhQUFBO0VBQ0EsT0FBQTtFQUNBLG1CQUFBO0VBQ0EsbUJBQUE7RUFDQSx1QkFBQTtBQU1GOztBQUhBO0VBQ0UsV0FBQTtBQU1GOztBQUhBO0VBQ0UsV0FBQTtFQUNBLGFBQUE7RUFDQSxzQkFBQTtFQUNBLG1CQUFBO0VBQ0EsV0FBQTtBQU1GOztBQUhBO0VBQ0UsT0FBQTtFQUNBLFVBQUE7RUFDQSx3QkFBQTtFQUNBLGFBQUE7RUFDQSxtQkFBQTtFQUNBLHVCQUFBO0FBTUY7O0FBSEE7RUFDRSxXQUFBO0VBQ0EsWUFBQTtFQUNBLGFBQUE7RUFDQSxtQkFBQTtFQUNBLHVCQUFBO0VBQ0Esa0JBQUE7RUFDQSxXQUFBO0FBTUY7O0FBSEE7RUFDRSxXQUFBO0VBQ0EsYUFBQTtFQUNBLHNCQUFBO0VBQ0EsdUJBQUE7RUFDQSxnQkFBQTtBQU1GOztBQUhBO0VBQ0UsYUFBQTtFQUNBLG1CQUFBO0VBQ0EsbUJBQUE7RUFDQSwyQkFBQTtFQUNBLGVBQUE7QUFNRjs7QUFGQTtFQUNFLGFBQUE7RUFDQSxtQkFBQTtFQUNBLHVCQUFBO0VBQ0Esd0NBQUE7RUFDQSx5QkFBQTtFQUNBLGNBQUE7RUFDQSxlQUFBO0VBQ0Esa0JBQUE7RUFDQSxpQkFBQTtBQUtGOztBQUZBO0VBQ0Usa0JBQUE7RUFDQSxPQUFBO0VBQ0EsYUFBQTtFQUNBLHNCQUFBO0VBQ0EsbUJBQUE7RUFDQSxvQkFBQTtBQUtGOztBQUpFO0VBQ0UseUJBQUE7RUFDQSxrQ0FBQTtFQUNBLGFBQUE7RUFDQSxzQkFBQTtFQUNBLG1CQUFBO0VBQ0EsY0FBQTtFQUNBLGlCQUFBO0VBQ0EsWUFBQTtBQU1KOztBQUpFO0VBQ0Usc0RBQUE7RUFDQSx5QkFBQTtFQUNBLHlCQUFBO0VBQ0EsOEJBQUE7QUFNSjs7QUFKRTtFQUNFLHlCQUFBO0FBTUo7O0FBSkU7RUFDRSxzREFBQTtFQUNBLHlCQUFBO0VBQ0EsMkJBQUE7QUFNSjs7QUFKRTtFQUNFLHlCQUFBO0FBTUoiLCJmaWxlIjoidHAtcGFuZWwuY29tcG9uZW50LnNjc3MiLCJzb3VyY2VzQ29udGVudCI6WyIudHAtcGFuZWwtYmFzZSB7XHJcbiAgd2lkdGg6IDEwMCU7XHJcbiAgaGVpZ2h0OiAxMDAlO1xyXG4gIGRpc3BsYXk6IGZsZXg7XHJcbiAgZmxleC1kaXJlY3Rpb246IHJvdztcclxuICBmb250LXNpemU6IDE0cHg7XHJcbn1cclxuXHJcbi50cC1wYW5lbC1zZWxlY3Rvci1jb2x1bW4ge1xyXG4gIGZsZXg6IDI7XHJcbiAgaGVpZ2h0OiAxMDAlO1xyXG4gIGRpc3BsYXk6IGZsZXg7XHJcbiAgZmxleC1kaXJlY3Rpb246IGNvbHVtbjtcclxufVxyXG5cclxuLnRwLXBhbmVsLWxvYWRvdXQtY29sdW1uIHtcclxuICBmbGV4OiAzO1xyXG4gIGhlaWdodDogMTAwJTtcclxufVxyXG5cclxuLnRwLXBhbmVsLXN0YXQtY29sdW1uIHtcclxuICBmbGV4OiAxLjU7XHJcbiAgaGVpZ2h0OiAxMDAlO1xyXG4gIGRpc3BsYXk6IGZsZXg7XHJcbiAgZmxleC1kaXJlY3Rpb246IGNvbHVtbjtcclxufVxyXG5cclxuLnRwLXN0YXQge1xyXG4gIG1hcmdpbi1ib3R0b206IDZweDtcclxuICBmb250LXNpemU6IDEycHg7XHJcbiAgZm9udC13ZWlnaHQ6IGJvbGQ7XHJcbn1cclxuXHJcbi50cC1zdGF0LWJhciB7XHJcbiAgaGVpZ2h0OiA0cHg7XHJcbiAgYm9yZGVyLXJhZGl1czogMnB4O1xyXG59XHJcblxyXG4uc3RhdC1sb3cge1xyXG4gIGJhY2tncm91bmQtY29sb3I6IHJlZDtcclxufVxyXG4uc3RhdC1tZWQge1xyXG4gIGJhY2tncm91bmQtY29sb3I6IG9yYW5nZTtcclxufVxyXG4uc3RhdC1taGkge1xyXG4gIGJhY2tncm91bmQtY29sb3I6IHllbGxvdztcclxufVxyXG4uc3RhdC1oaSB7XHJcbiAgYmFja2dyb3VuZC1jb2xvcjogZ3JlZW47XHJcbn1cclxuLnN0YXQtdmhpIHtcclxuICBiYWNrZ3JvdW5kLWNvbG9yOiBibHVlO1xyXG59XHJcbi5zdGF0LXZ2aGkge1xyXG4gIGJhY2tncm91bmQtY29sb3I6IHB1cnBsZTtcclxufVxyXG4uc3RhdC12dnZoaSB7XHJcbiAgYmFja2dyb3VuZC1jb2xvcjogcmVkO1xyXG59XHJcblxyXG5cclxuLnRwLWltZyB7XHJcbiAgd2lkdGg6IDEwMCU7XHJcbiAgY3Vyc29yOiBwb2ludGVyO1xyXG59XHJcblxyXG4udHAtdHlwZSB7XHJcbiAgd2lkdGg6IDEwMCU7XHJcbiAgZGlzcGxheTogZmxleDtcclxuICBmbGV4OiAxO1xyXG4gIGZsZXgtZGlyZWN0aW9uOiByb3c7XHJcbiAgYWxpZ24taXRlbXM6IGNlbnRlcjtcclxuICBqdXN0aWZ5LWNvbnRlbnQ6IGNlbnRlcjtcclxufVxyXG5cclxuLnR5cGUtYm94IHtcclxuICB3aWR0aDogNDVweDtcclxufVxyXG5cclxuLnRwLW1vdmVzIHtcclxuICBoZWlnaHQ6IDcwJTtcclxuICBkaXNwbGF5OiBmbGV4O1xyXG4gIGZsZXgtZGlyZWN0aW9uOiBjb2x1bW47XHJcbiAgYWxpZ24taXRlbXM6IGNlbnRlcjtcclxuICB3aWR0aDogMTAwJTtcclxufVxyXG5cclxuLnRwLW1vdmUge1xyXG4gIGZsZXg6IDE7XHJcbiAgd2lkdGg6IDk1JTtcclxuICBvdXRsaW5lOiAxcHggc29saWQgd2hpdGU7XHJcbiAgZGlzcGxheTogZmxleDtcclxuICBhbGlnbi1pdGVtczogY2VudGVyO1xyXG4gIGp1c3RpZnktY29udGVudDogY2VudGVyO1xyXG59XHJcblxyXG4udHAtbm8tbW92ZXMge1xyXG4gIHdpZHRoOiAxMDAlO1xyXG4gIGhlaWdodDogMTAwJTtcclxuICBkaXNwbGF5OiBmbGV4O1xyXG4gIGFsaWduLWl0ZW1zOiBjZW50ZXI7XHJcbiAganVzdGlmeS1jb250ZW50OiBjZW50ZXI7XHJcbiAgZm9udC1zdHlsZTogaXRhbGljO1xyXG4gIGNvbG9yOiBncmF5O1xyXG59XHJcblxyXG4udHAtaW52ZW50b3J5IHtcclxuICBoZWlnaHQ6IDMwJTtcclxuICBkaXNwbGF5OiBmbGV4O1xyXG4gIGZsZXgtZGlyZWN0aW9uOiBjb2x1bW47XHJcbiAganVzdGlmeS1jb250ZW50OiBjZW50ZXI7XHJcbiAgbWFyZ2luLWxlZnQ6IDhweDtcclxufVxyXG5cclxuLnRwLWZvcm0tYnV0dG9ucyB7XHJcbiAgZGlzcGxheTogZmxleDtcclxuICBmbGV4LWRpcmVjdGlvbjogcm93O1xyXG4gIGFsaWduLWl0ZW1zOiBjZW50ZXI7XHJcbiAganVzdGlmeS1jb250ZW50OiBmbGV4LXN0YXJ0O1xyXG4gIG1hcmdpbi10b3A6IDRweDtcclxuICAvLyBwYWRkaW5nOiAzcHg7XHJcbn1cclxuXHJcbi50cC1mb3JtLWJ1dHRvbiB7XHJcbiAgZGlzcGxheTogZmxleDtcclxuICBhbGlnbi1pdGVtczogY2VudGVyO1xyXG4gIGp1c3RpZnktY29udGVudDogY2VudGVyO1xyXG4gIGZvbnQtZmFtaWx5OiBcIlJvYm90b1wiLCBBcmlhbCwgc2Fucy1zZXJpZjtcclxuICBiYWNrZ3JvdW5kLWNvbG9yOiAjMTU2NjE1O1xyXG4gIGNvbG9yOiAjY2ZjZmNmO1xyXG4gIGZvbnQtc2l6ZTogMTRweDtcclxuICBib3JkZXItcmFkaXVzOiA1cHg7XHJcbiAgcGFkZGluZzogMnB4IDEwcHhcclxufVxyXG5cclxuLnRwLWRlZmVhdC1idXR0b24ge1xyXG4gIC0tYnRuLWhlaWdodDogMzBweDtcclxuICBmbGV4OiAxO1xyXG4gIGRpc3BsYXk6IGZsZXg7XHJcbiAgZmxleC1kaXJlY3Rpb246IGNvbHVtbjtcclxuICBhbGlnbi1pdGVtczogY2VudGVyO1xyXG4gIGp1c3RpZnktY29udGVudDogZW5kO1xyXG4gIGJ1dHRvbiB7XHJcbiAgICBoZWlnaHQ6IHZhcigtLWJ0bi1oZWlnaHQpO1xyXG4gICAgd2lkdGg6IGNhbGModmFyKC0tYnRuLWhlaWdodCkgKiAyKTtcclxuICAgIGRpc3BsYXk6IGZsZXg7XHJcbiAgICBmbGV4LWRpcmVjdGlvbjogY29sdW1uO1xyXG4gICAgYWxpZ24taXRlbXM6IGNlbnRlcjtcclxuICAgIGZvbnQtc2l6ZTogN3B0O1xyXG4gICAgZm9udC13ZWlnaHQ6IGJvbGQ7XHJcbiAgICBjb2xvcjogd2hpdGU7XHJcbiAgfVxyXG4gIGJ1dHRvbi50b3Age1xyXG4gICAgYm9yZGVyLXJhZGl1czogdmFyKC0tYnRuLWhlaWdodCkgdmFyKC0tYnRuLWhlaWdodCkgMCAwO1xyXG4gICAgYmFja2dyb3VuZC1jb2xvcjogIzE1NjYxNTtcclxuICAgIGp1c3RpZnktY29udGVudDogZmxleC1lbmQ7XHJcbiAgICBib3JkZXItYm90dG9tOiBzb2xpZCAxcHggYmxhY2s7XHJcbiAgfVxyXG4gIGJ1dHRvbi50b3AudG9nZ2xlZCB7XHJcbiAgICBiYWNrZ3JvdW5kLWNvbG9yOiAjODU4NTg1O1xyXG4gIH1cclxuICBidXR0b24uYm90dG9tIHtcclxuICAgIGJvcmRlci1yYWRpdXM6IDAgMCB2YXIoLS1idG4taGVpZ2h0KSB2YXIoLS1idG4taGVpZ2h0KTtcclxuICAgIGJhY2tncm91bmQtY29sb3I6ICM3MjAwMDA7XHJcbiAgICBqdXN0aWZ5LWNvbnRlbnQ6IGZsZXgtc3RhcnQ7XHJcbiAgfVxyXG4gIGJ1dHRvbi5ib3R0b20udG9nZ2xlZCB7XHJcbiAgICBiYWNrZ3JvdW5kLWNvbG9yOiAjNDI0MjQyO1xyXG4gIH1cclxufSJdfQ== */"] });
+
+
+/***/ }),
+
+/***/ 5153:
+/*!**********************************************************************************!*\
+  !*** ./src/app/pokedex-page/cards-view/trainers-view/trainers-view.component.ts ***!
+  \**********************************************************************************/
+/***/ ((__unused_webpack_module, __webpack_exports__, __webpack_require__) => {
+
+__webpack_require__.r(__webpack_exports__);
+/* harmony export */ __webpack_require__.d(__webpack_exports__, {
+/* harmony export */   "TrainersViewComponent": () => (/* binding */ TrainersViewComponent)
+/* harmony export */ });
+/* harmony import */ var _angular_forms__WEBPACK_IMPORTED_MODULE_4__ = __webpack_require__(/*! @angular/forms */ 587);
+/* harmony import */ var rxjs__WEBPACK_IMPORTED_MODULE_5__ = __webpack_require__(/*! rxjs */ 2218);
+/* harmony import */ var rxjs_operators__WEBPACK_IMPORTED_MODULE_6__ = __webpack_require__(/*! rxjs/operators */ 5722);
+/* harmony import */ var rxjs_operators__WEBPACK_IMPORTED_MODULE_7__ = __webpack_require__(/*! rxjs/operators */ 9151);
+/* harmony import */ var rxjs_operators__WEBPACK_IMPORTED_MODULE_8__ = __webpack_require__(/*! rxjs/operators */ 6942);
+/* harmony import */ var rxjs_operators__WEBPACK_IMPORTED_MODULE_9__ = __webpack_require__(/*! rxjs/operators */ 5921);
+/* harmony import */ var src_app_Settings__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! src/app/Settings */ 4095);
+/* harmony import */ var _angular_core__WEBPACK_IMPORTED_MODULE_3__ = __webpack_require__(/*! @angular/core */ 3184);
+/* harmony import */ var src_app_pokedex_service__WEBPACK_IMPORTED_MODULE_1__ = __webpack_require__(/*! src/app/pokedex.service */ 4044);
+/* harmony import */ var _angular_common__WEBPACK_IMPORTED_MODULE_10__ = __webpack_require__(/*! @angular/common */ 6362);
+/* harmony import */ var _tp_panel_tp_panel_component__WEBPACK_IMPORTED_MODULE_2__ = __webpack_require__(/*! ./tp-panel/tp-panel.component */ 8712);
+/* harmony import */ var _angular_material_form_field__WEBPACK_IMPORTED_MODULE_11__ = __webpack_require__(/*! @angular/material/form-field */ 4770);
+/* harmony import */ var _angular_material_input__WEBPACK_IMPORTED_MODULE_12__ = __webpack_require__(/*! @angular/material/input */ 3365);
+/* harmony import */ var _angular_material_autocomplete__WEBPACK_IMPORTED_MODULE_13__ = __webpack_require__(/*! @angular/material/autocomplete */ 3188);
+/* harmony import */ var _angular_material_core__WEBPACK_IMPORTED_MODULE_14__ = __webpack_require__(/*! @angular/material/core */ 8133);
+
+
+
+
+
+
+
+
+
+
+
+
+
+const _c0 = ["mm"];
+const _c1 = ["searchInput"];
+function TrainersViewComponent_div_2_tp_panel_1_Template(rf, ctx) { if (rf & 1) {
+    _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵelement"](0, "tp-panel", 19);
+} if (rf & 2) {
+    const i_r8 = _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵnextContext"]().$implicit;
+    const ctx_r9 = _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵnextContext"]();
+    _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵproperty"]("trainer_pokemon", ctx_r9.current_trainer.Pokes[i_r8])("alt_forms", ctx_r9.current_trainer.getAltFormsOfPokemon(ctx_r9.current_trainer.Pokes[i_r8].name));
+} }
+function TrainersViewComponent_div_2_ng_template_2_Template(rf, ctx) { if (rf & 1) {
+    _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵelementStart"](0, "div", 20);
+    _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵelement"](1, "img", 21);
+    _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵelementEnd"]();
+} }
+function TrainersViewComponent_div_2_Template(rf, ctx) { if (rf & 1) {
+    _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵelementStart"](0, "div", 16);
+    _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵtemplate"](1, TrainersViewComponent_div_2_tp_panel_1_Template, 1, 2, "tp-panel", 17);
+    _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵtemplate"](2, TrainersViewComponent_div_2_ng_template_2_Template, 2, 0, "ng-template", null, 18, _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵtemplateRefExtractor"]);
+    _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵelementEnd"]();
+} if (rf & 2) {
+    const i_r8 = ctx.$implicit;
+    const _r10 = _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵreference"](3);
+    const ctx_r0 = _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵnextContext"]();
+    _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵadvance"](1);
+    _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵproperty"]("ngIf", ctx_r0.trainer_selected && ctx_r0.current_trainer.Pokes[i_r8] && !ctx_r0.current_trainer.Pokes[i_r8].isMegaEvolved())("ngIfElse", _r10);
+} }
+function TrainersViewComponent_mat_option_10_Template(rf, ctx) { if (rf & 1) {
+    _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵelementStart"](0, "mat-option", 22);
+    _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵtext"](1);
+    _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵelementEnd"]();
+} if (rf & 2) {
+    const trainer_r13 = ctx.$implicit;
+    _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵproperty"]("value", trainer_r13);
+    _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵadvance"](1);
+    _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵtextInterpolate1"](" ", trainer_r13.name, " ");
+} }
+function TrainersViewComponent_ng_container_14_Template(rf, ctx) { if (rf & 1) {
+    _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵelementContainerStart"](0);
+    _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵtext"](1);
+    _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵelementStart"](2, "span", 23);
+    _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵtext"](3);
+    _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵelementEnd"]();
+    _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵelementContainerEnd"]();
+} if (rf & 2) {
+    const ctx_r4 = _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵnextContext"]();
+    _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵadvance"](1);
+    _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵtextInterpolate1"](" ", ctx_r4.current_trainer.name, " ");
+    _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵadvance"](2);
+    _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵtextInterpolate1"](" (", ctx_r4.getTrainerPowerLevel(ctx_r4.current_trainer), ") ");
+} }
+function TrainersViewComponent_ng_template_15_Template(rf, ctx) { if (rf & 1) {
+    _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵtext"](0, " No Trainer Selected ");
+} }
+function TrainersViewComponent_ng_container_17_Template(rf, ctx) { if (rf & 1) {
+    const _r15 = _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵgetCurrentView"]();
+    _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵelementContainerStart"](0);
+    _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵelementStart"](1, "button", 24);
+    _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵlistener"]("click", function TrainersViewComponent_ng_container_17_Template_button_click_1_listener() { _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵrestoreView"](_r15); const ctx_r14 = _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵnextContext"](); return ctx_r14.toggleTeamSpoil(); });
+    _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵtext"](2);
+    _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵelementEnd"]();
+    _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵelementStart"](3, "button", 25);
+    _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵlistener"]("click", function TrainersViewComponent_ng_container_17_Template_button_click_3_listener() { _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵrestoreView"](_r15); const ctx_r16 = _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵnextContext"](); return ctx_r16.toggleTeamDefeat(); });
+    _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵtext"](4);
+    _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵelementEnd"]();
+    _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵelementContainerEnd"]();
+} if (rf & 2) {
+    const ctx_r7 = _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵnextContext"]();
+    _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵadvance"](1);
+    _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵclassProp"]("toggled", ctx_r7.current_trainer.isFullTeamRevealed());
+    _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵproperty"]("disabled", ctx_r7.dex.isFullyRevealed);
+    _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵadvance"](1);
+    _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵtextInterpolate1"](" ", ctx_r7.current_trainer.isFullTeamRevealed() ? "Unspoil\nTeam" : "Spoil\nTeam", " ");
+    _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵadvance"](1);
+    _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵclassProp"]("toggled", ctx_r7.current_trainer.isFullTeamDefeated());
+    _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵadvance"](1);
+    _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵtextInterpolate1"](" ", ctx_r7.current_trainer.isFullTeamDefeated() ? "Undefeat\nTeam" : "Defeat\nTeam", " ");
+} }
+const _c2 = function () { return [0, 1, 2, 3, 4, 5]; };
+class TrainersViewComponent {
+    constructor(dex, cdr) {
+        this.cdr = cdr;
+        this.ctrl = new _angular_forms__WEBPACK_IMPORTED_MODULE_4__.FormControl();
+        this.destroy$ = new rxjs__WEBPACK_IMPORTED_MODULE_5__.Subject();
+        this.trainer_selected = false;
+        this.dex = dex;
+        this.trainers_filtered_by_text = this.ctrl.valueChanges.pipe((0,rxjs_operators__WEBPACK_IMPORTED_MODULE_6__.startWith)(''), (0,rxjs_operators__WEBPACK_IMPORTED_MODULE_7__.filter)(text => typeof text === 'string'), (0,rxjs_operators__WEBPACK_IMPORTED_MODULE_8__.map)((search_text) => this.searchTrainers(search_text)));
+    }
+    searchTrainers(search_text) {
+        return this.dex.trainers
+            .filter((trainer) => trainer.name.toLowerCase().includes(search_text.toLowerCase()));
+    }
+    ngAfterViewInit() {
+        this.maut.optionSelected.pipe((0,rxjs_operators__WEBPACK_IMPORTED_MODULE_8__.map)((ev) => {
+            let trainer = ev.option.value;
+            return trainer;
+        }), (0,rxjs_operators__WEBPACK_IMPORTED_MODULE_9__.takeUntil)(this.destroy$)).subscribe((trainer) => {
+            if (trainer) {
+                this.dex.trainerSelection.next(trainer);
+            }
+        });
+        this.dex.trainerSelection.pipe((0,rxjs_operators__WEBPACK_IMPORTED_MODULE_9__.takeUntil)(this.destroy$)).subscribe((trainer) => {
+            this.selectTrainer(trainer);
+            this.cdr.detectChanges();
+        });
+        this.dex.dexChanges.pipe((0,rxjs_operators__WEBPACK_IMPORTED_MODULE_9__.takeUntil)(this.destroy$)).subscribe(() => {
+            if (this.current_trainer && !this.dex.trainers.includes(this.current_trainer)) {
+                this.trainer_selected = false;
+                this.current_trainer = undefined;
+            }
+        });
+    }
+    ngOnDestroy() {
+        this.destroy$.next();
+        this.destroy$.complete();
+    }
+    ngOnInit() {
+    }
+    selectTrainer(trainer) {
+        if (trainer) {
+            this.trainer_selected = true;
+            this.current_trainer = trainer;
+            this.search_box.value = '';
+            this.ctrl.setValue('');
+        }
+    }
+    toggleTeamSpoil() {
+        if (this.current_trainer) {
+            let status = this.current_trainer.Pokes.every(p => p.isRevealed);
+            for (let poke of this.current_trainer.Pokes) {
+                poke.isRevealed = !status;
+            }
+        }
+    }
+    toggleTeamDefeat() {
+        if (this.current_trainer) {
+            let isFullTeamDefeated = this.current_trainer.Pokes.every(p => p.isDefeated);
+            for (let poke of this.current_trainer.Pokes) {
+                let mon = this.dex.pokedexByName.get(poke.name);
+                if (mon) {
+                    if (isFullTeamDefeated) {
+                        if (poke.isDefeated) { // This check should be unnecessary
+                            mon.undefeatTrainerPokemon(poke, src_app_Settings__WEBPACK_IMPORTED_MODULE_0__.DEFAULT_SETTINGS);
+                            poke.isDefeated = false;
+                            poke.isRevealed = false;
+                        }
+                    }
+                    else {
+                        if (!poke.isDefeated) {
+                            mon.defeatTrainerPokemon(poke, src_app_Settings__WEBPACK_IMPORTED_MODULE_0__.DEFAULT_SETTINGS);
+                            poke.isDefeated = true;
+                            poke.isRevealed = true;
+                        }
+                    }
+                }
+            }
+            this.dex.bumpTrainerEncounterOrder(this.current_trainer);
+            this.dex.dexChanges.next();
+        }
+    }
+    getTrainerPowerLevel(trainer) {
+        return trainer.Pokes
+            .filter(tp => !tp.canMegaEvolve())
+            .map(tp => this.dex.pokedexByName
+            .get(tp.name) //Will throw Type mismatch if this cannot be found
+            .calculateFoeStatsAtLevel(tp.level, 0, false)
+            .reduce((a, b) => a + b, 0))
+            .reduce((a, b) => a + b, 0);
+    }
+}
+TrainersViewComponent.ɵfac = function TrainersViewComponent_Factory(t) { return new (t || TrainersViewComponent)(_angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵdirectiveInject"](src_app_pokedex_service__WEBPACK_IMPORTED_MODULE_1__.PokedexService), _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵdirectiveInject"](_angular_core__WEBPACK_IMPORTED_MODULE_3__.ChangeDetectorRef)); };
+TrainersViewComponent.ɵcmp = /*@__PURE__*/ _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵdefineComponent"]({ type: TrainersViewComponent, selectors: [["trainers-view"]], viewQuery: function TrainersViewComponent_Query(rf, ctx) { if (rf & 1) {
+        _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵviewQuery"](_c0, 5);
+        _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵviewQuery"](_c1, 5);
+    } if (rf & 2) {
+        let _t;
+        _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵqueryRefresh"](_t = _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵloadQuery"]()) && (ctx.maut = _t.first);
+        _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵqueryRefresh"](_t = _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵloadQuery"]()) && (ctx.search_box = _t.first);
+    } }, decls: 18, vars: 10, consts: [["id", "trainer-view-base"], ["id", "trainer-details-grid", 1, "wireframe"], ["class", "wireframe tp-panel-container", 4, "ngFor", "ngForOf"], ["id", "trainer-search-zone", 1, "wireframe"], [1, "element-container", "tv-search"], [1, "wireframe"], ["type", "text", "placeholder", "Search For Trainers", "aria-label", "Number", "matInput", "", 3, "formControl", "matAutocomplete"], ["searchInput", ""], ["autoActiveFirstOption", ""], ["mm", "matAutocomplete"], [3, "value", 4, "ngFor", "ngForOf"], [1, "element-container", "tv-name-plate"], [1, "tv-name"], [4, "ngIf", "ngIfElse"], ["noTrainer", ""], [4, "ngIf"], [1, "wireframe", "tp-panel-container"], [3, "trainer_pokemon", "alt_forms", 4, "ngIf", "ngIfElse"], ["noPokemon", ""], [3, "trainer_pokemon", "alt_forms"], [1, "element-container", "tp-no-pokemon"], ["src", "assets/images/pokeball-icon.png", 1, "icon-white"], [3, "value"], [1, "power-level"], [1, "tv-spoil-button", 3, "disabled", "click"], [1, "tv-defeat-button", 3, "click"]], template: function TrainersViewComponent_Template(rf, ctx) { if (rf & 1) {
+        _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵelementStart"](0, "div", 0)(1, "div", 1);
+        _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵtemplate"](2, TrainersViewComponent_div_2_Template, 4, 2, "div", 2);
+        _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵelementEnd"]();
+        _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵelementStart"](3, "div", 3)(4, "div", 4)(5, "mat-form-field", 5);
+        _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵelement"](6, "input", 6, 7);
+        _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵelementStart"](8, "mat-autocomplete", 8, 9);
+        _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵtemplate"](10, TrainersViewComponent_mat_option_10_Template, 2, 2, "mat-option", 10);
+        _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵpipe"](11, "async");
+        _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵelementEnd"]()()();
+        _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵelementStart"](12, "div", 11)(13, "div", 12);
+        _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵtemplate"](14, TrainersViewComponent_ng_container_14_Template, 4, 2, "ng-container", 13);
+        _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵtemplate"](15, TrainersViewComponent_ng_template_15_Template, 1, 0, "ng-template", null, 14, _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵtemplateRefExtractor"]);
+        _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵelementEnd"]();
+        _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵtemplate"](17, TrainersViewComponent_ng_container_17_Template, 5, 7, "ng-container", 15);
+        _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵelementEnd"]()()();
+    } if (rf & 2) {
+        const _r2 = _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵreference"](9);
+        const _r5 = _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵreference"](16);
+        _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵadvance"](2);
+        _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵproperty"]("ngForOf", _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵpureFunction0"](9, _c2));
+        _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵadvance"](4);
+        _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵproperty"]("formControl", ctx.ctrl)("matAutocomplete", _r2);
+        _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵadvance"](4);
+        _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵproperty"]("ngForOf", _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵpipeBind1"](11, 7, ctx.trainers_filtered_by_text));
+        _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵadvance"](4);
+        _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵproperty"]("ngIf", ctx.current_trainer)("ngIfElse", _r5);
+        _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵadvance"](3);
+        _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵproperty"]("ngIf", ctx.current_trainer);
+    } }, directives: [_angular_common__WEBPACK_IMPORTED_MODULE_10__.NgForOf, _angular_common__WEBPACK_IMPORTED_MODULE_10__.NgIf, _tp_panel_tp_panel_component__WEBPACK_IMPORTED_MODULE_2__.TpPanelComponent, _angular_material_form_field__WEBPACK_IMPORTED_MODULE_11__.MatFormField, _angular_material_input__WEBPACK_IMPORTED_MODULE_12__.MatInput, _angular_forms__WEBPACK_IMPORTED_MODULE_4__.DefaultValueAccessor, _angular_material_autocomplete__WEBPACK_IMPORTED_MODULE_13__.MatAutocompleteTrigger, _angular_forms__WEBPACK_IMPORTED_MODULE_4__.NgControlStatus, _angular_forms__WEBPACK_IMPORTED_MODULE_4__.FormControlDirective, _angular_material_autocomplete__WEBPACK_IMPORTED_MODULE_13__.MatAutocomplete, _angular_material_core__WEBPACK_IMPORTED_MODULE_14__.MatOption], pipes: [_angular_common__WEBPACK_IMPORTED_MODULE_10__.AsyncPipe], styles: ["#trainer-view-base[_ngcontent-%COMP%] {\n  display: flex;\n  flex-direction: column;\n  min-height: 600px;\n  max-height: 600px;\n  min-width: 1200px;\n  max-width: 1300px;\n  margin-top: 20px;\n  margin-left: auto;\n  margin-right: auto;\n  margin-bottom: 10px;\n}\n\n#trainer-search-zone[_ngcontent-%COMP%] {\n  height: 90px;\n  display: flex;\n  flex-direction: row;\n  align-items: center;\n  justify-content: center;\n}\n\n#trainer-search-box[_ngcontent-%COMP%] {\n  width: 200px;\n  padding: 5px;\n}\n\nmat-form-field[_ngcontent-%COMP%] {\n  width: 300px;\n}\n\n#trainer-details-grid[_ngcontent-%COMP%] {\n  flex: 1;\n  display: grid;\n  grid-template-columns: 1fr 1fr 1fr;\n  grid-template-rows: 1fr 1fr;\n  align-items: stretch;\n  justify-items: stretch;\n  box-sizing: border-box;\n}\n\n.tp-panel-container[_ngcontent-%COMP%] {\n  height: 100%;\n  width: 100%;\n  padding: 5px;\n}\n\n.tp-no-pokemon[_ngcontent-%COMP%] {\n  height: 100%;\n  width: 100%;\n  display: flex;\n  align-items: center;\n  justify-content: center;\n}\n\n.tv-search[_ngcontent-%COMP%] {\n  padding: 0px;\n  padding-left: 12px;\n}\n\n.icon-white[_ngcontent-%COMP%] {\n  max-width: 175px;\n  filter: invert(1) brightness(0.3);\n}\n\n.tv-name-plate[_ngcontent-%COMP%] {\n  margin-left: 10px;\n  display: flex;\n  flex-direction: row;\n  align-items: center;\n  width: 400px;\n  height: 65px;\n}\n\n.power-level[_ngcontent-%COMP%] {\n  font-style: italic;\n  color: grey;\n  margin-left: 4px;\n}\n\n.tv-name[_ngcontent-%COMP%] {\n  font-size: medium;\n}\n\nbutton[_ngcontent-%COMP%] {\n  display: flex;\n  flex-direction: column;\n  align-items: center;\n  justify-content: center;\n  font-size: 8pt;\n  font-weight: bold;\n  color: white;\n}\n\n.tv-spoil-button[_ngcontent-%COMP%] {\n  height: 50px;\n  width: 50px;\n  border-radius: 25px;\n  margin-left: auto;\n  background-color: #156615;\n}\n\n.tv-spoil-button.toggled[_ngcontent-%COMP%] {\n  background-color: #858585;\n}\n\n.tv-defeat-button[_ngcontent-%COMP%] {\n  margin-left: 5px;\n  height: 50px;\n  width: 50px;\n  border-radius: 25px;\n  background-color: #720000;\n}\n\n.tv-defeat-button.toggled[_ngcontent-%COMP%] {\n  background-color: #424242;\n}\n/*# sourceMappingURL=data:application/json;base64,eyJ2ZXJzaW9uIjozLCJzb3VyY2VzIjpbInRyYWluZXJzLXZpZXcuY29tcG9uZW50LnNjc3MiXSwibmFtZXMiOltdLCJtYXBwaW5ncyI6IkFBQUE7RUFDRSxhQUFBO0VBQ0Esc0JBQUE7RUFFQSxpQkFBQTtFQUNBLGlCQUFBO0VBQ0EsaUJBQUE7RUFDQSxpQkFBQTtFQUNBLGdCQUFBO0VBQ0EsaUJBQUE7RUFDQSxrQkFBQTtFQUNBLG1CQUFBO0FBQUY7O0FBRUE7RUFDRSxZQUFBO0VBQ0EsYUFBQTtFQUNBLG1CQUFBO0VBQ0EsbUJBQUE7RUFDQSx1QkFBQTtBQUNGOztBQUNBO0VBQ0UsWUFBQTtFQUNBLFlBQUE7QUFFRjs7QUFFQTtFQUNFLFlBQUE7QUFDRjs7QUFFQTtFQUNFLE9BQUE7RUFDQSxhQUFBO0VBQ0Esa0NBQUE7RUFDQSwyQkFBQTtFQUNBLG9CQUFBO0VBQ0Esc0JBQUE7RUFDQSxzQkFBQTtBQUNGOztBQUdBO0VBQ0UsWUFBQTtFQUNBLFdBQUE7RUFDQSxZQUFBO0FBQUY7O0FBR0E7RUFDRSxZQUFBO0VBQ0EsV0FBQTtFQUNBLGFBQUE7RUFDQSxtQkFBQTtFQUNBLHVCQUFBO0FBQUY7O0FBR0E7RUFDSSxZQUFBO0VBQ0Esa0JBQUE7QUFBSjs7QUFHQTtFQUNFLGdCQUFBO0VBQ0EsaUNBQUE7QUFBRjs7QUFHQTtFQUNFLGlCQUFBO0VBQ0EsYUFBQTtFQUNBLG1CQUFBO0VBQ0EsbUJBQUE7RUFDQSxZQUFBO0VBQ0EsWUFBQTtBQUFGOztBQUdBO0VBQ0Usa0JBQUE7RUFDQSxXQUFBO0VBQ0EsZ0JBQUE7QUFBRjs7QUFHQTtFQUNFLGlCQUFBO0FBQUY7O0FBR0E7RUFDRSxhQUFBO0VBQ0Esc0JBQUE7RUFDQSxtQkFBQTtFQUNBLHVCQUFBO0VBQ0EsY0FBQTtFQUNBLGlCQUFBO0VBQ0EsWUFBQTtBQUFGOztBQUdBO0VBQ0UsWUFBQTtFQUNBLFdBQUE7RUFDQSxtQkFBQTtFQUNBLGlCQUFBO0VBQ0EseUJBQUE7QUFBRjs7QUFHQTtFQUNJLHlCQUFBO0FBQUo7O0FBR0E7RUFDRSxnQkFBQTtFQUNBLFlBQUE7RUFDQSxXQUFBO0VBQ0EsbUJBQUE7RUFDQSx5QkFBQTtBQUFGOztBQUdBO0VBQ0kseUJBQUE7QUFBSiIsImZpbGUiOiJ0cmFpbmVycy12aWV3LmNvbXBvbmVudC5zY3NzIiwic291cmNlc0NvbnRlbnQiOlsiI3RyYWluZXItdmlldy1iYXNlIHtcclxuICBkaXNwbGF5OmZsZXg7XHJcbiAgZmxleC1kaXJlY3Rpb246IGNvbHVtbjtcclxuICAvLyBhbGlnbi1pdGVtczogZmxleC1zdGFydDtcclxuICBtaW4taGVpZ2h0OiA2MDBweDtcclxuICBtYXgtaGVpZ2h0OiA2MDBweDtcclxuICBtaW4td2lkdGg6IDEyMDBweDtcclxuICBtYXgtd2lkdGg6IDEzMDBweDtcclxuICBtYXJnaW4tdG9wOiAyMHB4O1xyXG4gIG1hcmdpbi1sZWZ0OiBhdXRvO1xyXG4gIG1hcmdpbi1yaWdodDogYXV0bztcclxuICBtYXJnaW4tYm90dG9tOiAxMHB4O1xyXG59XHJcbiN0cmFpbmVyLXNlYXJjaC16b25lIHtcclxuICBoZWlnaHQ6IDkwcHg7XHJcbiAgZGlzcGxheTogZmxleDtcclxuICBmbGV4LWRpcmVjdGlvbjogcm93O1xyXG4gIGFsaWduLWl0ZW1zOiBjZW50ZXI7XHJcbiAganVzdGlmeS1jb250ZW50OiBjZW50ZXI7XHJcbn1cclxuI3RyYWluZXItc2VhcmNoLWJveCB7XHJcbiAgd2lkdGg6IDIwMHB4O1xyXG4gIHBhZGRpbmc6IDVweDtcclxuXHJcbn1cclxuXHJcbm1hdC1mb3JtLWZpZWxkIHtcclxuICB3aWR0aDogMzAwcHg7XHJcbn1cclxuXHJcbiN0cmFpbmVyLWRldGFpbHMtZ3JpZCB7XHJcbiAgZmxleDogMTtcclxuICBkaXNwbGF5OiBncmlkO1xyXG4gIGdyaWQtdGVtcGxhdGUtY29sdW1uczogMWZyIDFmciAxZnI7XHJcbiAgZ3JpZC10ZW1wbGF0ZS1yb3dzOiAxZnIgMWZyO1xyXG4gIGFsaWduLWl0ZW1zOiBzdHJldGNoO1xyXG4gIGp1c3RpZnktaXRlbXM6IHN0cmV0Y2g7XHJcbiAgYm94LXNpemluZzogYm9yZGVyLWJveDtcclxuXHJcbn1cclxuXHJcbi50cC1wYW5lbC1jb250YWluZXIge1xyXG4gIGhlaWdodDogMTAwJTtcclxuICB3aWR0aDogMTAwJTtcclxuICBwYWRkaW5nOiA1cHg7XHJcbn1cclxuXHJcbi50cC1uby1wb2tlbW9uIHtcclxuICBoZWlnaHQ6IDEwMCU7XHJcbiAgd2lkdGg6IDEwMCU7XHJcbiAgZGlzcGxheTogZmxleDtcclxuICBhbGlnbi1pdGVtczogY2VudGVyO1xyXG4gIGp1c3RpZnktY29udGVudDogY2VudGVyO1xyXG59XHJcblxyXG4udHYtc2VhcmNoIHtcclxuICAgIHBhZGRpbmc6IDBweDtcclxuICAgIHBhZGRpbmctbGVmdDogMTJweDtcclxufVxyXG5cclxuLmljb24td2hpdGUge1xyXG4gIG1heC13aWR0aDogMTc1cHg7XHJcbiAgZmlsdGVyOiBpbnZlcnQoMSkgYnJpZ2h0bmVzcyguMylcclxufVxyXG5cclxuLnR2LW5hbWUtcGxhdGUge1xyXG4gIG1hcmdpbi1sZWZ0OiAxMHB4O1xyXG4gIGRpc3BsYXk6IGZsZXg7XHJcbiAgZmxleC1kaXJlY3Rpb246IHJvdztcclxuICBhbGlnbi1pdGVtczogY2VudGVyO1xyXG4gIHdpZHRoOiA0MDBweDtcclxuICBoZWlnaHQ6IDY1cHg7XHJcbn1cclxuXHJcbi5wb3dlci1sZXZlbCB7XHJcbiAgZm9udC1zdHlsZTogaXRhbGljO1xyXG4gIGNvbG9yOiBncmV5O1xyXG4gIG1hcmdpbi1sZWZ0OiA0cHg7XHJcbn1cclxuXHJcbi50di1uYW1lIHtcclxuICBmb250LXNpemU6IG1lZGl1bTtcclxufVxyXG5cclxuYnV0dG9uIHtcclxuICBkaXNwbGF5OiBmbGV4O1xyXG4gIGZsZXgtZGlyZWN0aW9uOiBjb2x1bW47XHJcbiAgYWxpZ24taXRlbXM6IGNlbnRlcjtcclxuICBqdXN0aWZ5LWNvbnRlbnQ6IGNlbnRlcjtcclxuICBmb250LXNpemU6IDhwdDtcclxuICBmb250LXdlaWdodDogYm9sZDtcclxuICBjb2xvcjogd2hpdGU7XHJcbn1cclxuXHJcbi50di1zcG9pbC1idXR0b24ge1xyXG4gIGhlaWdodDogNTBweDtcclxuICB3aWR0aDogNTBweDtcclxuICBib3JkZXItcmFkaXVzOiAyNXB4O1xyXG4gIG1hcmdpbi1sZWZ0OiBhdXRvO1xyXG4gIGJhY2tncm91bmQtY29sb3I6ICMxNTY2MTU7XHJcbiAgXHJcbn1cclxuLnR2LXNwb2lsLWJ1dHRvbi50b2dnbGVkIHtcclxuICAgIGJhY2tncm91bmQtY29sb3I6ICM4NTg1ODU7XHJcbn1cclxuXHJcbi50di1kZWZlYXQtYnV0dG9uIHtcclxuICBtYXJnaW4tbGVmdDogNXB4O1xyXG4gIGhlaWdodDogNTBweDtcclxuICB3aWR0aDogNTBweDtcclxuICBib3JkZXItcmFkaXVzOiAyNXB4O1xyXG4gIGJhY2tncm91bmQtY29sb3I6ICM3MjAwMDA7XHJcbiAgXHJcbn1cclxuLnR2LWRlZmVhdC1idXR0b24udG9nZ2xlZCB7XHJcbiAgICBiYWNrZ3JvdW5kLWNvbG9yOiAjNDI0MjQyO1xyXG59XHJcblxyXG4gIC8vIGJ1dHRvbi50b3Age1xyXG4gIC8vICAgYm9yZGVyLXJhZGl1czogdmFyKC0tYnRuLWhlaWdodCkgdmFyKC0tYnRuLWhlaWdodCkgMCAwO1xyXG4gIC8vICAgYmFja2dyb3VuZC1jb2xvcjogIzE1NjYxNTtcclxuICAvLyAgIGp1c3RpZnktY29udGVudDogZmxleC1lbmQ7XHJcbiAgLy8gICBib3JkZXItYm90dG9tOiBzb2xpZCAxcHggYmxhY2s7XHJcbiAgLy8gfVxyXG4gIC8vIGJ1dHRvbi50b3AudG9nZ2xlZCB7XHJcbiAgLy8gICBiYWNrZ3JvdW5kLWNvbG9yOiAjODU4NTg1O1xyXG4gIC8vIH1cclxuICAvLyBidXR0b24uYm90dG9tIHtcclxuICAvLyAgIGJvcmRlci1yYWRpdXM6IDAgMCB2YXIoLS1idG4taGVpZ2h0KSB2YXIoLS1idG4taGVpZ2h0KTtcclxuICAvLyAgIGJhY2tncm91bmQtY29sb3I6ICM3MjAwMDA7XHJcbiAgLy8gICBqdXN0aWZ5LWNvbnRlbnQ6IGZsZXgtc3RhcnQ7XHJcbiAgLy8gfVxyXG4gIC8vIGJ1dHRvbi5ib3R0b20udG9nZ2xlZCB7XHJcbiAgLy8gICBiYWNrZ3JvdW5kLWNvbG9yOiAjNDI0MjQyO1xyXG4gIC8vIH0iXX0= */"] });
 
 
 /***/ }),
@@ -3523,7 +4402,7 @@ __webpack_require__.r(__webpack_exports__);
 /* harmony export */ __webpack_require__.d(__webpack_exports__, {
 /* harmony export */   "WorldViewComponent": () => (/* binding */ WorldViewComponent)
 /* harmony export */ });
-/* harmony import */ var chart_js__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! chart.js */ 177);
+/* harmony import */ var chart_js__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! chart.js */ 3905);
 /* harmony import */ var _chart_configs_bst_histogram_config__WEBPACK_IMPORTED_MODULE_1__ = __webpack_require__(/*! ./chart-configs/bst-histogram.config */ 8705);
 /* harmony import */ var _chart_configs_stat_ratio_histogram_config__WEBPACK_IMPORTED_MODULE_2__ = __webpack_require__(/*! ./chart-configs/stat-ratio-histogram.config */ 7419);
 /* harmony import */ var _chart_configs_stat_histogram_config__WEBPACK_IMPORTED_MODULE_3__ = __webpack_require__(/*! ./chart-configs/stat-histogram.config */ 4613);
@@ -4443,6 +5322,7 @@ class TableViewComponent {
     rowClick(name) {
         if (name) {
             this._pokedexService.selectPokemon(name);
+            this._pokedexService.updateCardNavigationSelection('summaryTab');
         }
     }
     eventEmitted($event) {
@@ -4526,13 +5406,15 @@ __webpack_require__.r(__webpack_exports__);
 /* harmony export */ __webpack_require__.d(__webpack_exports__, {
 /* harmony export */   "PokedexService": () => (/* binding */ PokedexService)
 /* harmony export */ });
-/* harmony import */ var tslib__WEBPACK_IMPORTED_MODULE_5__ = __webpack_require__(/*! tslib */ 4929);
-/* harmony import */ var rxjs__WEBPACK_IMPORTED_MODULE_3__ = __webpack_require__(/*! rxjs */ 1555);
-/* harmony import */ var rxjs__WEBPACK_IMPORTED_MODULE_4__ = __webpack_require__(/*! rxjs */ 2218);
+/* harmony import */ var tslib__WEBPACK_IMPORTED_MODULE_6__ = __webpack_require__(/*! tslib */ 2321);
+/* harmony import */ var rxjs__WEBPACK_IMPORTED_MODULE_4__ = __webpack_require__(/*! rxjs */ 1555);
+/* harmony import */ var rxjs__WEBPACK_IMPORTED_MODULE_5__ = __webpack_require__(/*! rxjs */ 2218);
 /* harmony import */ var _PokedexLoader__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! ./PokedexLoader */ 588);
 /* harmony import */ var _PokedexContext__WEBPACK_IMPORTED_MODULE_1__ = __webpack_require__(/*! ./PokedexContext */ 9553);
 /* harmony import */ var _TutorialNote__WEBPACK_IMPORTED_MODULE_2__ = __webpack_require__(/*! ./TutorialNote */ 4419);
-/* harmony import */ var _angular_core__WEBPACK_IMPORTED_MODULE_6__ = __webpack_require__(/*! @angular/core */ 3184);
+/* harmony import */ var _PokedexNavigation__WEBPACK_IMPORTED_MODULE_3__ = __webpack_require__(/*! ./PokedexNavigation */ 6219);
+/* harmony import */ var _angular_core__WEBPACK_IMPORTED_MODULE_7__ = __webpack_require__(/*! @angular/core */ 3184);
+
 
 
 
@@ -4561,31 +5443,39 @@ class PokedexService {
         this.tmMoves = [];
         this.hmMoves = [];
         this.starters = [];
+        this.trainersEncountered = 0;
         this.dexLoader = new _PokedexLoader__WEBPACK_IMPORTED_MODULE_0__.PokedexLoader();
+        this.navigation = new _PokedexNavigation__WEBPACK_IMPORTED_MODULE_3__.PokedexNavigation();
         this.trainers = [];
         this.trainersByPokemonName = new Map();
-        this.dexChanges = new rxjs__WEBPACK_IMPORTED_MODULE_3__.ReplaySubject();
-        this.individualChanges = new rxjs__WEBPACK_IMPORTED_MODULE_4__.Subject();
-        this.monSelection = new rxjs__WEBPACK_IMPORTED_MODULE_3__.ReplaySubject(1);
-        this.filterChanges = new rxjs__WEBPACK_IMPORTED_MODULE_3__.ReplaySubject(1);
-        this.loadingStatus = new rxjs__WEBPACK_IMPORTED_MODULE_3__.ReplaySubject();
+        this.dexChanges = new rxjs__WEBPACK_IMPORTED_MODULE_4__.ReplaySubject(1);
+        this.individualChanges = new rxjs__WEBPACK_IMPORTED_MODULE_5__.Subject();
+        this.monSelection = new rxjs__WEBPACK_IMPORTED_MODULE_4__.ReplaySubject(1);
+        this.filterChanges = new rxjs__WEBPACK_IMPORTED_MODULE_4__.ReplaySubject(1);
+        this.loadingStatus = new rxjs__WEBPACK_IMPORTED_MODULE_4__.ReplaySubject(1);
+        this.trainerSelection = new rxjs__WEBPACK_IMPORTED_MODULE_4__.ReplaySubject(1);
+        this.trainerPokemonSelection = new rxjs__WEBPACK_IMPORTED_MODULE_4__.ReplaySubject(1);
+        this.cardNavigationSelection = new rxjs__WEBPACK_IMPORTED_MODULE_5__.Subject();
         //TODO: THIS MUST BE COMMENTED OUT BEFORE PRODUCTION
         window.dex = this;
     }
+    updateCardNavigationSelection(selection) {
+        this.cardNavigationSelection.next(selection);
+    }
     loadDefaultData() {
-        return (0,tslib__WEBPACK_IMPORTED_MODULE_5__.__awaiter)(this, void 0, void 0, function* () {
+        return (0,tslib__WEBPACK_IMPORTED_MODULE_6__.__awaiter)(this, void 0, void 0, function* () {
             if (this.dexLoader.lastFileRead !== PokedexService.defaultPkdxName) {
                 yield this.loadNewDex(PokedexService.defaultPkdxName);
             }
         });
     }
     loadSampleRandomData() {
-        return (0,tslib__WEBPACK_IMPORTED_MODULE_5__.__awaiter)(this, void 0, void 0, function* () {
+        return (0,tslib__WEBPACK_IMPORTED_MODULE_6__.__awaiter)(this, void 0, void 0, function* () {
             yield this.loadNewDex(PokedexService.sampleRandomPkdxName);
         });
     }
     loadNewDex(inputFile) {
-        return (0,tslib__WEBPACK_IMPORTED_MODULE_5__.__awaiter)(this, void 0, void 0, function* () {
+        return (0,tslib__WEBPACK_IMPORTED_MODULE_6__.__awaiter)(this, void 0, void 0, function* () {
             this.loadingStatus.next(true);
             try {
                 let res = yield this.dexLoader.parseDex(inputFile);
@@ -4648,6 +5538,7 @@ class PokedexService {
             this.pokedexByName.set(mon.name, mon);
             this.trainersByPokemonName.set(mon.name, this.trainers.filter((t) => t.contains(mon.name)));
         }
+        this.trainersEncountered = Math.max(...this.trainers.map(t => t.encounterOrder));
         this.dexChanges.next();
         //TODO: This would be better in the Individual View I think
         if (this.pokedex.length > 0) {
@@ -4660,7 +5551,7 @@ class PokedexService {
         this.validDexUploaded = true;
     }
     initializeData() {
-        return (0,tslib__WEBPACK_IMPORTED_MODULE_5__.__awaiter)(this, void 0, void 0, function* () {
+        return (0,tslib__WEBPACK_IMPORTED_MODULE_6__.__awaiter)(this, void 0, void 0, function* () {
             this.loadingStatus.next(true);
             const cached = yield this.dexLoader.attemptLoadCachedDex();
             if (cached && cached.pokedex.length > 0) {
@@ -4849,11 +5740,21 @@ class PokedexService {
     selectPokemon(name) {
         this.monSelection.next(name);
     }
+    bumpTrainerEncounterOrder(trainer) {
+        if (trainer.Pokes.some(p => p.isDefeated)) {
+            if (trainer.encounterOrder === 0) {
+                trainer.encounterOrder = ++this.trainersEncountered;
+            }
+        }
+        else {
+            trainer.encounterOrder = 0;
+        }
+    }
 }
 PokedexService.defaultPkdxName = './assets/data/Default.pkdx';
 PokedexService.sampleRandomPkdxName = './assets/data/Random.pkdx';
 PokedexService.ɵfac = function PokedexService_Factory(t) { return new (t || PokedexService)(); };
-PokedexService.ɵprov = /*@__PURE__*/ _angular_core__WEBPACK_IMPORTED_MODULE_6__["ɵɵdefineInjectable"]({ token: PokedexService, factory: PokedexService.ɵfac, providedIn: 'root' });
+PokedexService.ɵprov = /*@__PURE__*/ _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵdefineInjectable"]({ token: PokedexService, factory: PokedexService.ɵfac, providedIn: 'root' });
 
 
 /***/ }),

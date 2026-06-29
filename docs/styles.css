@@ -1119,7 +1119,7 @@ body {
   display: none;
 }
 .wireframe {
-  border-width: 0px;
+  outline: 0px dashed red;
 }
 .mat-autocomplete-panel {
   background: #19181a;
@@ -1337,7 +1337,6 @@ app-footer div {
   font-size: 12px;
 }
 .element-container {
-  width: -moz-fit-content;
   width: fit-content;
   background-color: #19181a;
   border-radius: 10px;
