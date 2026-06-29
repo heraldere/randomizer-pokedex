@@ -48,7 +48,7 @@ export class IndividualSummaryComponent
   @ViewChild('searchInput')
   search_box!: MatInput;
   tms_shown = false;
-  noteSelector: 'notes' | 'trainers' | 'locations' = 'notes';
+  noteSelector!: 'notes' | 'trainers' | 'locations';
   fishingControl: FormControl = new FormControl(false);
   miscLocationsControl: FormControl = new FormControl(false);
 
@@ -60,6 +60,7 @@ export class IndividualSummaryComponent
       startWith(''),
       map((search_text) => this.searchMons(search_text))
     );
+    this.noteSelector  = this.dex.navigation.iv_misc_selection;
   }
 
   searchMons(search_text: string): string[] {
@@ -136,6 +137,7 @@ export class IndividualSummaryComponent
 
   toggleNotes(selection: 'notes' | 'trainers' | 'locations') {
     this.noteSelector = selection;
+    this.dex.navigation.iv_misc_selection = selection;
   }
 
   filterLocations(): string[] {

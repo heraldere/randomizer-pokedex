@@ -117,6 +117,11 @@ export class PokedexLoader {
           break;
       }
     }
+    
+    const { version: gameVersion, generation: gen } =
+      this.getGameAndGenerationFromLog(blocks);
+    this.lastLoadedLogGameVersion = gameVersion;
+    this.lastLoadedLogGeneration = gen;
 
     if (
       pokeStrings.length == 0 ||
@@ -128,10 +133,6 @@ export class PokedexLoader {
       trainerStrings.length == 0 ||
       starterStrings.length == 0
     ) {
-      const { version: gameVersion, generation: gen } =
-        this.getGameAndGenerationFromLog(blocks);
-      this.lastLoadedLogGameVersion = gameVersion;
-      this.lastLoadedLogGeneration = gen;
       console.log(
         `Loading default data for ${gameVersion} (Generation ${gen})`
       );
@@ -405,17 +406,49 @@ export class PokedexLoader {
     trainerStrings: string[],
     defaultDataContext: PokedexContext | undefined
   ) {
-    if (trainerStrings.length == 1) {
-      let lines = trainerStrings[0].split('\n');
-      for (let trainerString of trainerStrings[0].split('\n')) {
-        ctx.trainers.push(Trainer.fromString(trainerString));
-      }
+    let lines: string[];
+
+    if (trainerStrings.length === 1) {
+      lines = trainerStrings[0].split('\n');
     } else if (trainerStrings.length > 1) {
-      for (let trainerString of trainerStrings) {
-        ctx.trainers.push(Trainer.fromString(trainerString));
-      }
+      lines = trainerStrings;
     } else if (defaultDataContext) {
       ctx.trainers = defaultDataContext.trainers;
+      return;
+    } else {
+      return;
+    }
+
+    for (const trainerString of lines) {
+      const trainer = Trainer.fromString(trainerString);
+
+      if (this.lastLoadedLogGeneration >= 6) {
+        // We have to infer what abilities Pokemon will have after mega evolving
+        this.resolveMegaEvolutionAbilities(ctx, trainer);
+      }
+
+      ctx.trainers.push(trainer);
+    }
+  }
+
+  private resolveMegaEvolutionAbilities(ctx: PokedexContext, t: Trainer) {
+    for(let mega of t.Pokes.filter(p => p.isMegaEvolved())) {
+      let megamon = ctx.pokedex.find(m => m.name === mega.name);
+      if(!(megamon && mega.ability)) {
+        continue;
+      }
+      let base_form_name = megamon.forms[0]
+      let base_form = ctx.pokedex.find( m => m.name === base_form_name)
+      if(!base_form) {
+        continue;
+      }
+      if(mega.ability === base_form.ability1) {
+        mega.ability = megamon.ability1;
+      } else if(mega.ability === base_form.ability2) {
+        mega.ability = megamon.ability2;
+      } else if(mega.ability === base_form.hiddenAbility) {
+        mega.ability = megamon.hiddenAbility;
+      } // Otherwise, mega can just keep whatever it has.
     }
   }
 

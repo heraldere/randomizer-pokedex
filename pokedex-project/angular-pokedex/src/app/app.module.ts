@@ -31,6 +31,8 @@ import { CardComponent } from './pokedex-page/cards-view/card/card.component';
 import { AboutPageComponent } from './about-page/about-page.component';
 import { WorldViewComponent } from './pokedex-page/cards-view/world-view/world-view.component';
 import { TrainerPokemonSelectorComponent } from './pokedex-page/cards-view/individual-summary/trainer-pokemon-selector/trainer-pokemon-selector.component';
+import { TrainersViewComponent } from './pokedex-page/cards-view/trainers-view/trainers-view.component';
+import { TpPanelComponent } from './pokedex-page/cards-view/trainers-view/tp-panel/tp-panel.component';
 
 @NgModule({
     exports: [
@@ -50,7 +52,9 @@ import { TrainerPokemonSelectorComponent } from './pokedex-page/cards-view/indiv
         CardComponent,
         AboutPageComponent,
         WorldViewComponent,
-        TrainerPokemonSelectorComponent
+        TrainerPokemonSelectorComponent,
+        TrainersViewComponent,
+        TpPanelComponent
     ],
     imports: [
         BrowserModule,

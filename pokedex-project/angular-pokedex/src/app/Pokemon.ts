@@ -1,4 +1,5 @@
 import { Settings } from "./Settings";
+import { TrainerPokemon } from "./Trainer";
 
 export enum PokeType {
   Normal = 'normal',
@@ -421,7 +422,13 @@ export class Pokemon {
 
   getStatsIfRevealed(): number[] {
     if (this.stats_revealed || this.fully_revealed) {
-      if (this.special) {
+      return this.getStats();
+    }
+    return [0, 0, 0, 0, 0, 0];
+  }
+
+  getStats(): number[] {
+    if (this.special) {
         return [this.hp, this.attack, this.defense, this.special, this.speed];
       } else {
         return [
@@ -433,8 +440,25 @@ export class Pokemon {
           this.speed,
         ];
       }
+  }
+
+  calculateFoeStatsAtLevel(level: number, ivs: number, retro: boolean, checkRevealed = false): number[] {
+    let base_stats = checkRevealed ? this.getStatsIfRevealed() : this.getStats();
+    if(!base_stats[0]) {
+      return base_stats;
     }
-    return [0, 0, 0, 0, 0, 0];
+    let stats: number[]
+    if(retro) {
+      stats = base_stats.map((base, i) => Math.floor(((base + ivs)*2*level) / 100 ) + 5 + ((i == 0) ? (5 + level) : 0))
+    } else {
+      stats = base_stats.map((base, i) => Math.floor(((2 * base + ivs)* level)/100) + 5 + ((i == 0) ? (5 + level) : 0))
+    }
+    //Nature is random, so we can't calculate that without reading game memory
+    // Gen 7 trainers can have evs, so this estimate will undershoot.
+    if(this.name.toLowerCase() === 'shedinja') {
+      stats[0] = 1
+    }
+    return stats;
   }
 
   getAbilitiesIfRevealed(): string[] {
@@ -504,13 +528,13 @@ export class Pokemon {
       .toLowerCase();
   }
 
-  defeatTrainerPokemon(trainerPokemonLevel: number, settings: Settings) {
-    this.levels_defeated_at.push(trainerPokemonLevel);
+  defeatTrainerPokemon(trainerPokemon: TrainerPokemon, settings: Settings, canMegaEvolve=false) {
+    this.levels_defeated_at.push(trainerPokemon.level);
     this.recalculateReveals(settings);
   }
 
-  undefeatTrainerPokemon(trainerPokemonLevel: number, settings: Settings) {
-    const idx = this.levels_defeated_at.indexOf(trainerPokemonLevel);
+  undefeatTrainerPokemon(trainerPokemon: TrainerPokemon, settings: Settings, canMegaEvolve=false) {
+    const idx = this.levels_defeated_at.indexOf(trainerPokemon.level);
     if (idx >= 0) {
       this.levels_defeated_at.splice(idx, 1);
     }
@@ -526,8 +550,12 @@ export class Pokemon {
         const maxLevel = Math.max(...this.levels_defeated_at);
         this.learned_moves_revealed_idx = this.learn_levels.filter(l => l <= maxLevel).length;
       }
-      if(settings.revealPrevEvoOnDefeat) this.prev_evos_revealed = this.prev_evos.map((e,i) => i);
-      if(settings.revealNextEvoOnDefeat) this.next_evos_revealed = this.next_evos.map((e,i) => i);
+      if(settings.revealPrevEvoOnDefeat) {
+        this.prev_evos_revealed = this.prev_evos.map((e,i) => i);
+      } 
+      if(settings.revealNextEvoOnDefeat) {
+        this.next_evos_revealed = this.next_evos.map((e,i) => i);
+      }
       if(settings.revealTMMovesOnDefeat) this.tm_indexes_learned = this.tms.map((t,i) => i);
       if(settings.revealLocationsOnDefeat) this.locations_revealed = true;
     } else {

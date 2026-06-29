@@ -35,5 +35,11 @@
       <button class="top" [class.toggled]="currentTrainerPokemon.isRevealed" *ngIf="currentTrainerPokemon" [disabled]="dex.isFullyRevealed" (click)="toggleSpoil()">{{currentTrainerPokemon.isRevealed ? 'Unspoil' : 'Spoil'}}</button>
       <button class="bottom" [class.toggled]="currentTrainerPokemon.isDefeated" *ngIf="currentTrainerPokemon" (click)="toggleDefeat()">{{currentTrainerPokemon.isDefeated ? 'Undefeat' : 'Defeat'}}</button>
     </div>
+    <div id="view-team-button" *ngIf="currentTrainerPokemon">
+      <ng-container *ngIf="currentTrainer as ct">
+        <button class="team-navigation" (click)="navigateToTrainerView(ct)" >View Team</button>
+      </ng-container>
+
+    </div>
   </div>
 </div>
