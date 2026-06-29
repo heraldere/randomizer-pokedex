@@ -68,8 +68,14 @@ mat-form-field {
   display: flex;
   flex-direction: row;
   align-items: center;
-  width: 350px;
+  width: 400px;
   height: 65px;
+}
+
+.power-level {
+  font-style: italic;
+  color: grey;
+  margin-left: 4px;
 }
 
 .tv-name {

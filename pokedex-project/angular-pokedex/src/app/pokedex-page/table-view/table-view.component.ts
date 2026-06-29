@@ -197,6 +197,7 @@ export class TableViewComponent implements OnInit, AfterViewInit{
   rowClick(name: string|undefined) {
     if(name){
       this._pokedexService.selectPokemon(name);
+      this._pokedexService.updateCardNavigationSelection('summaryTab');
     }
   }
 

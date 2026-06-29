@@ -48,11 +48,14 @@
     </div>
     <div class="element-container tv-name-plate">
       <div class="tv-name">
-        {{
-          this.current_trainer
-            ? this.current_trainer.name
-            : "No Trainer Selected"
-        }}
+        <ng-container *ngIf="current_trainer; else noTrainer">
+          {{ current_trainer.name }}
+          <span class="power-level">
+            ({{ getTrainerPowerLevel(current_trainer) }})
+          </span>
+        </ng-container>
+
+        <ng-template #noTrainer> No Trainer Selected </ng-template>
       </div>
       <ng-container *ngIf="this.current_trainer">
         <button
@@ -61,15 +64,23 @@
           [class.toggled]="this.current_trainer.isFullTeamRevealed()"
           (click)="toggleTeamSpoil()"
         >
-        {{this.current_trainer.isFullTeamRevealed() ? "Unspoil\nTeam" : "Spoil\nTeam"}}
-      </button>
+          {{
+            this.current_trainer.isFullTeamRevealed()
+              ? "Unspoil\nTeam"
+              : "Spoil\nTeam"
+          }}
+        </button>
         <button
           class="tv-defeat-button"
           [class.toggled]="this.current_trainer.isFullTeamDefeated()"
           (click)="toggleTeamDefeat()"
         >
-        {{this.current_trainer.isFullTeamDefeated() ? "Undefeat\nTeam" : "Defeat\nTeam"}}
-      </button>
+          {{
+            this.current_trainer.isFullTeamDefeated()
+              ? "Undefeat\nTeam"
+              : "Defeat\nTeam"
+          }}
+        </button>
       </ng-container>
     </div>
   </div>

@@ -1,15 +1,14 @@
 <div class="element-container tp-panel-base">
   <div class="wireframe tp-panel-selector-column">
-    <div (click)="navigateToIndividualView(selected_form)">{{ getFormName() }}</div>
+    <div >{{ getFormName() }}</div>
     <div>Lvl {{trainer_pokemon.level}}</div>
-    <img class="tp-img" src="{{getFormSprite()}}">
-    <div class="tp-type">
-      <div *ngIf="selected_form">
-        <ng-container *ngIf="getTypeSprite() as sprites">
-          <img class="type-box"  [src]="sprites[0]">
-          <img class="type-box" *ngIf="sprites[1]" [src]="sprites[1]">
-        </ng-container>
-      </div>
+    <img class="tp-img" src="{{getFormSprite()}}" (click)="navigateToIndividualView(selected_form)">
+    <div class="tp-type" *ngIf="selected_form">
+      <ng-container *ngIf="getTypeSprite() as sprites">
+        <img class="type-box"  [src]="sprites[0]">
+        <img class="type-box" *ngIf="sprites[1]" [src]="sprites[1]">
+      </ng-container>
+
     </div>
   </div>
   <div class="wireframe tp-panel-loadout-column">
@@ -38,7 +37,7 @@
     </ng-container>
   </div>
   <div class="wireframe tp-panel-stat-column">
-    <div *ngFor="let block of stat_blocks">
+    <div class="tp-stat" *ngFor="let block of stat_blocks">
       {{block[0]}}: {{block[1] ? block[1] : '???'}}
       <div class="tp-stat-bar" [style.width.%]="block[1]/4" 
       [ngClass]="{

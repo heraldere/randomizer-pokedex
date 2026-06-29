@@ -68,6 +68,17 @@ export class TrainersViewComponent implements OnInit, OnDestroy{
       }
     );
 
+    this.dex.dexChanges.pipe(
+      takeUntil(this.destroy$)
+    ).subscribe(
+      () => {
+        if(this.current_trainer && !this.dex.trainers.includes(this.current_trainer)) {
+          this.trainer_selected = false;
+          this.current_trainer = undefined;
+        }
+      }
+    )
+
   }
 
   ngOnDestroy(): void {
@@ -124,5 +135,17 @@ export class TrainersViewComponent implements OnInit, OnDestroy{
 
     }
 
+  }
+
+  getTrainerPowerLevel(trainer: Trainer): number {
+    return trainer.Pokes
+	  .filter(tp => !tp.canMegaEvolve())
+      .map(tp =>
+        this.dex.pokedexByName
+          .get(tp.name)! //Will throw Type mismatch if this cannot be found
+          .calculateFoeStatsAtLevel(tp.level, 0, false)
+          .reduce((a, b) => a + b, 0)
+      )
+      .reduce((a, b) => a + b, 0)
   }
 }

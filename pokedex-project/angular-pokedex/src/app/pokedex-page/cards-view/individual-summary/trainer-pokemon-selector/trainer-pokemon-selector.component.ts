@@ -77,7 +77,6 @@ export class TrainerPokemonSelectorComponent implements OnInit, AfterViewInit, O
       this.currentTrainer = this.dex.trainersByPokemonName.get(trainerPokemon.name)?.find((t) => t.Pokes.includes(trainerPokemon));
       if(this.currentMon?.name === trainerPokemon.name) {
         this.populateTrainerPokemonMap(trainerPokemon.name);
-        console.log(trainerPokemon, this.currentTrainer);
         this.maybeUpdateSelection(trainerPokemon.name, trainerPokemon);
       }
       // this.cdr.detectChanges();
@@ -251,5 +250,10 @@ export class TrainerPokemonSelectorComponent implements OnInit, AfterViewInit, O
     } else {
       console.log("Couldn't toggle defeat, missing data");
     }
+  }
+
+  navigateToTrainerView(trainer: Trainer) {
+    this.dex.trainerSelection.next(trainer);
+    this.dex.cardNavigationSelection.next('trainersTab')
   }
 }

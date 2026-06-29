@@ -74,7 +74,7 @@ export class TrainerPokemon {
         copy_name = copy_name + '-' + original.item.slice(-1);
     }
     let megaCopy = new TrainerPokemon(copy_name, original.level);
-    // megaCopy.ability = original.ability; //Ability may change on mega evolution, so we won't copy it by default
+    megaCopy.ability = original.ability; //Ability may change on mega evolution, so we won't copy it by default
     megaCopy.item = original.item;
     megaCopy.moves = [...original.moves];
     megaCopy.isRevealed = original.isRevealed;
